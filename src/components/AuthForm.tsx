@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useAuth } from '@/firebase';
+import { useAuth, useFirestore } from '@/firebase';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,6 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { X, LogIn, UserPlus } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { doc, setDoc } from 'firebase/firestore';
 
 type AuthFormProps = {
   open: boolean;
@@ -26,7 +27,7 @@ export default function AuthForm({ open, onOpenChange }: AuthFormProps) {
           {/* Front Side: Sign In */}
           <div className="absolute w-full h-full [backface-visibility:hidden]">
             <AuthCard>
-              <SignInForm onSignUpClick={() => setIsFlipped(true)} />
+              <SignInForm onSignUpClick={() => setIsFlipped(true)} onOpenChange={onOpenChange} />
             </AuthCard>
           </div>
 
@@ -48,7 +49,7 @@ const AuthCard = ({ children }: { children: React.ReactNode }) => (
     </div>
 );
 
-const SignInForm = ({ onSignUpClick }: { onSignUpClick: () => void }) => {
+const SignInForm = ({ onSignUpClick, onOpenChange }: { onSignUpClick: () => void, onOpenChange: (open: boolean) => void }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const { signIn } = useAuth();
@@ -60,6 +61,7 @@ const SignInForm = ({ onSignUpClick }: { onSignUpClick: () => void }) => {
     try {
       await signIn(email, password);
       toast({ title: 'Signed in successfully!' });
+      onOpenChange(false);
       router.push('/admin');
     } catch (error: any) {
       toast({
@@ -106,16 +108,30 @@ const SignUpForm = ({ onSignInClick }: { onSignInClick: () => void }) => {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const { signUp } = useAuth();
+  const firestore = useFirestore();
   const { toast } = useToast();
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!firestore) {
+        toast({ variant: 'destructive', title: 'Database not available' });
+        return;
+    }
     if (password !== confirmPassword) {
       toast({ variant: 'destructive', title: 'Passwords do not match' });
       return;
     }
     try {
-      await signUp(email, password);
+      const userCredential = await signUp(email, password);
+      const user = userCredential.user;
+
+      // Save user data to Firestore
+      await setDoc(doc(firestore, 'users', user.uid), {
+        uid: user.uid,
+        email: user.email,
+        role: 'user', // Default role
+      });
+
       toast({
         title: 'Account created!',
         description: 'You can now sign in.',

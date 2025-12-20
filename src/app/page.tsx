@@ -14,6 +14,9 @@ import ScrollToTop from "@/components/ov/ScrollToTop";
 import UnlockPdfDialog from "@/components/UnlockPdfDialog";
 import AuthForm from "@/components/AuthForm";
 import UnitList from "@/components/ov/UnitList";
+import Pricing from "@/components/ov/Pricing";
+import FAQ from "@/components/ov/FAQ";
+import PDFAccess from "@/components/ov/PDFAccess";
 
 
 const Home = () => {
@@ -27,9 +30,12 @@ const Home = () => {
         <Hero onUnlockClick={() => setIsUnlockModalOpen(true)} />
         <About />
         <Services />
-        <UnitList />
         <Portfolio />
         <Testimonials />
+        <Pricing />
+        <UnitList />
+        <FAQ />
+        <PDFAccess />
         <Contact />
       </main>
       <Footer />
