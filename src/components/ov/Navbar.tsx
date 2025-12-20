@@ -75,6 +75,11 @@ const Navbar = ({ onUnlockClick, onLoginClick }: NavbarProps) => {
     return name.charAt(0).toUpperCase();
   }
 
+  const handleBuyNotes = () => {
+    const message = encodeURIComponent("Hi! I'm interested in buying the NVQ Level 4 notes. Can you please provide more information?");
+    window.open(`https://wa.me/94754420805?text=${message}`, '_blank');
+  };
+
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b border-border/50">
       <div className="container mx-auto px-4">
@@ -98,9 +103,11 @@ const Navbar = ({ onUnlockClick, onLoginClick }: NavbarProps) => {
                 {link.name}
               </Link>
             ))}
-            <Button variant="outline" size="sm" onClick={onUnlockClick} className="rounded-full">
-              <BookOpen className="w-4 h-4 mr-2" />
-              Unlock Notes
+            <Button asChild variant="outline" size="sm" className="rounded-full">
+              <Link href="/notes">
+                <BookOpen className="w-4 h-4 mr-2" />
+                View Notes
+              </Link>
             </Button>
             {user ? (
               <DropdownMenu>
@@ -222,9 +229,11 @@ const Navbar = ({ onUnlockClick, onLoginClick }: NavbarProps) => {
                   {link.name}
                 </Link>
               ))}
-              <Button variant="outline" size="sm" className="w-full" onClick={() => { onUnlockClick(); setIsOpen(false); }}>
-                <BookOpen className="w-4 h-4 mr-2" />
-                Unlock Notes
+              <Button asChild variant="outline" size="sm" className="w-full">
+                <Link href="/notes" onClick={() => setIsOpen(false)}>
+                  <BookOpen className="w-4 h-4 mr-2" />
+                  View Notes
+                </Link>
               </Button>
                {!user && (
                 <Button variant="hero" size="sm" className="w-full mt-2" onClick={() => { onLoginClick(); setIsOpen(false); }}>
