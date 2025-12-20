@@ -7,9 +7,10 @@ import Link from "next/link";
 
 type NavbarProps = {
   onUnlockClick: () => void;
+  onLoginClick: () => void;
 };
 
-const Navbar = ({ onUnlockClick }: NavbarProps) => {
+const Navbar = ({ onUnlockClick, onLoginClick }: NavbarProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const { user } = useUser();
 
@@ -17,6 +18,7 @@ const Navbar = ({ onUnlockClick }: NavbarProps) => {
     { name: "Home", href: "#home" },
     { name: "About", href: "#about" },
     { name: "Services", href: "#services" },
+    { name: "Units", href: "#units" },
     { name: "Portfolio", href: "#portfolio" },
     { name: "Testimonials", href: "#testimonials" },
     { name: "Contact", href: "#contact" },
@@ -59,11 +61,9 @@ const Navbar = ({ onUnlockClick }: NavbarProps) => {
                 </Link>
               </Button>
             ) : (
-              <Button asChild variant="hero" size="sm">
-                <Link href="/signin">
-                  <User className="w-4 h-4" />
-                  Admin
-                </Link>
+              <Button variant="hero" size="sm" onClick={onLoginClick}>
+                <User className="w-4 h-4" />
+                Login
               </Button>
             )}
           </div>
@@ -103,11 +103,9 @@ const Navbar = ({ onUnlockClick }: NavbarProps) => {
                   </Link>
                 </Button>
               ) : (
-                <Button asChild variant="hero" size="sm" className="w-full mt-2">
-                  <Link href="/signin" onClick={() => setIsOpen(false)}>
-                    <User className="w-4 h-4" />
-                    Admin
-                  </Link>
+                <Button variant="hero" size="sm" className="w-full mt-2" onClick={() => { onLoginClick(); setIsOpen(false); }}>
+                  <User className="w-4 h-4" />
+                  Login
                 </Button>
               )}
             </div>
