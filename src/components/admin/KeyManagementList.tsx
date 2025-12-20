@@ -1,3 +1,4 @@
+
 'use client';
 import { useState, useEffect } from 'react';
 import { useFirestore } from '@/firebase';
@@ -30,9 +31,10 @@ import {
 } from "@/components/ui/select";
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '../ui/skeleton';
-import { User, Key, PlusCircle, ExternalLink } from 'lucide-react';
+import { User, Key, PlusCircle, ExternalLink, Copy } from 'lucide-react';
 import { Button } from '../ui/button';
 import Link from 'next/link';
+import { Input } from '../ui/input';
 
 interface AccessKey {
   id: string;
@@ -61,6 +63,7 @@ const KeyManagementList = () => {
   const [selectedUnit, setSelectedUnit] = useState('');
   const [selectedKeyType, setSelectedKeyType] = useState<'note' | 'assignment' | ''>('');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [generatedKey, setGeneratedKey] = useState<string | null>(null);
 
 
   const fetchKeys = async () => {
@@ -133,10 +136,8 @@ const KeyManagementList = () => {
             createdAt: new Date(),
         });
         
-        toast({ title: 'Key Generated!', description: `New key: ${key}`});
+        setGeneratedKey(key);
         setIsGeneratorOpen(false);
-        setSelectedUnit('');
-        setSelectedKeyType('');
         fetchKeys(); // Refresh the list
 
     } catch (error) {
@@ -144,6 +145,15 @@ const KeyManagementList = () => {
         toast({ title: 'Error', description: 'Could not generate the key.', variant: 'destructive'});
     } finally {
         setIsGenerating(false);
+        setSelectedUnit('');
+        setSelectedKeyType('');
+    }
+  }
+
+  const copyToClipboard = () => {
+    if (generatedKey) {
+        navigator.clipboard.writeText(generatedKey);
+        toast({ title: "Copied!", description: "The key has been copied to your clipboard." });
     }
   }
 
@@ -262,6 +272,28 @@ const KeyManagementList = () => {
                         <Button onClick={generateKey} disabled={isGenerating}>
                             {isGenerating ? 'Generating...' : 'Generate Key'}
                         </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={!!generatedKey} onOpenChange={(open) => !open && setGeneratedKey(null)}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Key Generated Successfully!</DialogTitle>
+                        <DialogDescription>
+                            Here is the new access key. Share it with the user.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="py-4">
+                        <div className="relative">
+                            <Input value={generatedKey || ''} readOnly className="pr-10 font-mono text-lg" />
+                            <Button variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8" onClick={copyToClipboard}>
+                                <Copy className="w-4 h-4"/>
+                            </Button>
+                        </div>
+                    </div>
+                     <DialogFooter>
+                        <Button onClick={() => setGeneratedKey(null)}>Done</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
