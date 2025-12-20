@@ -23,10 +23,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { getBytes, ref } from 'firebase/storage';
+import { ref, getBytes } from 'firebase/storage';
 import { Badge } from '@/components/ui/badge';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import UnlockKeyForm from '@/components/dashboard/UnlockKeyForm';
+import TestimonialForm from '@/components/dashboard/TestimonialForm';
 
 
 interface PdfPart {
@@ -75,43 +76,41 @@ function UserDashboard() {
     const q = query(unlockedRef, where('userId', '==', user.uid));
   
     const unsubscribe = onSnapshot(q, async (querySnapshot) => {
-        const unlockedData: UnlockedPdfDoc[] = querySnapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
-        } as UnlockedPdfDoc));
+      const unlockedData: UnlockedPdfDoc[] = querySnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+      } as UnlockedPdfDoc));
 
-        const unitsMap: Record<string, UnlockedUnitInfo> = {};
+      const unitsMap: Record<string, UnlockedUnitInfo> = {};
 
-        for (const pdfDoc of unlockedData) {
-            if (!unitsMap[pdfDoc.unitId]) {
-                const unitDocRef = doc(firestore, 'units', pdfDoc.unitId);
-                const unitDocSnap = await getDoc(unitDocRef);
-                if (unitDocSnap.exists()) {
-                    const unitData = unitDocSnap.data();
-                    unitsMap[pdfDoc.unitId] = {
-                        unitId: pdfDoc.unitId,
-                        unitNameEN: unitData.nameEN,
-                        unitNameSI: unitData.nameSI,
-                        parts: []
-                    };
-                }
+      for (const pdfDoc of unlockedData) {
+          if (!unitsMap[pdfDoc.unitId]) {
+              const unitDocRef = doc(firestore, 'units', pdfDoc.unitId);
+              const unitDocSnap = await getDoc(unitDocRef);
+              if (unitDocSnap.exists()) {
+                  const unitData = unitDocSnap.data();
+                  unitsMap[pdfDoc.unitId] = {
+                      unitId: pdfDoc.unitId,
+                      unitNameEN: unitData.nameEN,
+                      unitNameSI: unitData.nameSI,
+                      parts: []
+                  };
+              }
+          }
+           // Add the part to the correct unit, preventing duplicates on re-renders
+           if (unitsMap[pdfDoc.unitId]) {
+            const existingPartIndex = unitsMap[pdfDoc.unitId].parts.findIndex(p => p.id === pdfDoc.id);
+            if (existingPartIndex === -1) {
+                unitsMap[pdfDoc.unitId].parts.push(pdfDoc);
+            } else {
+                // Update existing part in case its data changed (e.g., downloaded status)
+                unitsMap[pdfDoc.unitId].parts[existingPartIndex] = pdfDoc;
             }
-        }
-        
-        for (const pdfDoc of unlockedData) {
-            if (unitsMap[pdfDoc.unitId]) {
-                const existingPartIndex = unitsMap[pdfDoc.unitId].parts.findIndex(p => p.id === pdfDoc.id);
-                if (existingPartIndex === -1) {
-                    unitsMap[pdfDoc.unitId].parts.push(pdfDoc);
-                } else {
-                    // Update existing part if it's already there
-                    unitsMap[pdfDoc.unitId].parts[existingPartIndex] = pdfDoc;
-                }
-            }
-        }
+          }
+      }
   
-        setUnlockedUnits(Object.values(unitsMap));
-        setLoadingPdfs(false);
+      setUnlockedUnits(Object.values(unitsMap));
+      setLoadingPdfs(false);
   
     }, (error) => {
       console.error("Error fetching unlocked PDFs: ", error);
@@ -234,6 +233,7 @@ function UserDashboard() {
             </CardContent>
           </Card>
           <UnlockKeyForm />
+          <TestimonialForm />
         </div>
 
         <div className="lg:col-span-2">

@@ -1,6 +1,6 @@
 'use client';
 import Link from 'next/link';
-import { Key, ExternalLink } from "lucide-react";
+import { Key, ExternalLink, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const AdminDashboard = () => {
@@ -36,6 +36,18 @@ const AdminDashboard = () => {
                 <Link href="/admin/keys">
                     <Key className="w-4 h-4 mr-2" />
                     Manage Keys
+                    <ExternalLink className="w-4 h-4 ml-2" />
+                </Link>
+              </Button>
+            </div>
+
+            <div className="group relative p-6 rounded-2xl bg-card border border-border shadow-card hover:shadow-soft transition-shadow duration-300 md:col-span-2">
+              <h2 className="font-heading text-2xl font-bold text-foreground">Manage Testimonials</h2>
+              <p className="text-muted-foreground mt-2 mb-4">Approve or delete user-submitted testimonials.</p>
+              <Button asChild>
+                <Link href="/admin/testimonials">
+                    <MessageSquare className="w-4 h-4 mr-2" />
+                    Manage Testimonials
                     <ExternalLink className="w-4 h-4 ml-2" />
                 </Link>
               </Button>
