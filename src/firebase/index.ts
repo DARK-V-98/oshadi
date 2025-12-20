@@ -4,7 +4,7 @@ import { getFirestore, Firestore } from 'firebase/firestore';
 import { getStorage, FirebaseStorage } from 'firebase/storage';
 import { firebaseConfig } from './config';
 
-import { FirebaseProvider, useFirebase, useFirebaseApp, useAuth, useFirestore } from './provider';
+import { FirebaseProvider, useFirebase, useFirebaseApp, useAuth, useFirestore, useStorage } from './provider';
 import { FirebaseClientProvider } from './client-provider';
 import { useUser } from './auth/use-user';
 
@@ -38,4 +38,5 @@ export {
   useFirebaseApp,
   useAuth,
   useFirestore,
+  useStorage,
 };
