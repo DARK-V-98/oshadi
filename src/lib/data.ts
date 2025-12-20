@@ -7,7 +7,7 @@ export type Unit = {
 };
 
 export const units: Unit[] = [
-  { unitNo: "Health/Safety", nameEN: "Health & Safety", nameSI: "සෞඛ්‍ය සුරක්ෂිතභාවය", modelCount: "1", category: "foundation" },
+  { unitNo: "Health-Safety", nameEN: "Health & Safety", nameSI: "සෞඛ්‍ය සුරක්ෂිතභාවය", modelCount: "1", category: "foundation" },
   { unitNo: "Unit 01", nameEN: "Client Consultation", nameSI: "ගනුදෙනුකරු සමඟ සාකච්ඡා", modelCount: "1–2", category: "consultation" },
   { unitNo: "Unit 02", nameEN: "Salon Management", nameSI: "සැලෝන් කළමනාකරණය", modelCount: "1–2", category: "management" },
   { unitNo: "Unit 03", nameEN: "Manicure & Pedicure", nameSI: "නිය සත්කාර සිදු කිරීම", modelCount: "2–3", category: "practical" },
