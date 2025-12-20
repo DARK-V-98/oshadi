@@ -1,3 +1,4 @@
+
 "use client";
 import { useState } from "react";
 import { Menu, X, BookOpen, User, LogOut, LayoutDashboard } from "lucide-react";
@@ -58,12 +59,12 @@ const Navbar = ({ onUnlockClick, onLoginClick }: NavbarProps) => {
           </a>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center gap-6">
+          <div className="hidden md:flex items-center gap-2">
             {navLinks.map((link) => (
               <a
                 key={link.name}
                 href={link.href}
-                className="text-muted-foreground hover:text-foreground font-medium transition-colors duration-300 relative after:absolute after:bottom-0 after:left-0 after:w-0 after:h-0.5 after:bg-primary after:transition-all after:duration-300 hover:after:w-full"
+                className="px-3 py-2 rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground font-medium transition-colors duration-300"
               >
                 {link.name}
               </a>
