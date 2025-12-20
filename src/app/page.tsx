@@ -5,7 +5,6 @@ import Navbar from "@/components/ov/Navbar";
 import Hero from "@/components/ov/Hero";
 import About from "@/components/ov/About";
 import Services from "@/components/ov/Services";
-import Portfolio from "@/components/ov/Portfolio";
 import Testimonials from "@/components/ov/Testimonials";
 import Contact from "@/components/ov/Contact";
 import Footer from "@/components/ov/Footer";
@@ -29,7 +28,6 @@ const Home = () => {
         <About />
         <Services />
         <UnitList />
-        <Portfolio />
         <Testimonials />
         {/* <Pricing /> */}
         {/* <FAQ /> */}

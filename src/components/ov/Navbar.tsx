@@ -54,7 +54,6 @@ const Navbar = ({ onUnlockClick, onLoginClick }: NavbarProps) => {
     { name: "About", href: "#about" },
     { name: "Services", href: "#services" },
     { name: "Notes", href: "/notes" },
-    { name: "Portfolio", href: "#portfolio" },
     { name: "Testimonials", href: "#testimonials" },
     { name: "Contact", href: "#contact" },
   ];
