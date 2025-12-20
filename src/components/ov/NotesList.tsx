@@ -13,7 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Search, Eye, Unlock, FileText, Filter, Loader2 } from 'lucide-react';
+import { Search, Eye, Unlock, FileText, Filter, Loader2, Tag } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 interface UnitWithPdfCount extends Unit {
@@ -53,6 +53,7 @@ const NotesList = () => {
                 nameSI: data.nameSI,
                 modelCount: data.modelCount,
                 category: data.category,
+                price: data.price,
                 pdfCount: (data.pdfs || []).length
             };
         });
@@ -160,9 +161,10 @@ const NotesList = () => {
             {/* Table Header */}
             <div className="hidden md:grid md:grid-cols-12 gap-4 p-4 bg-secondary/50 border-b border-border font-medium text-sm text-muted-foreground">
               <div className="col-span-2">Unit No</div>
-              <div className="col-span-4">Unit Name (EN/SIN)</div>
+              <div className="col-span-3">Unit Name (EN/SIN)</div>
               <div className="col-span-2 text-center">PDF Parts</div>
-              <div className="col-span-4 text-right">Actions</div>
+              <div className="col-span-2 text-center">Price</div>
+              <div className="col-span-3 text-right">Actions</div>
             </div>
 
             {/* Table Body */}
@@ -187,7 +189,7 @@ const NotesList = () => {
                     </div>
 
                     {/* Unit Name */}
-                    <div className="md:col-span-4">
+                    <div className="md:col-span-3">
                       <p className="font-medium text-foreground">{unit.nameEN}</p>
                       <p className="text-sm text-muted-foreground mt-0.5">{unit.nameSI}</p>
                     </div>
@@ -199,8 +201,16 @@ const NotesList = () => {
                       </span>
                     </div>
 
+                     {/* Price */}
+                     <div className="md:col-span-2 text-center">
+                        <span className="inline-flex items-center justify-center px-3 h-8 rounded-full bg-blue-100 text-blue-800 font-semibold text-sm">
+                           <Tag className="w-4 h-4 mr-1.5" />
+                           {unit.price ? `LKR ${unit.price}` : 'N/A'}
+                        </span>
+                    </div>
+
                     {/* Actions */}
-                    <div className="md:col-span-4 flex items-center justify-end gap-2">
+                    <div className="md:col-span-3 flex items-center justify-end gap-2">
                       <Button variant="hero" size="sm" onClick={handleBuyClick}>
                         Buy
                       </Button>

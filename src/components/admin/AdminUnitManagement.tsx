@@ -33,6 +33,7 @@ import {
     PopoverTrigger,
 } from "@/components/ui/popover"
 import { cn } from '@/lib/utils';
+import { Label } from '../ui/label';
 
 interface PdfPart {
   partName: string;
@@ -135,12 +136,13 @@ const AdminUnitManagement = () => {
 
   // State for adding a new unit
   const [isAddUnitDialogOpen, setIsAddUnitDialogOpen] = useState(false);
-  const [newUnit, setNewUnit] = useState<Omit<Unit, 'category' | 'modelCount'> & { category: string; modelCount: string }>({
+  const [newUnit, setNewUnit] = useState<Omit<Unit, 'category' | 'modelCount'> & { category: string; modelCount: string; price: string }>({
     unitNo: '',
     nameEN: '',
     nameSI: '',
     modelCount: '',
     category: '',
+    price: '',
   });
 
   useEffect(() => {
@@ -233,7 +235,7 @@ const AdminUnitManagement = () => {
 
         toast({ title: "Unit Added", description: `Successfully added ${newUnit.nameEN}.`});
         setIsAddUnitDialogOpen(false);
-        setNewUnit({ unitNo: '', nameEN: '', nameSI: '', modelCount: '', category: ''});
+        setNewUnit({ unitNo: '', nameEN: '', nameSI: '', modelCount: '', category: '', price: ''});
 
     } catch (error) {
         console.error("Error adding new unit: ", error);
@@ -390,6 +392,7 @@ const AdminUnitManagement = () => {
                         <Input placeholder="Unit Name (English)" value={newUnit.nameEN} onChange={(e) => setNewUnit({...newUnit, nameEN: e.target.value})}/>
                         <Input placeholder="Unit Name (Sinhala)" value={newUnit.nameSI} onChange={(e) => setNewUnit({...newUnit, nameSI: e.target.value})}/>
                         <Input placeholder="Model Count" value={newUnit.modelCount} onChange={(e) => setNewUnit({...newUnit, modelCount: e.target.value})}/>
+                        <Input placeholder="Price (LKR)" value={newUnit.price} onChange={(e) => setNewUnit({...newUnit, price: e.target.value})}/>
                         <CategoryCombobox 
                             value={newUnit.category}
                             onChange={(value) => setNewUnit({...newUnit, category: value})}
@@ -440,12 +443,22 @@ const AdminUnitManagement = () => {
               <CardContent>
                 {editingUnitId === unit.id && (
                      <div className="grid grid-cols-2 gap-4 mb-4">
-                        <Input value={editableUnitData?.modelCount} onChange={(e) => handleUnitInputChange('modelCount', e.target.value)} />
-                        <CategoryCombobox 
-                            value={editableUnitData?.category || ''}
-                            onChange={(value) => handleUnitInputChange('category', value)}
-                            categories={categories}
-                        />
+                        <div>
+                            <Label>Model Count</Label>
+                            <Input value={editableUnitData?.modelCount} onChange={(e) => handleUnitInputChange('modelCount', e.target.value)} />
+                        </div>
+                        <div>
+                            <Label>Price (LKR)</Label>
+                            <Input value={editableUnitData?.price || ''} onChange={(e) => handleUnitInputChange('price', e.target.value)} />
+                        </div>
+                        <div className="col-span-2">
+                             <Label>Category</Label>
+                            <CategoryCombobox 
+                                value={editableUnitData?.category || ''}
+                                onChange={(value) => handleUnitInputChange('category', value)}
+                                categories={categories}
+                            />
+                        </div>
                     </div>
                 )}
                 <PdfPartManager unit={unit} />
