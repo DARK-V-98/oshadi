@@ -76,6 +76,7 @@ const handleUserInFirestore = async (user: User, firestore: any, toast: any) => 
             uid: user.uid,
             name: user.displayName || 'New User',
             email: user.email,
+            photoURL: user.photoURL,
             role: 'user', // Default role
         };
         await setDoc(userDocRef, newUser, { merge: true }).catch(async (serverError) => {
@@ -223,6 +224,7 @@ const SignUpForm = ({ onSignInClick, onOpenChange }: { onSignInClick: () => void
         uid: user.uid,
         name: name,
         email: user.email,
+        photoURL: null,
         role: 'user', // Default role
       };
 

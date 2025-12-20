@@ -49,7 +49,7 @@ const Navbar = ({ onUnlockClick, onLoginClick }: NavbarProps) => {
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16 md:h-20">
           {/* Logo */}
-          <a href="#home" className="flex items-center gap-2 group">
+          <a href="/" className="flex items-center gap-2 group">
             <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center shadow-soft group-hover:shadow-glow transition-shadow duration-300">
               <span className="font-heading text-lg font-bold text-primary-foreground">OV</span>
             </div>
