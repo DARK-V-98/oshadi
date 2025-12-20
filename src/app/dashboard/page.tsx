@@ -63,8 +63,8 @@ function UserDashboard() {
             const unitDocSnap = await getDoc(unitDocRef);
             
             if (unitDocSnap.exists()) {
-                const unitData = unitDocSnap.data() as Unit;
-                const pdfsToUnlock = unlockedDoc.type === 'note' ? (unitData as any).notePdfs : (unitData as any).assignmentPdfs;
+                const unitData = unitDocSnap.data() as UnitWithPdfs;
+                const pdfsToUnlock = unitData.pdfs;
 
                 if (!groupedByUnit[unlockedDoc.unitId]) {
                     groupedByUnit[unlockedDoc.unitId] = {
@@ -78,7 +78,7 @@ function UserDashboard() {
                 if(pdfsToUnlock) {
                     pdfsToUnlock.forEach((part: any) => {
                          // Avoid duplicates
-                        if (!groupedByUnit[unlockedDoc.unitId].parts.some(p => p.downloadUrl === part.downloadUrl)) {
+                        if (!groupedByUnit[unlockedDoc.unitId].parts.some(p => p.downloadUrl === part.downloadUrl && p.type === unlockedDoc.type)) {
                              groupedByUnit[unlockedDoc.unitId].parts.push({ ...part, type: unlockedDoc.type });
                         }
                     });
@@ -97,6 +97,10 @@ function UserDashboard() {
 
     return () => unsubscribe();
   }, [user, firestore, toast]);
+
+  interface UnitWithPdfs extends Unit {
+    pdfs: any[];
+  }
 
 
   const handleBindKey = async () => {
@@ -162,7 +166,7 @@ function UserDashboard() {
   };
   
   const handleDownload = async (part: UnlockedPdfPart) => {
-    setDownloading(prev => ({ ...prev, [part.downloadUrl]: true }));
+    setDownloading(prev => ({ ...prev, [part.downloadUrl + part.type]: true }));
     
     if (part.type === 'note') {
         toast({ title: "Processing...", description: `Your note is being prepared with a watermark.`});
@@ -214,7 +218,7 @@ function UserDashboard() {
         }
     }
 
-    setDownloading(prev => ({ ...prev, [part.downloadUrl]: false }));
+    setDownloading(prev => ({ ...prev, [part.downloadUrl + part.type]: false }));
   }
 
   return (
@@ -289,13 +293,13 @@ function UserDashboard() {
                            <CardContent className="space-y-3">
                                {unit.parts && unit.parts.length > 0 ? (
                                    unit.parts.map(part => (
-                                      <div key={part.downloadUrl} className="flex items-center justify-between p-3 bg-secondary/50 rounded-md">
+                                      <div key={part.downloadUrl + part.type} className="flex items-center justify-between p-3 bg-secondary/50 rounded-md">
                                           <div className='flex items-center gap-2'>
                                              <Badge variant={part.type === 'note' ? 'default' : 'secondary'}>{part.type}</Badge>
                                              <span>{part.partName}</span>
                                           </div>
-                                          <Button size="sm" variant="ghost" onClick={() => handleDownload(part)} disabled={downloading[part.downloadUrl]}>
-                                              {downloading[part.downloadUrl] ? <Loader2 className="w-4 h-4 mr-2 animate-spin"/> : <Download className="w-4 h-4 mr-2"/>}
+                                          <Button size="sm" variant="ghost" onClick={() => handleDownload(part)} disabled={downloading[part.downloadUrl + part.type]}>
+                                              {downloading[part.downloadUrl + part.type] ? <Loader2 className="w-4 h-4 mr-2 animate-spin"/> : <Download className="w-4 h-4 mr-2"/>}
                                               Download
                                          </Button>
                                       </div>
