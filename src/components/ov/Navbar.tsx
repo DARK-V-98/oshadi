@@ -94,7 +94,7 @@ const Navbar = ({ onUnlockClick, onLoginClick }: NavbarProps) => {
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>
-                    <Link href="/admin">
+                    <Link href="/dashboard">
                       <LayoutDashboard className="mr-2 h-4 w-4" />
                       <span>Dashboard</span>
                     </Link>
@@ -143,7 +143,7 @@ const Navbar = ({ onUnlockClick, onLoginClick }: NavbarProps) => {
                {user ? (
                 <>
                   <Button asChild variant="secondary" size="sm" className="w-full">
-                    <Link href="/admin" onClick={() => setIsOpen(false)}>
+                    <Link href="/dashboard" onClick={() => setIsOpen(false)}>
                       <LayoutDashboard className="w-4 h-4" />
                       Dashboard
                     </Link>

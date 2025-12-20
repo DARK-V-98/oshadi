@@ -8,11 +8,12 @@ import { useToast } from '@/hooks/use-toast';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 
-
 export default function AuthGuard({
   children,
+  adminOnly = false,
 }: {
   children: React.ReactNode;
+  adminOnly?: boolean;
 }) {
   const { user, loading: authLoading } = useUser();
   const firestore = useFirestore();
@@ -44,13 +45,12 @@ export default function AuthGuard({
 
         let userData = userDoc.data();
 
-        // If user document doesn't exist, create it
         if (!userDoc.exists()) {
           const newUser = {
             uid: user.uid,
             name: user.displayName || 'New User',
             email: user.email,
-            role: 'user', // Assign default role
+            role: 'user',
           };
           
           await setDoc(userDocRef, newUser).catch(async (serverError) => {
@@ -60,7 +60,7 @@ export default function AuthGuard({
               requestResourceData: newUser,
             });
             errorEmitter.emit('permission-error', permissionError);
-            throw permissionError; // rethrow to be caught by outer try/catch
+            throw permissionError;
           });
 
           userData = newUser;
@@ -70,17 +70,21 @@ export default function AuthGuard({
           });
         }
 
-        // Check for admin role
-        if (userData && userData.role === 'admin') {
-          setIsAuthorized(true);
+        if (adminOnly) {
+          if (userData && userData.role === 'admin') {
+            setIsAuthorized(true);
+          } else {
+            toast({
+              variant: 'destructive',
+              title: 'Unauthorized',
+              description: 'You do not have permission to access this page.',
+            });
+            router.push('/dashboard');
+          }
         } else {
-          toast({
-            variant: 'destructive',
-            title: 'Unauthorized',
-            description: 'You do not have permission to access this page.',
-          });
-          router.push('/');
+            setIsAuthorized(true);
         }
+
       } catch (error) {
         if (!(error instanceof FirestorePermissionError)) {
           console.error("Error ensuring user in DB or checking role: ", error);
@@ -97,7 +101,7 @@ export default function AuthGuard({
     };
 
     ensureUserInDbAndCheckRole();
-  }, [user, authLoading, firestore, router, toast]);
+  }, [user, authLoading, firestore, router, toast, adminOnly]);
 
   if (loading || authLoading || !isAuthorized) {
     return (

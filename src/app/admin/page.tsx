@@ -1,6 +1,6 @@
 'use client';
 import AuthGuard from '@/components/AuthGuard';
-import UnitList from '@/components/ov/UnitList';
+import AdminUnitList from '@/components/admin/AdminUnitList';
 import { useAuth } from '@/firebase';
 import { Button } from '@/components/ui/button';
 
@@ -13,14 +13,14 @@ function AdminDashboard() {
         <h1 className="text-3xl font-bold font-heading">Admin Dashboard</h1>
         <Button onClick={signOut} variant="outline">Sign Out</Button>
       </div>
-      <UnitList />
+      <AdminUnitList />
     </div>
   );
 }
 
 export default function AdminPage() {
     return (
-        <AuthGuard>
+        <AuthGuard adminOnly={true}>
             <AdminDashboard />
         </AuthGuard>
     )
