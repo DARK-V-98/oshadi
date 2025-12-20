@@ -8,9 +8,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter, CardDescription } from '@/components/ui/card';
 import { units as allUnits, Unit } from '@/lib/data';
-import { errorEmitter } from '@/firebase/error-emitter';
-import { FirestorePermissionError } from '@/firebase/errors';
-import { Download, FileText } from 'lucide-react';
+import { Download, FileText, Key, HelpCircle, ArrowRight } from 'lucide-react';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import Link from 'next/link';
 
 function UserDashboard() {
   const { user } = useUser();
@@ -113,26 +118,49 @@ function UserDashboard() {
   };
   
   const handleDownload = (unit: Unit) => {
-    // This is a placeholder for the actual download logic.
-    // In a real app, you would verify on the backend that this user can download
-    // and then provide a secure, temporary download link.
-    // We also need to increment the download count.
     console.log(`Initiating download for ${unit.nameEN}`);
     toast({ title: "Download started", description: `Downloading ${unit.nameEN}.`});
   }
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold font-heading">My Dashboard</h1>
+       <div className="flex justify-between items-center mb-8">
+        <div>
+            <h1 className="text-3xl font-bold font-heading">Welcome, {user?.displayName || 'User'}!</h1>
+            <p className="text-muted-foreground">Your personal dashboard to access your study materials.</p>
+        </div>
         <Button onClick={signOut} variant="outline">Sign Out</Button>
       </div>
 
-      <div className="grid md:grid-cols-3 gap-8">
-        <div className="md:col-span-1">
+      <div className="grid lg:grid-cols-3 gap-8">
+        <div className="lg:col-span-1 space-y-8">
+           <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2"><HelpCircle className="text-primary"/> NVQ Level Guide</CardTitle>
+            </CardHeader>
+            <CardContent>
+                <Accordion type="single" collapsible className="w-full">
+                <AccordionItem value="item-1">
+                    <AccordionTrigger>How to Download Notes</AccordionTrigger>
+                    <AccordionContent className="space-y-2 text-muted-foreground">
+                        <p>1. Purchase notes to receive a one-time key.</p>
+                        <p>2. Enter the key in the 'Bind Your Key' section below.</p>
+                        <p>3. Once bound, your PDF will appear in 'My Unlocked Notes'.</p>
+                        <p>4. Click 'Download' to get your file.</p>
+                    </AccordionContent>
+                </AccordionItem>
+                <AccordionItem value="item-2">
+                    <AccordionTrigger>Where is my key?</AccordionTrigger>
+                    <AccordionContent>
+                    Your one-time access key is sent to you via WhatsApp or Email immediately after your purchase is confirmed. If you haven't received it, please check your spam folder or contact support.
+                    </AccordionContent>
+                </AccordionItem>
+                </Accordion>
+            </CardContent>
+          </Card>
           <Card>
             <CardHeader>
-              <CardTitle>Unlock New PDF</CardTitle>
+              <CardTitle className="flex items-center gap-2"><Key className="text-primary"/>Bind Your Key</CardTitle>
               <CardDescription>Enter a purchased key to access a new PDF.</CardDescription>
             </CardHeader>
             <CardContent>
@@ -144,14 +172,14 @@ function UserDashboard() {
                   disabled={isBinding}
                 />
                 <Button onClick={handleBindKey} disabled={isBinding} className="w-full">
-                  {isBinding ? 'Binding Key...' : 'Bind Key'}
+                  {isBinding ? 'Binding Key...' : 'Bind & Unlock'}
                 </Button>
               </div>
             </CardContent>
           </Card>
         </div>
 
-        <div className="md:col-span-2">
+        <div className="lg:col-span-2">
             <h2 className="text-2xl font-bold font-heading mb-4">My Unlocked Notes</h2>
             {loadingPdfs ? (
                 <p>Loading your notes...</p>
@@ -174,13 +202,18 @@ function UserDashboard() {
                     ))}
                 </div>
             ) : (
-                <Card className="flex flex-col items-center justify-center p-8 text-center">
+                <Card className="flex flex-col items-center justify-center p-8 text-center border-dashed">
                     <CardHeader>
                         <CardTitle>No Unlocked Notes Yet</CardTitle>
                         <CardDescription>
-                            Purchase notes to get an access key, then bind it here to start downloading.
+                            Your unlocked PDFs will appear here once you bind a key.
                         </CardDescription>
                     </CardHeader>
+                     <CardContent>
+                        <p className="text-sm text-muted-foreground">
+                            Scroll down or check the guide to learn how to bind a key.
+                        </p>
+                    </CardContent>
                 </Card>
             )}
         </div>

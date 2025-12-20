@@ -27,7 +27,7 @@ export default function AuthForm({ open, onOpenChange }: AuthFormProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="bg-transparent border-none shadow-none p-0 max-w-sm">
-        <DialogHeader className="sr-only">
+         <DialogHeader className="sr-only">
           <DialogTitle>Authentication</DialogTitle>
           <DialogDescription>
             Sign in or create a new account to continue.
@@ -44,7 +44,7 @@ export default function AuthForm({ open, onOpenChange }: AuthFormProps) {
           {/* Back Side: Sign Up */}
           <div className="absolute w-full h-full [backface-visibility:hidden] [transform:rotateY(180deg)]">
             <AuthCard>
-              <SignUpForm onSignInClick={() => setIsFlipped(false)} />
+              <SignUpForm onSignInClick={() => setIsFlipped(false)} onOpenChange={onOpenChange} />
             </AuthCard>
           </div>
         </div>
@@ -62,23 +62,58 @@ const AuthCard = ({ children }: { children: React.ReactNode }) => (
 const SignInForm = ({ onSignUpClick, onOpenChange }: { onSignUpClick: () => void, onOpenChange: (open: boolean) => void }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const { signIn } = useAuth();
+  const { signIn, user } = useAuth();
+  const firestore = useFirestore();
   const router = useRouter();
   const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!firestore) {
+      toast({ variant: 'destructive', title: 'Service not available' });
+      return;
+    }
+    setIsLoading(true);
+
     try {
-      await signIn(email, password);
+      const userCredential = await signIn(email, password);
+      const loggedInUser = userCredential.user;
+
+      // Ensure user profile exists in Firestore
+      const userDocRef = doc(firestore, 'users', loggedInUser.uid);
+      const userDoc = await getDoc(userDocRef);
+      if (!userDoc.exists()) {
+          const newUser = {
+              uid: loggedInUser.uid,
+              name: loggedInUser.displayName || 'New User',
+              email: loggedInUser.email,
+              role: 'user', // Default role
+          };
+          await setDoc(userDocRef, newUser, { merge: true }).catch(async (serverError) => {
+            const permissionError = new FirestorePermissionError({
+              path: userDocRef.path,
+              operation: 'create',
+              requestResourceData: newUser,
+            });
+            errorEmitter.emit('permission-error', permissionError);
+            throw permissionError;
+          });
+      }
+      
       toast({ title: 'Signed in successfully!' });
       onOpenChange(false);
-      router.push('/admin');
+      router.push('/dashboard'); 
     } catch (error: any) {
       toast({
         variant: 'destructive',
-        title: 'Uh oh! Something went wrong.',
-        description: error.message,
+        title: 'Sign-in failed',
+        description: error.code === 'auth/invalid-credential' 
+          ? 'Incorrect email or password.' 
+          : error.message,
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -86,7 +121,7 @@ const SignInForm = ({ onSignUpClick, onOpenChange }: { onSignUpClick: () => void
     <div className="flex flex-col h-full">
       <div className="text-center mb-6">
         <h2 className="text-3xl font-bold font-heading">Login</h2>
-        <p className="text-muted-foreground">Access your admin dashboard.</p>
+        <p className="text-muted-foreground">Access your dashboard.</p>
       </div>
       <form onSubmit={handleSignIn} className="space-y-4">
         <div className="space-y-2">
@@ -97,8 +132,8 @@ const SignInForm = ({ onSignUpClick, onOpenChange }: { onSignUpClick: () => void
           <Label htmlFor="signin-password">Password</Label>
           <Input id="signin-password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
         </div>
-        <Button type="submit" className="w-full">
-          <LogIn className="mr-2" /> Sign In
+        <Button type="submit" className="w-full" disabled={isLoading}>
+          <LogIn className="mr-2" /> {isLoading ? 'Signing In...' : 'Sign In'}
         </Button>
       </form>
       <div className="mt-auto text-center">
@@ -113,7 +148,7 @@ const SignInForm = ({ onSignUpClick, onOpenChange }: { onSignUpClick: () => void
   );
 };
 
-const SignUpForm = ({ onSignInClick }: { onSignInClick: () => void }) => {
+const SignUpForm = ({ onSignInClick, onOpenChange }: { onSignInClick: () => void, onOpenChange: (open: boolean) => void }) => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -121,6 +156,7 @@ const SignUpForm = ({ onSignInClick }: { onSignInClick: () => void }) => {
   const { auth, signUp } = useAuth();
   const firestore = useFirestore();
   const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -132,6 +168,7 @@ const SignUpForm = ({ onSignInClick }: { onSignInClick: () => void }) => {
       toast({ variant: 'destructive', title: 'Passwords do not match' });
       return;
     }
+    setIsLoading(true);
     try {
       const userCredential = await signUp(email, password);
       const user = userCredential.user;
@@ -146,29 +183,30 @@ const SignUpForm = ({ onSignInClick }: { onSignInClick: () => void }) => {
         role: 'user', // Default role
       };
 
-      setDoc(userDocRef, newUser, { merge: true })
-        .then(() => {
-            toast({
-              title: 'Account created!',
-              description: 'You can now sign in.',
-            });
-            onSignInClick(); // Flip back to sign-in form
-        })
-        .catch(async (serverError) => {
+      await setDoc(userDocRef, newUser, { merge: true }).catch(async (serverError) => {
           const permissionError = new FirestorePermissionError({
             path: userDocRef.path,
             operation: 'create',
             requestResourceData: newUser,
           });
           errorEmitter.emit('permission-error', permissionError);
-        });
+          throw permissionError; // re-throw to be caught by outer try-catch
+      });
+      
+      toast({
+          title: 'Account created!',
+          description: 'You can now sign in.',
+      });
+      onSignInClick();
 
     } catch (error: any) {
       toast({
         variant: 'destructive',
-        title: 'Uh oh! Something went wrong.',
+        title: 'Sign-up failed.',
         description: error.message,
       });
+    } finally {
+        setIsLoading(false);
     }
   };
 
@@ -176,7 +214,7 @@ const SignUpForm = ({ onSignInClick }: { onSignInClick: () => void }) => {
     <div className="flex flex-col h-full">
       <div className="text-center mb-6">
         <h2 className="text-3xl font-bold font-heading">Sign Up</h2>
-        <p className="text-muted-foreground">Create a new admin account.</p>
+        <p className="text-muted-foreground">Create a new account.</p>
       </div>
       <form onSubmit={handleSignUp} className="space-y-3">
         <div className="space-y-2">
@@ -195,8 +233,8 @@ const SignUpForm = ({ onSignInClick }: { onSignInClick: () => void }) => {
           <Label htmlFor="confirm-password">Confirm Password</Label>
           <Input id="confirm-password" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required />
         </div>
-        <Button type="submit" className="w-full !mt-6">
-          <UserPlus className="mr-2" /> Create Account
+        <Button type="submit" className="w-full !mt-6" disabled={isLoading}>
+          <UserPlus className="mr-2" /> {isLoading ? 'Creating Account...' : 'Create Account'}
         </Button>
       </form>
       <div className="mt-auto text-center">
@@ -210,3 +248,6 @@ const SignUpForm = ({ onSignInClick }: { onSignInClick: () => void }) => {
     </div>
   );
 };
+
+// Add getDoc to the import
+import { getDoc } from 'firebase/firestore';

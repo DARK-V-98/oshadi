@@ -1,6 +1,5 @@
 "use client";
-import { Mail, Phone, MessageCircle, Send } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Mail, Phone, MessageCircle } from "lucide-react";
 
 const contactMethods = [
   {

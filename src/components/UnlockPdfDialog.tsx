@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 
 type UnlockPdfDialogProps = {
   open: boolean;
@@ -21,23 +22,29 @@ type UnlockPdfDialogProps = {
 export default function UnlockPdfDialog({ open, onOpenChange }: UnlockPdfDialogProps) {
   const [code, setCode] = useState("");
   const { toast } = useToast();
+  const router = useRouter();
 
-  const handleDownload = () => {
-    if (code.trim()) {
-      toast({
-        title: "Download Started",
-        description: "Your PDF is being downloaded. Your code has been used.",
-      });
-      // Here you would typically trigger a download
-      console.log(`Downloading with code: ${code}`);
-      setCode("");
-      onOpenChange(false);
+  const handleUnlock = () => {
+    // This is just a placeholder logic.
+    // In a real app, you would check if the user is logged in.
+    const isLoggedIn = true; // Replace with actual auth check
+
+    if (!isLoggedIn) {
+        toast({
+            title: "Authentication Required",
+            description: "Please log in or create an account to unlock notes.",
+            variant: "destructive"
+        });
+        onOpenChange(false); // Close this dialog
+        // Here you would trigger your main login modal
     } else {
-      toast({
-        variant: "destructive",
-        title: "Invalid Code",
-        description: "Please enter a valid access code.",
-      });
+        // If logged in, redirect to dashboard where they can bind the key
+        router.push('/dashboard');
+        toast({
+            title: "Redirecting to Dashboard",
+            description: "Please bind your key in the user dashboard.",
+        });
+        onOpenChange(false);
     }
   };
 
@@ -45,22 +52,19 @@ export default function UnlockPdfDialog({ open, onOpenChange }: UnlockPdfDialogP
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle className="font-headline">Unlock Your PDF</DialogTitle>
+          <DialogTitle className="font-headline">Access Your Notes</DialogTitle>
           <DialogDescription>
-            Enter the unique one-time code you received after purchase to download your notes.
+            To unlock and download your purchased notes, please log in to your dashboard.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
-          <Input
-            id="access-code"
-            placeholder="Enter your access code"
-            value={code}
-            onChange={(e) => setCode(e.target.value)}
-          />
+            <p className="text-sm text-muted-foreground">
+                After logging in, you can enter your one-time key in your personal dashboard to access the PDF files.
+            </p>
         </div>
         <DialogFooter>
           <Button type="button" variant="secondary" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button type="submit" onClick={handleDownload}>Download Instantly</Button>
+          <Button type="submit" onClick={handleUnlock}>Login to Continue</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
