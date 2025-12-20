@@ -41,7 +41,7 @@ const About = () => {
               
               <div className="space-y-4 text-muted-foreground">
                 <p className="text-lg">
-                  Welcome! I'm a qualified <strong className="text-foreground">Bridal Dresser (NVQ Level 4)</strong>. If you are studying NVQ Level 4 in Bridal & Beauty, මේ notes collection එක specially create කරපු එකක්.
+                  Welcome! I'm a qualified <strong className="text-foreground">Bridal Dresser (NVQ Level 4)</strong>. If you are studying for the NVQ Level 4 in Bridal & Beauty, this notes collection was specially created for you.
                 </p>
                 
                 <div className="h-px bg-border my-8" />
