@@ -1,7 +1,9 @@
 "use client";
 import { useState } from "react";
-import { Menu, X, BookOpen, Sparkles } from "lucide-react";
+import { Menu, X, BookOpen, Sparkles, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useUser } from "@/firebase";
+import Link from "next/link";
 
 type NavbarProps = {
   onUnlockClick: () => void;
@@ -9,6 +11,7 @@ type NavbarProps = {
 
 const Navbar = ({ onUnlockClick }: NavbarProps) => {
   const [isOpen, setIsOpen] = useState(false);
+  const { user } = useUser();
 
   const navLinks = [
     { name: "Home", href: "#home" },
@@ -34,7 +37,7 @@ const Navbar = ({ onUnlockClick }: NavbarProps) => {
           </a>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center gap-8">
+          <div className="hidden md:flex items-center gap-6">
             {navLinks.map((link) => (
               <a
                 key={link.name}
@@ -44,10 +47,25 @@ const Navbar = ({ onUnlockClick }: NavbarProps) => {
                 {link.name}
               </a>
             ))}
-            <Button variant="hero" size="sm" onClick={onUnlockClick}>
+            <Button variant="outline" size="sm" onClick={onUnlockClick}>
               <BookOpen className="w-4 h-4" />
               Unlock Notes
             </Button>
+            {user ? (
+               <Button asChild variant="hero" size="sm">
+                <Link href="/admin">
+                  <User className="w-4 h-4" />
+                  Dashboard
+                </Link>
+              </Button>
+            ) : (
+              <Button asChild variant="hero" size="sm">
+                <Link href="/signin">
+                  <User className="w-4 h-4" />
+                  Admin
+                </Link>
+              </Button>
+            )}
           </div>
 
           {/* Mobile Menu Button */}
@@ -73,10 +91,25 @@ const Navbar = ({ onUnlockClick }: NavbarProps) => {
                   {link.name}
                 </a>
               ))}
-              <Button variant="hero" size="sm" className="w-full mt-2" onClick={() => { onUnlockClick(); setIsOpen(false); }}>
+              <Button variant="outline" size="sm" className="w-full" onClick={() => { onUnlockClick(); setIsOpen(false); }}>
                 <BookOpen className="w-4 h-4" />
                 Unlock Notes
               </Button>
+               {user ? (
+                <Button asChild variant="hero" size="sm" className="w-full mt-2">
+                  <Link href="/admin" onClick={() => setIsOpen(false)}>
+                    <User className="w-4 h-4" />
+                    Dashboard
+                  </Link>
+                </Button>
+              ) : (
+                <Button asChild variant="hero" size="sm" className="w-full mt-2">
+                  <Link href="/signin" onClick={() => setIsOpen(false)}>
+                    <User className="w-4 h-4" />
+                    Admin
+                  </Link>
+                </Button>
+              )}
             </div>
           </div>
         )}
