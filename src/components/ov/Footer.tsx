@@ -1,5 +1,6 @@
 import { Phone } from "lucide-react";
 import Image from "next/image";
+import Link from "next/link";
 
 const Footer = () => {
   const currentYear = new Date().getFullYear();
@@ -42,12 +43,12 @@ const Footer = () => {
 
           {/* Links */}
           <div className="flex items-center gap-6">
-            <a href="#" className="hover:text-foreground transition-colors">
+            <Link href="/privacy-policy" className="hover:text-foreground transition-colors">
               Privacy Policy
-            </a>
-            <a href="#" className="hover:text-foreground transition-colors">
+            </Link>
+            <Link href="/terms-of-service" className="hover:text-foreground transition-colors">
               Terms of Service
-            </a>
+            </Link>
           </div>
         </div>
       </div>
