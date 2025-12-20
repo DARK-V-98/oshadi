@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { X, LogIn, UserPlus } from 'lucide-react';
+import { LogIn, UserPlus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { doc, setDoc } from 'firebase/firestore';
 
