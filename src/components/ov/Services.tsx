@@ -1,27 +1,16 @@
 "use client";
-import { Gem, Wand2, School, Heart } from 'lucide-react';
-import Image from 'next/image';
+import { FileText, Edit } from 'lucide-react';
 
 const services = [
   {
-    icon: Gem,
-    title: 'Bridal Dressing',
-    description: 'Complete bridal packages, from traditional to modern styles, ensuring you look breathtaking on your special day.',
+    icon: FileText,
+    title: 'NVQ Level 4 Notes',
+    description: 'Complete, well-organized theory and practical notes for all units to help you excel in your exams.',
   },
   {
-    icon: Wand2,
-    title: 'Special Occasion Makeup',
-    description: 'Professional makeup artistry for parties, proms, photoshoots, and any event where you want to shine.',
-  },
-  {
-    icon: School,
-    title: 'Beauty Courses',
-    description: 'Comprehensive training for aspiring beauticians, including my complete NVQ Level 4 notes collection.',
-  },
-  {
-    icon: Heart,
-    title: 'Personal Consultations',
-    description: 'One-on-one sessions to help you with your personal beauty routine, skincare, and makeup skills.',
+    icon: Edit,
+    title: 'Assignments & Answers',
+    description: 'A comprehensive collection of assignments and sample answers to guide your studies and preparation.',
   },
 ];
 
@@ -29,19 +18,19 @@ const Services = () => {
   return (
     <section id="services" className="py-20 md:py-32 bg-soft-gradient">
       <div className="container mx-auto px-4">
-        <div className="max-w-6xl mx-auto">
+        <div className="max-w-4xl mx-auto">
           {/* Section Header */}
           <div className="text-center mb-12 animate-fade-in">
             <span className="text-sm font-medium text-primary uppercase tracking-wider">What I Offer</span>
             <h2 className="font-heading text-3xl md:text-4xl lg:text-5xl font-bold text-foreground mt-3 mb-4">
-              My Services
+              Educational Resources
             </h2>
             <p className="text-muted-foreground max-w-xl mx-auto">
-              From bridal transformations to professional training, I offer a range of services tailored to your beauty needs.
+              High-quality, curated materials to support your NVQ Level 4 journey in Bridal & Beauty.
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+          <div className="grid md:grid-cols-2 gap-8">
             {services.map((service, index) => (
               <div
                 key={index}
