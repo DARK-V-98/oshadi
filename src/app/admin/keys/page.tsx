@@ -1,5 +1,4 @@
 'use client';
-import AuthGuard from '@/components/AuthGuard';
 import KeyManagementList from '@/components/admin/KeyManagementList';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -26,8 +25,6 @@ function KeysPage() {
 
 export default function AdminKeysPage() {
     return (
-        <AuthGuard adminOnly={true}>
-            <KeysPage />
-        </AuthGuard>
+        <KeysPage />
     )
 }

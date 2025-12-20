@@ -106,7 +106,10 @@ export default function AuthGuard({
   if (loading || authLoading || !isAuthorized) {
     return (
         <div className="flex items-center justify-center min-h-screen">
-            <p>Loading & Verifying Access...</p>
+            <div className="text-center p-8">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+                <p className="mt-4 text-muted-foreground">Verifying Access...</p>
+            </div>
         </div>
     );
   }

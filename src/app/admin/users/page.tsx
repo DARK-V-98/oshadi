@@ -1,6 +1,5 @@
 
 'use client';
-import AuthGuard from '@/components/AuthGuard';
 import UserManagementList from '@/components/admin/UserManagementList';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -28,8 +27,6 @@ function UsersPage() {
 
 export default function AdminUsersPage() {
     return (
-        <AuthGuard adminOnly={true}>
-            <UsersPage />
-        </AuthGuard>
+        <UsersPage />
     )
 }

@@ -1,27 +1,24 @@
 'use client';
 import { useState, useEffect } from 'react';
-import AuthGuard from '@/components/AuthGuard';
-import { useUser, useFirestore, useAuth } from '@/firebase';
+import { useUser, useFirestore } from '@/firebase';
 import { collection, query, where, getDocs, doc, writeBatch } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardHeader, CardTitle, CardContent, CardFooter, CardDescription } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { units as allUnits, Unit } from '@/lib/data';
-import { Download, FileText, Key, HelpCircle, ArrowRight } from 'lucide-react';
+import { Download, FileText, Key, HelpCircle } from 'lucide-react';
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import Link from 'next/link';
 
 function UserDashboard() {
   const { user } = useUser();
   const firestore = useFirestore();
   const { toast } = useToast();
-  const { signOut } = useAuth();
 
   const [accessKey, setAccessKey] = useState('');
   const [isBinding, setIsBinding] = useState(false);
@@ -124,14 +121,6 @@ function UserDashboard() {
 
   return (
     <div className="container mx-auto px-4 py-8">
-       <div className="flex justify-between items-center mb-8">
-        <div>
-            <h1 className="text-3xl font-bold font-heading">Welcome, {user?.displayName || 'User'}!</h1>
-            <p className="text-muted-foreground">Your personal dashboard to access your study materials.</p>
-        </div>
-        <Button onClick={signOut} variant="outline">Sign Out</Button>
-      </div>
-
       <div className="grid lg:grid-cols-3 gap-8">
         <div className="lg:col-span-1 space-y-8">
            <Card>
@@ -224,8 +213,6 @@ function UserDashboard() {
 
 export default function DashboardPage() {
     return (
-        <AuthGuard>
-            <UserDashboard />
-        </AuthGuard>
+        <UserDashboard />
     )
 }
