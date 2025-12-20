@@ -1,11 +1,11 @@
-import { getStorage, ref, getBytes, getDownloadURL } from "firebase/storage";
+import { getStorage } from "firebase-admin/storage";
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import { NextRequest, NextResponse } from "next/server";
-import { initializeFirebase } from "@/firebase";
+import { initializeAdminApp } from "@/firebase/admin";
 import { firebaseConfig } from "@/firebase/config";
 
-// Initialize Firebase for server-side operations
-initializeFirebase();
+// Initialize Firebase Admin SDK
+initializeAdminApp();
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -16,18 +16,10 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const storage = getStorage();
-    const fileRef = ref(storage, filePath);
+    const bucket = getStorage().bucket(firebaseConfig.storageBucket);
+    const file = bucket.file(filePath);
     
-    // Get public download URL
-    const downloadUrl = await getDownloadURL(fileRef);
-
-    // Fetch the file using the public URL
-    const fileResponse = await fetch(downloadUrl);
-    if (!fileResponse.ok) {
-        throw new Error(`Failed to fetch file from storage: ${fileResponse.statusText}`);
-    }
-    const originalBytes = await fileResponse.arrayBuffer();
+    const [originalBytes] = await file.download();
 
     // Load the PDF
     const pdfDoc = await PDFDocument.load(originalBytes);
@@ -69,8 +61,8 @@ export async function GET(request: NextRequest) {
 
   } catch (error: any) {
     console.error("Error processing PDF:", error);
-    if (error.code === 'storage/object-not-found') {
-        return new NextResponse("File not found.", { status: 404 });
+    if (error.code === 404) {
+        return new NextResponse("File not found in storage.", { status: 404 });
     }
     return new NextResponse("An error occurred while watermarking the PDF.", { status: 500 });
   }
