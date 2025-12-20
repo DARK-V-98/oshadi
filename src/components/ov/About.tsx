@@ -1,4 +1,4 @@
-import { Award, Heart, Star } from "lucide-react";
+import { Award, Heart, Star, Timer, Zap, ShieldCheck } from "lucide-react";
 import Image from "next/image";
 
 const About = () => {
@@ -15,7 +15,7 @@ const About = () => {
                 
                 {/* Main circle */}
                 <div className="absolute inset-4 rounded-full bg-gradient-to-br from-rose-gold-light/30 to-champagne/30 backdrop-blur-sm border border-border/30 overflow-hidden">
-                  <Image src="/ov.png" alt="Oshadi Vidarshana Logo" fill className="object-cover" />
+                  <Image src="/ov.png" alt="Oshadi Vidarshana Logo" fill className="object-cover p-8" />
                 </div>
 
                 {/* Floating badges */}
@@ -68,12 +68,12 @@ const About = () => {
                 <h3 className="font-heading text-xl font-semibold text-foreground mb-4">Why Choose These Notes</h3>
                 <div className="grid sm:grid-cols-3 gap-4">
                   {[
-                    { icon: "⏱️", text: "Save valuable study time" },
-                    { icon: "🚀", text: "Learn faster & efficiently" },
-                    { icon: "✅", text: "Prepare with confidence" },
+                    { icon: Timer, text: "Save valuable study time" },
+                    { icon: Zap, text: "Learn faster & efficiently" },
+                    { icon: ShieldCheck, text: "Prepare with confidence" },
                   ].map((item, index) => (
-                    <div key={index} className="p-4 rounded-xl bg-background/50 border border-border/50 text-center">
-                      <span className="text-2xl mb-2 block">{item.icon}</span>
+                    <div key={index} className="p-4 rounded-xl bg-background/50 border border-border/50 text-center flex flex-col items-center justify-center">
+                      <item.icon className="w-8 h-8 text-primary mb-3" />
                       <span className="text-sm">{item.text}</span>
                     </div>
                   ))}
