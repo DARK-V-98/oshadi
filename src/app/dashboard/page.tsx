@@ -192,7 +192,7 @@ function UserDashboard() {
 
     try {
         if (part.type === 'note') {
-            toast({ title: "Processing...", description: `Applying watermark to your note.`});
+            toast({ title: "Preparing Download...", description: "Making arrangements for your file."});
             
             const originalBytes = await getBytes(fileRef);
             const pdfDoc = await PDFDocument.load(originalBytes);
@@ -228,10 +228,10 @@ function UserDashboard() {
             a.remove();
             window.URL.revokeObjectURL(url);
             
-            toast({ title: "Download started!", description: `Your watermarked note is downloading.`});
+            toast({ title: "Download started!", description: `Your secure note is downloading.`});
 
         } else { // Assignment or any other type
-            toast({ title: "Preparing download..."});
+            toast({ title: "Preparing Download..."});
             const url = await getDownloadURL(fileRef);
             
             const a = document.createElement('a');
@@ -369,6 +369,8 @@ export default function DashboardPage() {
         <UserDashboard />
     )
 }
+
+    
 
     
 
