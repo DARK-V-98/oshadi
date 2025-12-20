@@ -1,3 +1,4 @@
+
 import { Award, Heart, Star, Timer, Zap, ShieldCheck } from "lucide-react";
 import Image from "next/image";
 
@@ -15,7 +16,7 @@ const About = () => {
                 
                 {/* Main circle */}
                 <div className="absolute inset-4 rounded-full bg-gradient-to-br from-rose-gold-light/30 to-champagne/30 backdrop-blur-sm border border-border/30 overflow-hidden">
-                  <Image src="/ov.png" alt="Oshadi Vidarshana Logo" fill className="object-cover" />
+                  <Image src="/ov.png" alt="Oshadi Vidarshana Logo" fill className="object-cover p-4" />
                 </div>
 
                 {/* Floating badges */}
