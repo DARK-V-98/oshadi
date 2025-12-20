@@ -11,6 +11,7 @@ import Footer from "@/components/ov/Footer";
 import FloatingWhatsApp from "@/components/ov/FloatingWhatsApp";
 import ScrollToTop from "@/components/ov/ScrollToTop";
 import AuthForm from "@/components/AuthForm";
+import NotesList from "@/components/ov/NotesList";
 
 
 const Home = () => {
@@ -23,6 +24,7 @@ const Home = () => {
         <Hero onUnlockClick={() => setIsAuthModalOpen(true)} />
         <About />
         <Services />
+        <NotesList />
         <Testimonials />
         <Contact />
       </main>

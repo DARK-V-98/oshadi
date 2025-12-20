@@ -1,4 +1,3 @@
-
 "use client";
 import { useState, useEffect } from "react";
 import { usePathname } from 'next/navigation';
@@ -54,12 +53,16 @@ const Navbar = ({ onUnlockClick, onLoginClick }: NavbarProps) => {
       { name: "Home", href: "#home" },
       { name: "About", href: "#about" },
       { name: "Services", href: "#services" },
-    ] : []),
-    { name: "Notes", href: "/notes" },
+      { name: "Notes", href: "#notes" },
+    ] : [
+      { name: "Home", href: "/" },
+    ]),
     ...(isHomePage ? [
       { name: "Testimonials", href: "#testimonials" },
       { name: "Contact", href: "#contact" },
-    ] : [])
+    ] : [
+      { name: "Notes", href: "/notes"}
+    ])
   ];
 
   const getHref = (link: {name: string, href: string}) => {
@@ -106,7 +109,7 @@ const Navbar = ({ onUnlockClick, onLoginClick }: NavbarProps) => {
             <Button asChild variant="outline" size="sm" className="rounded-full">
               <Link href="/notes">
                 <BookOpen className="w-4 h-4 mr-2" />
-                View Notes
+                Unlock Notes
               </Link>
             </Button>
             {user ? (
@@ -232,7 +235,7 @@ const Navbar = ({ onUnlockClick, onLoginClick }: NavbarProps) => {
               <Button asChild variant="outline" size="sm" className="w-full">
                 <Link href="/notes" onClick={() => setIsOpen(false)}>
                   <BookOpen className="w-4 h-4 mr-2" />
-                  View Notes
+                  Unlock Notes
                 </Link>
               </Button>
                {!user && (
