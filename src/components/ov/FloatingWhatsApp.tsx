@@ -1,8 +1,8 @@
 import { MessageCircle } from "lucide-react";
 
 const FloatingWhatsApp = () => {
-  const whatsappNumber = "94XXXXXXXXX"; // Replace with actual number
-  const message = encodeURIComponent("Hi! I'm interested in the NVQ Level 4 Bridal & Beauty notes.");
+  const whatsappNumber = "94754420805";
+  const message = encodeURIComponent("Hi! I'm interested in your services.");
   
   return (
     <a
