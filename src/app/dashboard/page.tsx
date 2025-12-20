@@ -1,3 +1,4 @@
+
 'use client';
 import { useState, useEffect } from 'react';
 import { useUser, useFirestore, useFirebase } from '@/firebase';
@@ -15,6 +16,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { getStorage, ref, getDownloadURL } from 'firebase/storage';
+import { Badge } from '@/components/ui/badge';
 
 interface UnlockedPdfPart {
     partName: string;
