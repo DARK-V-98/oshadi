@@ -69,7 +69,7 @@ const Navbar = ({ onUnlockClick, onLoginClick }: NavbarProps) => {
                 {link.name}
               </a>
             ))}
-            <Button variant="outline" size="sm" onClick={onUnlockClick}>
+            <Button variant="outline" size="sm" onClick={onUnlockClick} className="rounded-full">
               <BookOpen className="w-4 h-4" />
               Unlock Notes
             </Button>
@@ -106,7 +106,7 @@ const Navbar = ({ onUnlockClick, onLoginClick }: NavbarProps) => {
                 </DropdownMenuContent>
               </DropdownMenu>
             ) : (
-              <Button variant="hero" size="sm" onClick={onLoginClick}>
+              <Button variant="hero" size="sm" onClick={onLoginClick} className="rounded-full">
                 <User className="w-4 h-4" />
                 Login
               </Button>
