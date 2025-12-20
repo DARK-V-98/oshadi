@@ -1,36 +1,42 @@
 "use client";
 
-import { useState } from 'react';
-import Header from '@/components/landing/Header';
-import Hero from '@/components/landing/Hero';
-import AuthorIntro from '@/components/landing/AuthorIntro';
-import Features from '@/components/landing/Features';
-import UnitList from '@/components/landing/UnitList';
-import PdfAccessGuide from '@/components/landing/PdfAccessGuide';
-import Contact from '@/components/landing/Contact';
-import Footer from '@/components/landing/Footer';
-import UnlockPdfDialog from '@/components/UnlockPdfDialog';
+import { useState } from "react";
+import Navbar from "@/components/ov/Navbar";
+import Hero from "@/components/ov/Hero";
+import Stats from "@/components/ov/Stats";
+import About from "@/components/ov/About";
+import Pricing from "@/components/ov/Pricing";
+import UnitList from "@/components/ov/UnitList";
+import Testimonials from "@/components/ov/Testimonials";
+import FAQ from "@/components/ov/FAQ";
+import PDFAccess from "@/components/ov/PDFAccess";
+import Contact from "@/components/ov/Contact";
+import Footer from "@/components/ov/Footer";
+import FloatingWhatsApp from "@/components/ov/FloatingWhatsApp";
+import ScrollToTop from "@/components/ov/ScrollToTop";
 
-export default function Home() {
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-
-  const handleUnlockClick = () => {
-    setIsDialogOpen(true);
-  };
+const Home = () => {
+  const [isUnlockModalOpen, setIsUnlockModalOpen] = useState(false);
 
   return (
-    <div className="flex flex-col min-h-dvh bg-background text-foreground">
-      <Header onUnlockClick={handleUnlockClick} />
-      <main className="flex-1">
-        <Hero onUnlockClick={handleUnlockClick} />
-        <AuthorIntro />
-        <Features />
-        <UnitList onUnlockClick={handleUnlockClick} />
-        <PdfAccessGuide />
+    <div className="min-h-screen bg-background">
+      <Navbar onUnlockClick={() => setIsUnlockModalOpen(true)} />
+      <main>
+        <Hero onUnlockClick={() => setIsUnlockModalOpen(true)} />
+        <Stats />
+        <About />
+        <Pricing />
+        <UnitList />
+        <Testimonials />
+        <FAQ />
+        <PDFAccess />
         <Contact />
       </main>
       <Footer />
-      <UnlockPdfDialog open={isDialogOpen} onOpenChange={setIsDialogOpen} />
+      <FloatingWhatsApp />
+      <ScrollToTop />
     </div>
   );
-}
+};
+
+export default Home;
