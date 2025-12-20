@@ -1,6 +1,7 @@
 
 "use client";
 import { useState, useEffect } from "react";
+import { usePathname } from 'next/navigation';
 import { Menu, X, BookOpen, User, LogOut, LayoutDashboard, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth, useUser, useFirestore } from "@/firebase";
@@ -32,6 +33,8 @@ const Navbar = ({ onUnlockClick, onLoginClick }: NavbarProps) => {
   const { signOut } = useAuth();
   const firestore = useFirestore();
   const [userRole, setUserRole] = useState<string | null>(null);
+  const pathname = usePathname();
+  const isHomePage = pathname === '/';
 
   useEffect(() => {
     if (user && firestore) {
@@ -55,6 +58,10 @@ const Navbar = ({ onUnlockClick, onLoginClick }: NavbarProps) => {
     { name: "Testimonials", href: "#testimonials" },
     { name: "Contact", href: "#contact" },
   ];
+
+  const getHref = (hash: string) => {
+    return isHomePage ? hash : `/${hash}`;
+  }
   
   const getInitials = (name: string | null | undefined) => {
     if (!name) return 'A';
@@ -78,7 +85,7 @@ const Navbar = ({ onUnlockClick, onLoginClick }: NavbarProps) => {
             {navLinks.map((link) => (
               <a
                 key={link.name}
-                href={link.href}
+                href={getHref(link.href)}
                 className="px-3 py-2 rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground font-medium transition-colors duration-300"
               >
                 {link.name}
@@ -201,7 +208,7 @@ const Navbar = ({ onUnlockClick, onLoginClick }: NavbarProps) => {
               {navLinks.map((link) => (
                 <a
                   key={link.name}
-                  href={link.href}
+                  href={getHref(link.href)}
                   onClick={() => setIsOpen(false)}
                   className="text-muted-foreground hover:text-foreground font-medium transition-colors duration-300 py-2"
                 >
