@@ -9,9 +9,9 @@ interface FirebaseContextValue {
   firebaseApp: FirebaseApp | null;
   auth: Auth | null;
   firestore: Firestore | null;
-  signIn: typeof signInWithEmailAndPassword;
-  signUp: typeof createUserWithEmailAndPassword;
-  signOut: typeof firebaseSignOut;
+  signIn: (email:string, password:string) => ReturnType<typeof signInWithEmailAndPassword>;
+  signUp: (email:string, password:string) => ReturnType<typeof createUserWithEmailAndPassword>;
+  signOut: () => ReturnType<typeof firebaseSignOut>;
 }
 
 const FirebaseContext = createContext<FirebaseContextValue | null>(null);
@@ -28,19 +28,19 @@ export function FirebaseProvider({
   firestore: Firestore;
 }) {
 
-  const signIn: typeof signInWithEmailAndPassword = (auth, email, password) => {
+  const signIn = (email:string, password:string) => {
     const { signInWithEmailAndPassword } = require('firebase/auth');
     return signInWithEmailAndPassword(auth, email, password);
   }
 
-  const signUp: typeof createUserWithEmailAndPassword = (auth, email, password) => {
+  const signUp = (email:string, password:string) => {
     const { createUserWithEmailAndPassword } = require('firebase/auth');
     return createUserWithEmailAndPassword(auth, email, password);
   }
 
-  const signOut: typeof firebaseSignOut = (auth) => {
-    const { signOut } = require('firebase/auth');
-    return signOut(auth);
+  const signOut = () => {
+    const { signOut: firebaseSignOut } = require('firebase/auth');
+    return firebaseSignOut(auth);
   }
 
   return (
@@ -61,25 +61,7 @@ export const useFirebaseApp = () => {
 export const useAuth = () => {
   const context = useContext(FirebaseContext);
   if (!context) throw new Error("useAuth must be used within a FirebaseProvider");
-  
-  const { auth, signIn, signUp, signOut: firebaseSignOut } = context;
-
-  const handleSignOut = async () => {
-    if (auth) {
-      await firebaseSignOut(auth);
-    }
-  };
-
-  if (!auth || !signIn || !signUp) {
-      throw new Error("Auth functions not available");
-  }
-
-  return { 
-      auth, 
-      signIn: (email:string, password:string) => signIn(auth, email, password),
-      signUp: (email:string, password:string) => signUp(auth, email, password),
-      signOut: handleSignOut 
-    };
+  return context;
 };
 
 export const useFirestore = () => {
