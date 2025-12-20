@@ -83,7 +83,5 @@ export const useFirestore = () => {
 };
 
 export const useStorage = () => {
-  const context = useContext(FirebaseContext);
-  if (!context) throw new Error("useStorage must be used within a FirebaseProvider");
-  return context?.storage;
+  return useContext(FirebaseContext)?.storage;
 };
