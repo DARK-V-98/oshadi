@@ -3,7 +3,7 @@
 import { useUser, useFirestore } from '@/firebase';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 
 export default function AuthGuard({
@@ -34,12 +34,31 @@ export default function AuthGuard({
       return;
     }
 
-    const checkAdminRole = async () => {
+    const ensureUserInDbAndCheckRole = async () => {
       try {
         const userDocRef = doc(firestore, 'users', user.uid);
         const userDoc = await getDoc(userDocRef);
 
-        if (userDoc.exists() && userDoc.data().role === 'admin') {
+        let userData = userDoc.data();
+
+        // If user document doesn't exist, create it
+        if (!userDoc.exists()) {
+          const newUser = {
+            uid: user.uid,
+            name: user.displayName || 'New User',
+            email: user.email,
+            role: 'user', // Assign default role
+          };
+          await setDoc(userDocRef, newUser);
+          userData = newUser;
+          toast({
+            title: 'Profile Created',
+            description: 'Your user profile has been initialized.',
+          });
+        }
+
+        // Check for admin role
+        if (userData && userData.role === 'admin') {
           setIsAuthorized(true);
         } else {
           toast({
@@ -50,6 +69,7 @@ export default function AuthGuard({
           router.push('/');
         }
       } catch (error) {
+        console.error("Error ensuring user in DB or checking role: ", error);
         toast({
             variant: 'destructive',
             title: 'Error',
@@ -61,7 +81,7 @@ export default function AuthGuard({
       }
     };
 
-    checkAdminRole();
+    ensureUserInDbAndCheckRole();
   }, [user, authLoading, firestore, router, toast]);
 
   if (loading || authLoading || !isAuthorized) {
