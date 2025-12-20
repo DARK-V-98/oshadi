@@ -1,9 +1,10 @@
-import { getStorage, ref, getBytes } from "firebase/storage";
+import { getStorage, ref, getBytes, getDownloadURL } from "firebase/storage";
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import { NextRequest, NextResponse } from "next/server";
 import { initializeFirebase } from "@/firebase";
+import { firebaseConfig } from "@/firebase/config";
 
-// Initialize Firebase Admin for server-side operations
+// Initialize Firebase for server-side operations
 initializeFirebase();
 
 export async function GET(request: NextRequest) {
@@ -17,7 +18,16 @@ export async function GET(request: NextRequest) {
   try {
     const storage = getStorage();
     const fileRef = ref(storage, filePath);
-    const originalBytes = await getBytes(fileRef);
+    
+    // Get public download URL
+    const downloadUrl = await getDownloadURL(fileRef);
+
+    // Fetch the file using the public URL
+    const fileResponse = await fetch(downloadUrl);
+    if (!fileResponse.ok) {
+        throw new Error(`Failed to fetch file from storage: ${fileResponse.statusText}`);
+    }
+    const originalBytes = await fileResponse.arrayBuffer();
 
     // Load the PDF
     const pdfDoc = await PDFDocument.load(originalBytes);
