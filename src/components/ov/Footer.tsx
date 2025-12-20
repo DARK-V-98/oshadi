@@ -19,11 +19,17 @@ const Footer = () => {
             </div>
           </div>
 
-          {/* Made with love */}
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <span>Made with</span>
-            <Heart className="w-4 h-4 text-primary fill-primary animate-pulse" />
-            <span>for NVQ students</span>
+          {/* Powered by */}
+          <div className="text-sm text-muted-foreground">
+            Powered by{" "}
+            <a
+              href="https://www.esystemlk.xyz"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-medium text-primary hover:underline"
+            >
+              esystemlk
+            </a>
           </div>
 
           {/* Links */}
