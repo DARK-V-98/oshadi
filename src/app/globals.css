@@ -15,7 +15,7 @@
     --popover: 30 50% 98%;
     --popover-foreground: 20 25% 20%;
 
-    --primary: 10 50% 65%;
+    --primary: 340 82% 60%;
     --primary-foreground: 30 50% 98%;
 
     --secondary: 30 30% 92%;
@@ -32,30 +32,28 @@
 
     --border: 30 30% 88%;
     --input: 30 30% 88%;
-    --ring: 10 50% 65%;
-
-    --radius: 0.75rem;
+    --ring: 340 82% 60%;
 
     /* Custom bridal theme tokens */
-    --rose-gold: 10 50% 65%;
-    --rose-gold-light: 10 60% 85%;
+    --rose-gold: 340 82% 60%;
+    --rose-gold-light: 340 82% 85%;
     --blush: 350 40% 92%;
     --champagne: 40 50% 90%;
     --gold: 40 70% 50%;
     --gold-light: 40 60% 75%;
     --ivory: 40 40% 96%;
-    --soft-pink: 350 35% 88%;
+    --soft-pink: 350 75% 90%;
 
     /* Gradients */
     --gradient-hero: linear-gradient(135deg, hsl(30 50% 98%) 0%, hsl(350 40% 95%) 50%, hsl(40 50% 94%) 100%);
     --gradient-gold: linear-gradient(135deg, hsl(40 70% 50%) 0%, hsl(35 60% 60%) 100%);
-    --gradient-rose: linear-gradient(135deg, hsl(10 50% 65%) 0%, hsl(350 45% 70%) 100%);
+    --gradient-rose: linear-gradient(135deg, hsl(340 82% 60%) 0%, hsl(350 75% 70%) 100%);
     --gradient-soft: linear-gradient(180deg, hsl(30 50% 98%) 0%, hsl(350 40% 96%) 100%);
 
     /* Shadows */
-    --shadow-soft: 0 4px 20px -4px hsl(10 50% 65% / 0.15);
+    --shadow-soft: 0 4px 20px -4px hsl(340 82% 60% / 0.15);
     --shadow-card: 0 8px 30px -8px hsl(20 25% 20% / 0.08);
-    --shadow-glow: 0 0 40px hsl(10 60% 75% / 0.3);
+    --shadow-glow: 0 0 40px hsl(340 82% 75% / 0.3);
 
     /* Font families */
     --font-heading: 'Playfair Display', serif;
@@ -72,7 +70,7 @@
     --popover: 20 20% 8%;
     --popover-foreground: 30 30% 95%;
 
-    --primary: 10 50% 70%;
+    --primary: 340 82% 70%;
     --primary-foreground: 20 20% 8%;
 
     --secondary: 20 15% 18%;
@@ -89,16 +87,16 @@
 
     --border: 20 15% 20%;
     --input: 20 15% 20%;
-    --ring: 10 50% 70%;
+    --ring: 340 82% 70%;
 
-    --rose-gold: 10 50% 70%;
-    --rose-gold-light: 10 40% 25%;
+    --rose-gold: 340 82% 70%;
+    --rose-gold-light: 340 70% 25%;
     --blush: 350 20% 18%;
     --champagne: 40 25% 20%;
     --gold: 40 60% 55%;
     --gold-light: 40 40% 35%;
     --ivory: 40 15% 15%;
-    --soft-pink: 350 20% 20%;
+    --soft-pink: 350 40% 25%;
 
     --gradient-hero: linear-gradient(135deg, hsl(20 20% 8%) 0%, hsl(350 15% 12%) 50%, hsl(40 20% 10%) 100%);
     --gradient-soft: linear-gradient(180deg, hsl(20 20% 8%) 0%, hsl(350 15% 10%) 100%);
