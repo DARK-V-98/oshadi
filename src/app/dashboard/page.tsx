@@ -15,8 +15,10 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { getStorage, ref, getDownloadURL } from 'firebase/storage';
+import { getStorage, ref, getDownloadURL, getBytes } from 'firebase/storage';
 import { Badge } from '@/components/ui/badge';
+import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
+
 
 interface PdfPart {
     partName: string;
@@ -54,15 +56,14 @@ function UserDashboard() {
     const q = query(unlockedRef, where('userId', '==', user.uid));
   
     const unsubscribe = onSnapshot(q, async (querySnapshot) => {
-      const unlockedDocs = querySnapshot.docs.map(doc => doc.data() as { unitId: string; type: 'note' | 'assignment' });
-      
       const unlockedMap: Record<string, { unitId: string, types: Set<'note' | 'assignment'> }> = {};
   
-      for (const unlockedDoc of unlockedDocs) {
-        if (!unlockedMap[unlockedDoc.unitId]) {
-          unlockedMap[unlockedDoc.unitId] = { unitId: unlockedDoc.unitId, types: new Set() };
-        }
-        unlockedMap[unlockedDoc.unitId].types.add(unlockedDoc.type);
+      for (const doc of querySnapshot.docs) {
+          const unlockedDoc = doc.data() as { unitId: string; type: 'note' | 'assignment' };
+          if (!unlockedMap[unlockedDoc.unitId]) {
+              unlockedMap[unlockedDoc.unitId] = { unitId: unlockedDoc.unitId, types: new Set() };
+          }
+          unlockedMap[unlockedDoc.unitId].types.add(unlockedDoc.type);
       }
       
       const finalUnlockedList: UnlockedUnitInfo[] = [];
@@ -80,14 +81,22 @@ function UserDashboard() {
             unitNameSI: unitData.nameSI,
             parts: [],
           };
-
+          
           const pdfParts = unitData.pdfs || [];
-
-          types.forEach(type => {
-            pdfParts.forEach(part => {
-              unlockedUnitInfo.parts.push({ ...part, type: type });
-            });
+          
+          pdfParts.forEach(part => {
+              if(types.has('note')) {
+                  unlockedUnitInfo.parts.push({ ...part, type: 'note' });
+              }
+              if(types.has('assignment')) {
+                  unlockedUnitInfo.parts.push({ ...part, type: 'assignment' });
+              }
           });
+
+          // Deduplicate parts in case both keys were bound for the same unit
+          const uniqueParts = Array.from(new Map(unlockedUnitInfo.parts.map(item => [item.fileName + item.type, item])).values());
+          unlockedUnitInfo.parts = uniqueParts;
+
 
           finalUnlockedList.push(unlockedUnitInfo);
         }
@@ -173,59 +182,75 @@ function UserDashboard() {
   };
   
   const handleDownload = async (part: PdfPart & { type: 'note' | 'assignment' }) => {
-    setDownloading(prev => ({ ...prev, [part.downloadUrl + part.type]: true }));
-    
-    if (part.type === 'note') {
-        toast({ title: "Processing...", description: `Your note is being prepared with a watermark.`});
-        try {
-            const response = await fetch(`/api/download?file=${encodeURIComponent(part.downloadUrl)}`);
+    if (!firebase?.storage) return;
 
-            if (!response.ok) {
-                throw new Error(`Server responded with ${response.status}`);
+    const downloadKey = part.downloadUrl + part.type;
+    setDownloading(prev => ({ ...prev, [downloadKey]: true }));
+    
+    const fileRef = ref(firebase.storage, part.downloadUrl);
+    const fileName = part.fileName || 'download.pdf';
+
+    try {
+        if (part.type === 'note') {
+            toast({ title: "Processing...", description: `Applying watermark to your note.`});
+            
+            const originalBytes = await getBytes(fileRef);
+            const pdfDoc = await PDFDocument.load(originalBytes);
+            const helveticaFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
+            const pages = pdfDoc.getPages();
+
+            const watermarkText = 'oshadi vidarshana';
+            const watermarkColor = rgb(0.5, 0.5, 0.5);
+            const watermarkOpacity = 0.2;
+
+            for (const page of pages) {
+                const { width, height } = page.getSize();
+                page.drawText(watermarkText, {
+                    x: width / 2 - 100,
+                    y: height / 2,
+                    size: 50,
+                    font: helveticaFont,
+                    color: watermarkColor,
+                    opacity: watermarkOpacity,
+                    rotate: { type: 'degrees', angle: 45 },
+                });
             }
 
-            const blob = await response.blob();
+            const watermarkedBytes = await pdfDoc.save();
+            
+            const blob = new Blob([watermarkedBytes], { type: 'application/pdf' });
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            const fileName = part.downloadUrl.split('/').pop();
-            a.download = fileName || 'download.pdf';
+            a.download = fileName;
             document.body.appendChild(a);
             a.click();
             a.remove();
             window.URL.revokeObjectURL(url);
+            
             toast({ title: "Download started!", description: `Your watermarked note is downloading.`});
 
-        } catch(error) {
-            console.error("Error downloading watermarked file: ", error);
-            toast({ title: "Download failed", description: `Could not get the file. Please try again later.`, variant: 'destructive' });
-        }
-    } else { // Assignment or any other type
-        if (!firebase?.storage) return;
-        toast({ title: "Preparing download..."});
-        try {
-            const fileRef = ref(firebase.storage, part.downloadUrl);
+        } else { // Assignment or any other type
+            toast({ title: "Preparing download..."});
             const url = await getDownloadURL(fileRef);
-
-            // This opens the file in a new tab, which is often better for non-watermarked originals
+            
             const a = document.createElement('a');
             a.href = url;
             a.target = '_blank';
             a.rel = "noopener noreferrer";
-            const fileName = part.downloadUrl.split('/').pop();
-            a.download = fileName || 'download.pdf';
+            a.download = fileName;
             document.body.appendChild(a);
             a.click();
             a.remove();
 
             toast({ title: "Download started!", description: `Your assignment file is downloading.`});
-        } catch (error) {
-            console.error("Error getting direct download URL: ", error);
-            toast({ title: "Download failed", description: `Could not get the file. Please try again.`, variant: 'destructive' });
         }
+    } catch (error) {
+        console.error("Error during download process: ", error);
+        toast({ title: "Download failed", description: `Could not get the file. Please try again later.`, variant: 'destructive' });
     }
 
-    setDownloading(prev => ({ ...prev, [part.downloadUrl + part.type]: false }));
+    setDownloading(prev => ({ ...prev, [downloadKey]: false }));
   }
 
   return (
@@ -344,5 +369,7 @@ export default function DashboardPage() {
         <UserDashboard />
     )
 }
+
+    
 
     
