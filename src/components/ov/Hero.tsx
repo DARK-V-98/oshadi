@@ -1,5 +1,5 @@
 "use client";
-import { BookOpen, Unlock, MessageCircle, Star } from "lucide-react";
+import { BookOpen, MessageCircle, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
 

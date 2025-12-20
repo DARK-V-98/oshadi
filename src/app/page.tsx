@@ -11,10 +11,7 @@ import Footer from "@/components/ov/Footer";
 import FloatingWhatsApp from "@/components/ov/FloatingWhatsApp";
 import ScrollToTop from "@/components/ov/ScrollToTop";
 import AuthForm from "@/components/AuthForm";
-import UnitList from "@/components/ov/UnitList";
-import Pricing from "@/components/ov/Pricing";
-import FAQ from "@/components/ov/FAQ";
-import PDFAccess from "@/components/ov/PDFAccess";
+import Portfolio from "@/components/ov/Portfolio";
 
 
 const Home = () => {
@@ -27,11 +24,8 @@ const Home = () => {
         <Hero onUnlockClick={() => setIsAuthModalOpen(true)} />
         <About />
         <Services />
-        <UnitList />
+        <Portfolio />
         <Testimonials />
-        {/* <Pricing /> */}
-        {/* <FAQ /> */}
-        {/* <PDFAccess /> */}
         <Contact />
       </main>
       <Footer />
