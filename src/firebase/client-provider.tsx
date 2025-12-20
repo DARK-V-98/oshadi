@@ -1,7 +1,9 @@
+
 'use client';
 
 import { FirebaseProvider, initializeFirebase } from '@/firebase';
 import { useEffect, useState } from 'react';
+import LoadingScreen from '@/components/LoadingScreen';
 
 export function FirebaseClientProvider({ children }: { children: React.ReactNode }) {
   const [firebase, setFirebase] = useState<ReturnType<typeof initializeFirebase> | null>(null);
@@ -12,12 +14,7 @@ export function FirebaseClientProvider({ children }: { children: React.ReactNode
   }, []);
 
   if (!firebase) {
-    return <div className="flex items-center justify-center min-h-screen">
-            <div className="text-center p-8">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-                <p className="mt-4 text-muted-foreground">Initializing Services...</p>
-            </div>
-        </div>;
+    return <LoadingScreen />;
   }
 
   return (
