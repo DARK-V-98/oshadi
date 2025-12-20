@@ -51,7 +51,7 @@ const Navbar = ({ onUnlockClick, onLoginClick }: NavbarProps) => {
         <div className="flex items-center justify-between h-16 md:h-20">
           {/* Logo */}
           <a href="/" className="flex items-center gap-2 group">
-            <Image src="/logo (2).png" alt="Oshadi Vidarshana Logo" width={40} height={40} className="rounded-full" />
+            <Image src="/logo.png" alt="Oshadi Vidarshana Logo" width={40} height={40} className="rounded-full" />
             <span className="font-heading text-xl font-semibold text-foreground hidden sm:block">
               Oshadi Vidarshana
             </span>
