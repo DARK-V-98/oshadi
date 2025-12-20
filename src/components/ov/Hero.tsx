@@ -31,6 +31,11 @@ const Hero = ({ onUnlockClick }: HeroProps) => {
 
       <div className="container mx-auto px-4 relative z-10">
         <div className="max-w-4xl mx-auto text-center">
+          {/* Logo */}
+          <div className="mb-8 animate-fade-in">
+            <Image src="/ov.png" alt="Oshadi Vidarshana Logo" width={100} height={100} className="rounded-full mx-auto shadow-lg" />
+          </div>
+
           {/* Badge */}
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-secondary/80 backdrop-blur-sm border border-border/50 mb-8 animate-fade-in">
             <Star className="w-4 h-4 text-gold fill-gold" />
