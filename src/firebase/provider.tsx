@@ -4,6 +4,7 @@ import { createContext, useContext } from 'react';
 import type { FirebaseApp } from 'firebase/app';
 import type { Auth, signOut as firebaseSignOut, signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
 import type { Firestore } from 'firebase/firestore';
+import type { FirebaseStorage } from 'firebase/storage';
 import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
 
 
@@ -11,6 +12,7 @@ interface FirebaseContextValue {
   firebaseApp: FirebaseApp | null;
   auth: Auth | null;
   firestore: Firestore | null;
+  storage: FirebaseStorage | null;
   signIn: (email:string, password:string) => ReturnType<typeof signInWithEmailAndPassword>;
   signUp: (email:string, password:string) => ReturnType<typeof createUserWithEmailAndPassword>;
   signInWithGoogle: () => ReturnType<typeof signInWithPopup>;
@@ -24,11 +26,13 @@ export function FirebaseProvider({
   firebaseApp,
   auth,
   firestore,
+  storage,
 }: {
   children: React.ReactNode;
   firebaseApp: FirebaseApp;
   auth: Auth;
   firestore: Firestore;
+  storage: FirebaseStorage;
 }) {
 
   const signIn = (email:string, password:string) => {
@@ -53,7 +57,7 @@ export function FirebaseProvider({
   }
 
   return (
-    <FirebaseContext.Provider value={{ firebaseApp, auth, firestore, signIn, signUp, signInWithGoogle, signOut }}>
+    <FirebaseContext.Provider value={{ firebaseApp, auth, firestore, storage, signIn, signUp, signInWithGoogle, signOut }}>
       <FirebaseErrorListener />
       {children}
     </FirebaseContext.Provider>
@@ -76,4 +80,10 @@ export const useAuth = () => {
 
 export const useFirestore = () => {
   return useContext(FirebaseContext)?.firestore;
+};
+
+export const useStorage = () => {
+  const context = useContext(FirebaseContext);
+  if (!context) throw new Error("useStorage must be used within a FirebaseProvider");
+  return context?.storage;
 };

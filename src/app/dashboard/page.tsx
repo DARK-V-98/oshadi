@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useUser, useFirestore } from '@/firebase';
 import { collection, query, where, getDocs, doc, writeBatch } from 'firebase/firestore';
+import { getStorage, ref, getDownloadURL } from "firebase/storage";
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,6 +16,16 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 
+interface UnlockedPdfPart {
+    partName: string;
+    downloadUrl: string;
+}
+
+interface UnlockedUnitInfo extends Unit {
+    parts: UnlockedPdfPart[];
+}
+
+
 function UserDashboard() {
   const { user } = useUser();
   const firestore = useFirestore();
@@ -22,27 +33,44 @@ function UserDashboard() {
 
   const [accessKey, setAccessKey] = useState('');
   const [isBinding, setIsBinding] = useState(false);
-  const [unlockedPdfs, setUnlockedPdfs] = useState<Unit[]>([]);
+  const [unlockedPdfs, setUnlockedPdfs] = useState<UnlockedUnitInfo[]>([]);
   const [loadingPdfs, setLoadingPdfs] = useState(true);
 
   useEffect(() => {
     if (!user || !firestore) return;
 
     const fetchUnlockedPdfs = async () => {
-      setLoadingPdfs(true);
-      const unlockedRef = collection(firestore, 'userUnlockedPdfs');
-      const q = query(unlockedRef, where('userId', '==', user.uid));
-      try {
-        const querySnapshot = await getDocs(q);
-        const unlockedUnitIds = querySnapshot.docs.map(doc => doc.data().unitId);
-        const userPdfs = allUnits.filter(unit => unlockedUnitIds.includes(unit.unitNo));
-        setUnlockedPdfs(userPdfs);
-      } catch (error) {
-        console.error("Error fetching unlocked PDFs: ", error);
-        toast({ title: 'Error', description: 'Could not load your unlocked PDFs.', variant: 'destructive' });
-      } finally {
-        setLoadingPdfs(false);
-      }
+        setLoadingPdfs(true);
+        const unlockedRef = collection(firestore, 'userUnlockedPdfs');
+        const q = query(unlockedRef, where('userId', '==', user.uid));
+        
+        try {
+            const querySnapshot = await getDocs(q);
+            const unlockedUnitIds = querySnapshot.docs.map(doc => doc.data().unitId);
+            
+            const userPdfsData: UnlockedUnitInfo[] = [];
+
+            for (const unitId of unlockedUnitIds) {
+                const unitInfo = allUnits.find(u => u.unitNo === unitId);
+                if (unitInfo) {
+                    const unitDocRef = doc(firestore, 'units', unitId);
+                    const unitDocSnap = await getDoc(unitDocRef);
+                    if (unitDocSnap.exists()) {
+                        const unitData = unitDocSnap.data();
+                        const parts: UnlockedPdfPart[] = unitData.pdfs || [];
+                        userPdfsData.push({ ...unitInfo, parts });
+                    }
+                }
+            }
+            
+            setUnlockedPdfs(userPdfsData);
+
+        } catch (error) {
+            console.error("Error fetching unlocked PDFs: ", error);
+            toast({ title: 'Error', description: 'Could not load your unlocked PDFs.', variant: 'destructive' });
+        } finally {
+            setLoadingPdfs(false);
+        }
     };
 
     fetchUnlockedPdfs();
@@ -93,17 +121,19 @@ function UserDashboard() {
             unitId: keyData.unitId,
             keyId: keyDoc.id,
             unlockedAt: new Date(),
-            downloadCount: 0,
         });
 
         await batch.commit();
 
-        const unlockedUnit = allUnits.find(u => u.unitNo === keyData.unitId);
-        if(unlockedUnit) {
-            setUnlockedPdfs(prev => [...prev, unlockedUnit]);
+        const unlockedUnitInfo = allUnits.find(u => u.unitNo === keyData.unitId);
+        if(unlockedUnitInfo) {
+            const unitDocRef = doc(firestore, 'units', keyData.unitId);
+            const unitDocSnap = await getDoc(unitDocRef);
+            const parts = unitDocSnap.exists() ? (unitDocSnap.data().pdfs || []) : [];
+            setUnlockedPdfs(prev => [...prev, {...unlockedUnitInfo, parts}]);
         }
 
-        toast({ title: 'Success!', description: `You have unlocked "${unlockedUnit?.nameEN}".` });
+        toast({ title: 'Success!', description: `You have unlocked "${unlockedUnitInfo?.nameEN}".` });
         setAccessKey('');
 
     } catch (error) {
@@ -114,9 +144,16 @@ function UserDashboard() {
     }
   };
   
-  const handleDownload = (unit: Unit) => {
-    console.log(`Initiating download for ${unit.nameEN}`);
-    toast({ title: "Download started", description: `Downloading ${unit.nameEN}.`});
+  const handleDownload = async (filePath: string) => {
+    const storage = getStorage();
+    try {
+        const url = await getDownloadURL(ref(storage, filePath));
+        window.open(url, '_blank');
+        toast({ title: "Download started", description: `Your file is opening in a new tab.`});
+    } catch(error) {
+        console.error("Error getting download URL: ", error);
+        toast({ title: "Download failed", description: `Could not get the file. Please try again later.`, variant: 'destructive' });
+    }
   }
 
   return (
@@ -173,20 +210,33 @@ function UserDashboard() {
             {loadingPdfs ? (
                 <p>Loading your notes...</p>
             ) : unlockedPdfs.length > 0 ? (
-                <div className="grid gap-4">
+                <div className="space-y-6">
                     {unlockedPdfs.map(unit => (
-                        <Card key={unit.unitNo} className="flex items-center justify-between p-4">
-                           <div className="flex items-center gap-4">
-                                <FileText className="w-6 h-6 text-primary" />
-                                <div>
-                                    <p className="font-semibold">{unit.nameEN}</p>
-                                    <p className="text-sm text-muted-foreground">{unit.nameSI}</p>
-                                </div>
-                           </div>
-                           <Button size="sm" onClick={() => handleDownload(unit)}>
-                                <Download className="w-4 h-4 mr-2"/>
-                                Download
-                           </Button>
+                        <Card key={unit.unitNo}>
+                           <CardHeader>
+                               <CardTitle className="flex items-center gap-3">
+                                   <FileText className="w-6 h-6 text-primary" />
+                                   <div>
+                                       {unit.nameEN}
+                                       <p className="text-sm text-muted-foreground font-normal">{unit.nameSI}</p>
+                                   </div>
+                               </CardTitle>
+                           </CardHeader>
+                           <CardContent className="space-y-3">
+                               {unit.parts && unit.parts.length > 0 ? (
+                                   unit.parts.map(part => (
+                                      <div key={part.partName} className="flex items-center justify-between p-3 bg-secondary/50 rounded-md">
+                                          <span>{part.partName}</span>
+                                          <Button size="sm" variant="ghost" onClick={() => handleDownload(part.downloadUrl)}>
+                                              <Download className="w-4 h-4 mr-2"/>
+                                              Download
+                                         </Button>
+                                      </div>
+                                   ))
+                               ) : (
+                                   <p className="text-muted-foreground text-sm">No PDF parts available for this unit yet.</p>
+                               )}
+                           </CardContent>
                         </Card>
                     ))}
                 </div>
