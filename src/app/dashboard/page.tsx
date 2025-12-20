@@ -100,9 +100,12 @@ function UserDashboard() {
         
         for (const pdfDoc of unlockedData) {
             if (unitsMap[pdfDoc.unitId]) {
-                // Prevent adding duplicates
                 if (!unitsMap[pdfDoc.unitId].parts.some(p => p.id === pdfDoc.id)) {
                     unitsMap[pdfDoc.unitId].parts.push(pdfDoc);
+                } else {
+                    // Update existing part if it's already there
+                    const index = unitsMap[pdfDoc.unitId].parts.findIndex(p => p.id === pdfDoc.id);
+                    unitsMap[pdfDoc.unitId].parts[index] = pdfDoc;
                 }
             }
         }
@@ -151,37 +154,8 @@ function UserDashboard() {
 
         if (part.type === 'note') {
             const pdfDoc = await PDFDocument.load(originalBytes);
-            
-            // This part for watermarking is commented out as it was causing issues.
-            // When re-enabling, ensure wasm is loaded correctly or do it on server.
-            /*
-            const helveticaFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
-            const pages = pdfDoc.getPages();
-
-            const watermarkText = 'oshadi vidarshana';
-            const watermarkColor = rgb(0.5, 0.5, 0.5);
-            const watermarkOpacity = 0.2;
-
-            for (const page of pages) {
-                const { width, height } = page.getSize();
-                page.drawText(watermarkText, {
-                    x: width / 2 - 100,
-                    y: height / 2,
-                    size: 50,
-                    font: helveticaFont,
-                    color: watermarkColor,
-                    opacity: watermarkOpacity,
-                    rotate: { type: 'degrees', angle: 45 },
-                });
-            }
-
             const watermarkedBytes = await pdfDoc.save();
             blob = new Blob([watermarkedBytes], { type: 'application/pdf' });
-            */
-           
-           // For now, serve original bytes for notes as well
-           blob = new Blob([originalBytes], { type: 'application/pdf' });
-
         } else { // Assignment or any other type
             blob = new Blob([originalBytes], { type: 'application/pdf' });
         }
