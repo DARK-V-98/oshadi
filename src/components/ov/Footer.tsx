@@ -24,7 +24,7 @@ const Footer = () => {
           <div className="flex flex-col sm:flex-row items-center gap-x-6 gap-y-2">
              <a href={whatsappLink} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 hover:text-primary transition-colors">
                 <Phone className="w-4 h-4"/>
-                <span>{whatsappNumber}</span>
+                <span>Phone: {whatsappNumber}</span>
             </a>
             <span className="hidden sm:inline">|</span>
             <span>
