@@ -43,7 +43,7 @@ export default function AuthForm({ open, onOpenChange }: AuthFormProps) {
 }
 
 const AuthCard = ({ children }: { children: React.ReactNode }) => (
-    <div className="w-full h-full p-8 rounded-2xl border border-white/20 bg-black/30 backdrop-blur-xl shadow-2xl text-white">
+    <div className="w-full h-full p-8 rounded-2xl border border-border bg-card shadow-xl text-card-foreground">
         {children}
     </div>
 );
@@ -74,25 +74,25 @@ const SignInForm = ({ onSignUpClick }: { onSignUpClick: () => void }) => {
     <div className="flex flex-col h-full">
       <div className="text-center mb-6">
         <h2 className="text-3xl font-bold font-heading">Login</h2>
-        <p className="text-white/70">Access your admin dashboard.</p>
+        <p className="text-muted-foreground">Access your admin dashboard.</p>
       </div>
       <form onSubmit={handleSignIn} className="space-y-4">
         <div className="space-y-2">
           <Label htmlFor="signin-email">Email</Label>
-          <Input id="signin-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required className="bg-white/10 border-white/30 placeholder:text-white/50 rounded-lg" />
+          <Input id="signin-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
         </div>
         <div className="space-y-2">
           <Label htmlFor="signin-password">Password</Label>
-          <Input id="signin-password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required className="bg-white/10 border-white/30 placeholder:text-white/50 rounded-lg" />
+          <Input id="signin-password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
         </div>
-        <Button type="submit" className="w-full bg-primary/80 hover:bg-primary text-white rounded-lg">
+        <Button type="submit" className="w-full">
           <LogIn className="mr-2" /> Sign In
         </Button>
       </form>
       <div className="mt-auto text-center">
-        <p className="text-sm text-white/70">
+        <p className="text-sm text-muted-foreground">
           No account?{' '}
-          <button onClick={onSignUpClick} className="font-semibold underline hover:text-primary">
+          <button onClick={onSignUpClick} className="font-semibold underline text-primary hover:text-primary/80">
             Sign up
           </button>
         </p>
@@ -134,29 +134,29 @@ const SignUpForm = ({ onSignInClick }: { onSignInClick: () => void }) => {
     <div className="flex flex-col h-full">
       <div className="text-center mb-6">
         <h2 className="text-3xl font-bold font-heading">Sign Up</h2>
-        <p className="text-white/70">Create a new admin account.</p>
+        <p className="text-muted-foreground">Create a new admin account.</p>
       </div>
       <form onSubmit={handleSignUp} className="space-y-4">
         <div className="space-y-2">
           <Label htmlFor="signup-email">Email</Label>
-          <Input id="signup-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required className="bg-white/10 border-white/30 placeholder:text-white/50 rounded-lg" />
+          <Input id="signup-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
         </div>
         <div className="space-y-2">
           <Label htmlFor="signup-password">Password</Label>
-          <Input id="signup-password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required className="bg-white/10 border-white/30 placeholder:text-white/50 rounded-lg" />
+          <Input id="signup-password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
         </div>
         <div className="space-y-2">
           <Label htmlFor="confirm-password">Confirm Password</Label>
-          <Input id="confirm-password" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required className="bg-white/10 border-white/30 placeholder:text-white/50 rounded-lg" />
+          <Input id="confirm-password" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required />
         </div>
-        <Button type="submit" className="w-full bg-primary/80 hover:bg-primary text-white rounded-lg">
+        <Button type="submit" className="w-full">
           <UserPlus className="mr-2" /> Create Account
         </Button>
       </form>
       <div className="mt-auto text-center">
-        <p className="text-sm text-white/70">
+        <p className="text-sm text-muted-foreground">
           Already have an account?{' '}
-          <button onClick={onSignInClick} className="font-semibold underline hover:text-primary">
+          <button onClick={onSignInClick} className="font-semibold underline text-primary hover:text-primary/80">
             Sign in
           </button>
         </p>
