@@ -25,7 +25,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { getBytes, ref } from 'firebase/storage';
 import { Badge } from '@/components/ui/badge';
-import { PDFDocument } from 'pdf-lib';
+import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import UnlockKeyForm from '@/components/dashboard/UnlockKeyForm';
 
 
@@ -100,12 +100,12 @@ function UserDashboard() {
         
         for (const pdfDoc of unlockedData) {
             if (unitsMap[pdfDoc.unitId]) {
-                if (!unitsMap[pdfDoc.unitId].parts.some(p => p.id === pdfDoc.id)) {
+                const existingPartIndex = unitsMap[pdfDoc.unitId].parts.findIndex(p => p.id === pdfDoc.id);
+                if (existingPartIndex === -1) {
                     unitsMap[pdfDoc.unitId].parts.push(pdfDoc);
                 } else {
                     // Update existing part if it's already there
-                    const index = unitsMap[pdfDoc.unitId].parts.findIndex(p => p.id === pdfDoc.id);
-                    unitsMap[pdfDoc.unitId].parts[index] = pdfDoc;
+                    unitsMap[pdfDoc.unitId].parts[existingPartIndex] = pdfDoc;
                 }
             }
         }
@@ -143,17 +143,34 @@ function UserDashboard() {
     setDownloading(prev => ({ ...prev, [downloadKey]: true }));
     setShowConfirmDialog(false);
     
+    toast({ title: "Preparing Download...", description: "Your download will begin shortly."});
+    
     const fileRef = ref(storage, part.downloadUrl);
     const fileName = part.fileName || 'download.pdf';
 
     try {
-        toast({ title: "Preparing Download...", description: "Making arrangements for your file."});
         let blob: Blob;
 
         const originalBytes = await getBytes(fileRef);
 
         if (part.type === 'note') {
             const pdfDoc = await PDFDocument.load(originalBytes);
+            const helveticaFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
+            const pages = pdfDoc.getPages();
+            
+            for (const page of pages) {
+                const { width, height } = page.getSize();
+                page.drawText('oshadi vidarshana', {
+                    x: width / 2 - 100,
+                    y: height / 2,
+                    size: 50,
+                    font: helveticaFont,
+                    color: rgb(0.95, 0.1, 0.1),
+                    opacity: 0.2,
+                    rotate: { type: 'degrees', angle: -45 },
+                });
+            }
+
             const watermarkedBytes = await pdfDoc.save();
             blob = new Blob([watermarkedBytes], { type: 'application/pdf' });
         } else { // Assignment or any other type
@@ -307,5 +324,3 @@ export default function DashboardPage() {
         <UserDashboard />
     )
 }
-
-    
