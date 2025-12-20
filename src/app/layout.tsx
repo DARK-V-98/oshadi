@@ -4,9 +4,15 @@ import './globals.css';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
 
 export const metadata: Metadata = {
-  title: 'OV Notes - NVQ Level 4 Bridal & Beauty Complete Notes Collection',
-  description: 'Unlock all NVQ Level 4 Bridal & Beauty theory, practical notes, assignments & sample answers. Complete study materials by Oshadi Vidarshana.',
-  keywords: "NVQ Level 4, Bridal, Beauty, Notes, Sri Lanka, Study Materials, Oshadi Vidarshana",
+  title: {
+    default: 'Oshadi Vidarshana | NVQ Level 4 Bridal & Beauty Notes Sri Lanka',
+    template: '%s | Oshadi Vidarshana',
+  },
+  description: 'Expertly crafted NVQ Level 4 Bridal & Beauty course notes and study materials by Oshadi Vidarshana. Your complete resource for exam preparation in Sri Lanka. Unlock theory notes, practical guides, and assignments.',
+  keywords: "NVQ Level 4, Bridal Notes, Beauty Course Sri Lanka, Oshadi Vidarshana, NVQ Notes, Exam Preparation, Study Materials, Beautician Course, Bridal Dresser",
+  authors: [{ name: 'M.K.D Oshadi Vidarshana Perera' }],
+  creator: 'Oshadi Vidarshana',
+  publisher: 'Oshadi Vidarshana',
 };
 
 export default function RootLayout({

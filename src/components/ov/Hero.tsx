@@ -14,7 +14,7 @@ const Hero = ({ onUnlockClick }: HeroProps) => {
       {/* Background Image */}
       <Image 
         src="/bg.jpg"
-        alt="Elegant bridal background"
+        alt="Elegant bridal makeup and hairstyle background"
         fill
         className="object-cover bg-center bg-no-repeat"
         data-ai-hint="bridal makeup"
@@ -44,21 +44,21 @@ const Hero = ({ onUnlockClick }: HeroProps) => {
 
           {/* Main Heading */}
           <h1 className="font-heading text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-foreground mb-6 animate-fade-in-up" style={{ animationDelay: "0.1s" }}>
-            <span className="block text-3xl sm:text-4xl md:text-5xl font-medium">Welcome, I'm</span>
             <span className="text-gradient-rose">Oshadi Vidarshana</span>
+             <span className="block text-3xl sm:text-4xl md:text-5xl mt-2 font-medium">NVQ Level 4 Notes & Bridal Services</span>
           </h1>
 
           {/* Subtitle */}
           <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-10 animate-fade-in-up" style={{ animationDelay: "0.2s" }}>
-            Bringing your bridal dreams to life with elegance and expertise. Explore my work and educational resources.
+            Your expert resource for NVQ Level 4 study materials and professional bridal services in Sri Lanka.
           </p>
 
           {/* CTA Buttons */}
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-fade-in-up" style={{ animationDelay: "0.3s" }}>
             <Button asChild variant="hero" size="xl">
-              <a href="#portfolio">
+              <a href="#notes">
                 <BookOpen className="w-5 h-5" />
-                View My Work
+                View Course Notes
               </a>
             </Button>
             <Button asChild variant="hero-outline" size="xl">

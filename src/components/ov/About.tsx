@@ -16,7 +16,7 @@ const About = () => {
                 
                 {/* Main circle */}
                 <div className="absolute inset-4 rounded-full bg-gradient-to-br from-rose-gold-light/30 to-champagne/30 backdrop-blur-sm border border-border/30 overflow-hidden">
-                  <Image src="/ov.png" alt="Oshadi Vidarshana Logo" fill className="object-cover" />
+                  <Image src="/ov.png" alt="Oshadi Vidarshana, qualified bridal dresser" fill className="object-cover" />
                 </div>
 
                 {/* Floating badges */}
@@ -41,7 +41,7 @@ const About = () => {
               
               <div className="space-y-4 text-muted-foreground">
                 <p className="text-lg">
-                  Welcome! I'm a qualified <strong className="text-foreground">Bridal Dresser (NVQ Level 4)</strong>. If you are studying for the NVQ Level 4 in Bridal & Beauty, this notes collection was specially created for you.
+                  Welcome! I'm a qualified <strong className="text-foreground">Bridal Dresser (NVQ Level 4)</strong>. This collection of notes was specially created for students studying for the NVQ Level 4 in Bridal & Beauty.
                 </p>
                 
                 <div className="h-px bg-border my-8" />

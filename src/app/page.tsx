@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Head from 'next/head';
 import Navbar from "@/components/ov/Navbar";
 import Hero from "@/components/ov/Hero";
 import About from "@/components/ov/About";
@@ -18,6 +19,14 @@ const Home = () => {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
   return (
+    <>
+    <Head>
+        <title>Oshadi Vidarshana | NVQ Level 4 Bridal & Beauty Notes Sri Lanka</title>
+        <meta
+          name="description"
+          content="Your premier resource for NVQ Level 4 Bridal & Beauty notes in Sri Lanka. Get comprehensive theory, practical guides, and assignments by qualified bridal dresser Oshadi Vidarshana."
+        />
+      </Head>
     <div className="min-h-screen bg-background">
       <Navbar onUnlockClick={() => setIsAuthModalOpen(true)} onLoginClick={() => setIsAuthModalOpen(true)} />
       <main>
@@ -33,6 +42,7 @@ const Home = () => {
       <ScrollToTop />
       <AuthForm open={isAuthModalOpen} onOpenChange={setIsAuthModalOpen} />
     </div>
+    </>
   );
 };
 
