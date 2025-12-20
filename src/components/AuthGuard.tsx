@@ -5,6 +5,9 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
+
 
 export default function AuthGuard({
   children,
@@ -35,8 +38,8 @@ export default function AuthGuard({
     }
 
     const ensureUserInDbAndCheckRole = async () => {
+      const userDocRef = doc(firestore, 'users', user.uid);
       try {
-        const userDocRef = doc(firestore, 'users', user.uid);
         const userDoc = await getDoc(userDocRef);
 
         let userData = userDoc.data();
@@ -49,7 +52,17 @@ export default function AuthGuard({
             email: user.email,
             role: 'user', // Assign default role
           };
-          await setDoc(userDocRef, newUser);
+          
+          await setDoc(userDocRef, newUser).catch(async (serverError) => {
+            const permissionError = new FirestorePermissionError({
+              path: userDocRef.path,
+              operation: 'create',
+              requestResourceData: newUser,
+            });
+            errorEmitter.emit('permission-error', permissionError);
+            throw permissionError; // rethrow to be caught by outer try/catch
+          });
+
           userData = newUser;
           toast({
             title: 'Profile Created',
@@ -69,12 +82,14 @@ export default function AuthGuard({
           router.push('/');
         }
       } catch (error) {
-        console.error("Error ensuring user in DB or checking role: ", error);
-        toast({
-            variant: 'destructive',
-            title: 'Error',
-            description: 'Failed to verify user role.',
-          });
+        if (!(error instanceof FirestorePermissionError)) {
+          console.error("Error ensuring user in DB or checking role: ", error);
+          toast({
+              variant: 'destructive',
+              title: 'Error',
+              description: 'Failed to verify user role.',
+            });
+        }
         router.push('/');
       } finally {
         setLoading(false);

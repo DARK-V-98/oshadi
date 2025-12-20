@@ -12,6 +12,9 @@ import { LogIn, UserPlus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { doc, setDoc } from 'firebase/firestore';
 import { updateProfile } from 'firebase/auth';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
+
 
 type AuthFormProps = {
   open: boolean;
@@ -135,19 +138,31 @@ const SignUpForm = ({ onSignInClick }: { onSignInClick: () => void }) => {
 
       await updateProfile(user, { displayName: name });
       
-      // Save user data to Firestore
-      await setDoc(doc(firestore, 'users', user.uid), {
+      const userDocRef = doc(firestore, 'users', user.uid);
+      const newUser = {
         uid: user.uid,
         name: name,
         email: user.email,
         role: 'user', // Default role
-      });
+      };
 
-      toast({
-        title: 'Account created!',
-        description: 'You can now sign in.',
-      });
-      onSignInClick(); // Flip back to sign-in form
+      setDoc(userDocRef, newUser, { merge: true })
+        .then(() => {
+            toast({
+              title: 'Account created!',
+              description: 'You can now sign in.',
+            });
+            onSignInClick(); // Flip back to sign-in form
+        })
+        .catch(async (serverError) => {
+          const permissionError = new FirestorePermissionError({
+            path: userDocRef.path,
+            operation: 'create',
+            requestResourceData: newUser,
+          });
+          errorEmitter.emit('permission-error', permissionError);
+        });
+
     } catch (error: any) {
       toast({
         variant: 'destructive',
