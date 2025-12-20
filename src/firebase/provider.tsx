@@ -2,7 +2,7 @@
 
 import { createContext, useContext } from 'react';
 import type { FirebaseApp } from 'firebase/app';
-import type { Auth, signOut as firebaseSignOut, signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
+import type { Auth, signOut as firebaseSignOut, signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
 import type { Firestore } from 'firebase/firestore';
 import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
 
@@ -13,6 +13,7 @@ interface FirebaseContextValue {
   firestore: Firestore | null;
   signIn: (email:string, password:string) => ReturnType<typeof signInWithEmailAndPassword>;
   signUp: (email:string, password:string) => ReturnType<typeof createUserWithEmailAndPassword>;
+  signInWithGoogle: () => ReturnType<typeof signInWithPopup>;
   signOut: () => ReturnType<typeof firebaseSignOut>;
 }
 
@@ -40,13 +41,19 @@ export function FirebaseProvider({
     return createUserWithEmailAndPassword(auth, email, password);
   }
 
+  const signInWithGoogle = () => {
+    const { GoogleAuthProvider, signInWithPopup } = require('firebase/auth');
+    const provider = new GoogleAuthProvider();
+    return signInWithPopup(auth, provider);
+  }
+
   const signOut = () => {
     const { signOut: firebaseSignOut } = require('firebase/auth');
     return firebaseSignOut(auth);
   }
 
   return (
-    <FirebaseContext.Provider value={{ firebaseApp, auth, firestore, signIn, signUp, signOut }}>
+    <FirebaseContext.Provider value={{ firebaseApp, auth, firestore, signIn, signUp, signInWithGoogle, signOut }}>
       <FirebaseErrorListener />
       {children}
     </FirebaseContext.Provider>
