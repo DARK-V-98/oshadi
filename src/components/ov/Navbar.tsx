@@ -57,7 +57,6 @@ const Navbar = ({ onUnlockClick, onLoginClick }: NavbarProps) => {
     ] : []),
     { name: "Notes", href: "/notes" },
     ...(isHomePage ? [
-      { name: "Portfolio", href: "#portfolio" },
       { name: "Testimonials", href: "#testimonials" },
       { name: "Contact", href: "#contact" },
     ] : [])
@@ -242,5 +241,3 @@ const Navbar = ({ onUnlockClick, onLoginClick }: NavbarProps) => {
 };
 
 export default Navbar;
-
-    
