@@ -3,7 +3,6 @@
 import { useState } from "react";
 import Navbar from "@/components/ov/Navbar";
 import Hero from "@/components/ov/Hero";
-import Stats from "@/components/ov/Stats";
 import About from "@/components/ov/About";
 import Services from "@/components/ov/Services";
 import Portfolio from "@/components/ov/Portfolio";
@@ -23,7 +22,6 @@ const Home = () => {
       <Navbar onUnlockClick={() => setIsUnlockModalOpen(true)} />
       <main>
         <Hero onUnlockClick={() => setIsUnlockModalOpen(true)} />
-        <Stats />
         <About />
         <Services />
         <Portfolio />
