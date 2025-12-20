@@ -6,21 +6,21 @@ const contactMethods = [
     icon: MessageCircle,
     title: "WhatsApp",
     value: "Contact via WhatsApp",
-    href: "https://wa.me/94XXXXXXXXX", // Replace with your number
+    href: "https://wa.me/94754420805",
     color: "bg-green-500/10 text-green-600",
   },
   {
     icon: Mail,
     title: "Email",
-    value: "oshadi@example.com", // Replace with your email
+    value: "oshadi@example.com",
     href: "mailto:oshadi@example.com",
     color: "bg-primary/10 text-primary",
   },
   {
     icon: Phone,
     title: "Phone",
-    value: "+94 XX XXX XXXX", // Replace with your number
-    href: "tel:+94XXXXXXXXX",
+    value: "+94 75 442 0805",
+    href: "tel:+94754420805",
     color: "bg-gold/10 text-gold",
   },
 ];
@@ -34,10 +34,10 @@ const Contact = () => {
           <div className="text-center mb-12 animate-fade-in">
             <span className="text-sm font-medium text-primary uppercase tracking-wider">Get In Touch</span>
             <h2 className="font-heading text-3xl md:text-4xl lg:text-5xl font-bold text-foreground mt-3 mb-4">
-              Let's Create Something Beautiful
+              Contact Support
             </h2>
             <p className="text-muted-foreground max-w-xl mx-auto">
-              Have questions or ready to book a service? I'd love to hear from you.
+              Have questions about the notes or need help with your access code? I'm here to help!
             </p>
           </div>
 
