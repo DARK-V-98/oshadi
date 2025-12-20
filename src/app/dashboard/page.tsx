@@ -1,14 +1,14 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useUser, useFirestore } from '@/firebase';
-import { collection, query, where, getDocs, doc, writeBatch } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, writeBatch, onSnapshot, getDoc } from 'firebase/firestore';
 import { getStorage, ref, getDownloadURL } from "firebase/storage";
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
-import { units as allUnits, Unit } from '@/lib/data';
-import { Download, FileText, Key, HelpCircle } from 'lucide-react';
+import { Unit } from '@/lib/data';
+import { Download, FileText, Key, HelpCircle, Loader2 } from 'lucide-react';
 import {
   Accordion,
   AccordionContent,
@@ -39,41 +39,36 @@ function UserDashboard() {
   useEffect(() => {
     if (!user || !firestore) return;
 
-    const fetchUnlockedPdfs = async () => {
-        setLoadingPdfs(true);
-        const unlockedRef = collection(firestore, 'userUnlockedPdfs');
-        const q = query(unlockedRef, where('userId', '==', user.uid));
+    setLoadingPdfs(true);
+    const unlockedRef = collection(firestore, 'userUnlockedPdfs');
+    const q = query(unlockedRef, where('userId', '==', user.uid));
+
+    const unsubscribe = onSnapshot(q, async (querySnapshot) => {
+        const unlockedUnitIds = querySnapshot.docs.map(doc => doc.data().unitId);
         
-        try {
-            const querySnapshot = await getDocs(q);
-            const unlockedUnitIds = querySnapshot.docs.map(doc => doc.data().unitId);
-            
-            const userPdfsData: UnlockedUnitInfo[] = [];
+        const userPdfsData: UnlockedUnitInfo[] = [];
 
-            for (const unitId of unlockedUnitIds) {
-                const unitInfo = allUnits.find(u => u.unitNo === unitId);
-                if (unitInfo) {
-                    const unitDocRef = doc(firestore, 'units', unitId);
-                    const unitDocSnap = await getDoc(unitDocRef);
-                    if (unitDocSnap.exists()) {
-                        const unitData = unitDocSnap.data();
-                        const parts: UnlockedPdfPart[] = unitData.pdfs || [];
-                        userPdfsData.push({ ...unitInfo, parts });
-                    }
-                }
+        for (const unitId of unlockedUnitIds) {
+            const unitDocRef = doc(firestore, 'units', unitId);
+            const unitDocSnap = await getDoc(unitDocRef);
+            
+            if (unitDocSnap.exists()) {
+                const unitData = unitDocSnap.data() as Unit;
+                const parts: UnlockedPdfPart[] = unitDocSnap.data().pdfs || [];
+                userPdfsData.push({ ...unitData, parts });
             }
-            
-            setUnlockedPdfs(userPdfsData);
-
-        } catch (error) {
-            console.error("Error fetching unlocked PDFs: ", error);
-            toast({ title: 'Error', description: 'Could not load your unlocked PDFs.', variant: 'destructive' });
-        } finally {
-            setLoadingPdfs(false);
         }
-    };
+        
+        setUnlockedPdfs(userPdfsData);
+        setLoadingPdfs(false);
 
-    fetchUnlockedPdfs();
+    }, (error) => {
+        console.error("Error fetching unlocked PDFs: ", error);
+        toast({ title: 'Error', description: 'Could not load your unlocked PDFs.', variant: 'destructive' });
+        setLoadingPdfs(false);
+    });
+
+    return () => unsubscribe();
   }, [user, firestore, toast]);
 
 
@@ -124,14 +119,10 @@ function UserDashboard() {
         });
 
         await batch.commit();
-
-        const unlockedUnitInfo = allUnits.find(u => u.unitNo === keyData.unitId);
-        if(unlockedUnitInfo) {
-            const unitDocRef = doc(firestore, 'units', keyData.unitId);
-            const unitDocSnap = await getDoc(unitDocRef);
-            const parts = unitDocSnap.exists() ? (unitDocSnap.data().pdfs || []) : [];
-            setUnlockedPdfs(prev => [...prev, {...unlockedUnitInfo, parts}]);
-        }
+        
+        const unitDocRef = doc(firestore, 'units', keyData.unitId);
+        const unitDocSnap = await getDoc(unitDocRef);
+        const unlockedUnitInfo = unitDocSnap.data() as Unit;
 
         toast({ title: 'Success!', description: `You have unlocked "${unlockedUnitInfo?.nameEN}".` });
         setAccessKey('');
@@ -198,7 +189,7 @@ function UserDashboard() {
                   disabled={isBinding}
                 />
                 <Button onClick={handleBindKey} disabled={isBinding} className="w-full">
-                  {isBinding ? 'Binding Key...' : 'Bind & Unlock'}
+                  {isBinding ? <><Loader2 className="w-4 h-4 mr-2 animate-spin"/>Binding Key...</> : 'Bind & Unlock'}
                 </Button>
               </div>
             </CardContent>
@@ -208,7 +199,10 @@ function UserDashboard() {
         <div className="lg:col-span-2">
             <h2 className="text-2xl font-bold font-heading mb-4">My Unlocked Notes</h2>
             {loadingPdfs ? (
-                <p>Loading your notes...</p>
+                <div className="flex justify-center items-center py-10">
+                    <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                    <p className="ml-3 text-muted-foreground">Loading your notes...</p>
+                </div>
             ) : unlockedPdfs.length > 0 ? (
                 <div className="space-y-6">
                     {unlockedPdfs.map(unit => (

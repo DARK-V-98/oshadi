@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useFirestore } from '@/firebase';
-import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
+import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Unit, categories } from '@/lib/data';
 import { Button } from '@/components/ui/button';
@@ -37,43 +37,41 @@ const NotesPage = () => {
   useEffect(() => {
     if (!firestore) return;
 
-    const fetchUnits = async () => {
-      setLoading(true);
-      try {
-        // We start with the static unit data to get all unit definitions
-        const { units: staticUnits } = await import('@/lib/data');
-        
-        const unitsWithPdfCount: UnitWithPdfCount[] = await Promise.all(
-          staticUnits.map(async (unit) => {
-            const unitDocRef = doc(firestore, 'units', unit.unitNo);
-            const docSnap = await getDoc(unitDocRef);
-            let pdfCount = 0;
-            if (docSnap.exists()) {
-              pdfCount = (docSnap.data().pdfs || []).length;
-            }
-            return { ...unit, pdfCount };
-          })
-        );
-        setUnits(unitsWithPdfCount);
-      } catch (error) {
+    setLoading(true);
+    const unitsRef = collection(firestore, 'units');
+    const q = query(unitsRef, orderBy('unitNo'));
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+        const unitsFromDb: UnitWithPdfCount[] = snapshot.docs.map(doc => {
+            const data = doc.data();
+            return {
+                unitNo: doc.id,
+                nameEN: data.nameEN,
+                nameSI: data.nameSI,
+                modelCount: data.modelCount,
+                category: data.category,
+                pdfCount: (data.pdfs || []).length
+            };
+        });
+        setUnits(unitsFromDb);
+        setLoading(false);
+    }, (error) => {
         console.error("Error fetching units:", error);
         toast({
           title: "Error",
           description: "Could not load the available notes.",
           variant: "destructive",
         });
-      } finally {
         setLoading(false);
-      }
-    };
+    });
 
-    fetchUnits();
+    return () => unsubscribe();
   }, [firestore, toast]);
   
   const filteredUnits = units.filter((unit) => {
     const matchesSearch =
       unit.nameEN.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      unit.nameSI.includes(searchQuery) ||
+      (unit.nameSI && unit.nameSI.includes(searchQuery)) ||
       unit.unitNo.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesCategory = selectedCategory === 'all' || unit.category === selectedCategory;
     return matchesSearch && matchesCategory;
