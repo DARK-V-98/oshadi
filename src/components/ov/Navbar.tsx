@@ -1,9 +1,9 @@
 
 "use client";
-import { useState } from "react";
-import { Menu, X, BookOpen, User, LogOut, LayoutDashboard } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Menu, X, BookOpen, User, LogOut, LayoutDashboard, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useAuth, useUser } from "@/firebase";
+import { useAuth, useUser, useFirestore } from "@/firebase";
 import Link from "next/link";
 import Image from "next/image";
 import {
@@ -19,7 +19,7 @@ import {
   AvatarFallback,
   AvatarImage,
 } from "@/components/ui/avatar"
-
+import { doc, getDoc } from "firebase/firestore";
 
 type NavbarProps = {
   onUnlockClick: () => void;
@@ -30,6 +30,21 @@ const Navbar = ({ onUnlockClick, onLoginClick }: NavbarProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const { user } = useUser();
   const { signOut } = useAuth();
+  const firestore = useFirestore();
+  const [userRole, setUserRole] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (user && firestore) {
+      const userDocRef = doc(firestore, "users", user.uid);
+      getDoc(userDocRef).then((docSnap) => {
+        if (docSnap.exists()) {
+          setUserRole(docSnap.data().role);
+        }
+      });
+    } else {
+      setUserRole(null);
+    }
+  }, [user, firestore]);
 
   const navLinks = [
     { name: "Home", href: "#home" },
@@ -99,6 +114,15 @@ const Navbar = ({ onUnlockClick, onLoginClick }: NavbarProps) => {
                       <span>Dashboard</span>
                     </Link>
                   </DropdownMenuItem>
+                  {userRole === 'admin' && (
+                    <DropdownMenuItem asChild>
+                      <Link href="/admin">
+                        <Shield className="mr-2 h-4 w-4" />
+                        <span>Admin Dashboard</span>
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={signOut}>
                     <LogOut className="mr-2 h-4 w-4" />
                     <span>Log out</span>
