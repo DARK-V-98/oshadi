@@ -1,6 +1,6 @@
 'use client';
 import { useState } from "react";
-import { Search, Eye, Unlock, FileText, Filter, Key, Copy, Check } from "lucide-react";
+import { Search, Eye, Unlock, FileText, Filter, Key, Copy, Check, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -16,6 +16,7 @@ import { useFirestore } from "@/firebase";
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
+import Link from 'next/link';
 import {
   Dialog,
   DialogContent,
@@ -92,6 +93,15 @@ const AdminUnitList = () => {
         <div className="max-w-6xl mx-auto">
           {/* Section Header */}
           <div className="text-center mb-12 animate-fade-in">
+             <div className="flex justify-center mb-4">
+                <Button asChild>
+                    <Link href="/admin/keys">
+                        <Key className="w-4 h-4 mr-2" />
+                        Manage Generated Keys
+                        <ExternalLink className="w-4 h-4 ml-2" />
+                    </Link>
+                </Button>
+             </div>
             <h2 className="font-heading text-3xl md:text-4xl lg:text-5xl font-bold text-foreground mt-3 mb-4">
               Manage Units & Keys
             </h2>
