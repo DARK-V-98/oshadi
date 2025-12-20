@@ -1,3 +1,16 @@
 {
-  "placeholderImages": []
+  "placeholderImages": [
+    {
+      "id": "author-portrait",
+      "description": "A portrait of the content developer, M.K.D Oshadi Vidarshana Perera.",
+      "imageUrl": "https://images.unsplash.com/photo-1614283233556-f35b0c801ef1?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw4fHx3b21hbiUyMHBvcnRyYWl0fGVufDB8fHx8MTc2NjE4MTQ3NHww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "woman portrait"
+    },
+    {
+      "id": "hero-background",
+      "description": "A soft, elegant background image with a bridal theme.",
+      "imageUrl": "https://images.unsplash.com/photo-1599142296733-1c1f2073e6de?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwzfHx3ZWRkaW5nJTIwZHJlc3N8ZW58MHx8fHwxNzY2MTYzMTI3fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "wedding dress"
+    }
+  ]
 }
