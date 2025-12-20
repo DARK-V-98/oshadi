@@ -15,7 +15,7 @@ const About = () => {
                 
                 {/* Main circle */}
                 <div className="absolute inset-4 rounded-full bg-gradient-to-br from-rose-gold-light/30 to-champagne/30 backdrop-blur-sm border border-border/30 overflow-hidden">
-                  <Image src="/ov.png" alt="Oshadi Vidarshana Logo" fill className="object-cover p-8" />
+                  <Image src="/ov.png" alt="Oshadi Vidarshana Logo" fill className="object-cover" />
                 </div>
 
                 {/* Floating badges */}

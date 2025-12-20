@@ -85,7 +85,7 @@ const Navbar = ({ onUnlockClick, onLoginClick }: NavbarProps) => {
               </a>
             ))}
             <Button variant="outline" size="sm" onClick={onUnlockClick} className="rounded-full">
-              <BookOpen className="w-4 h-4" />
+              <BookOpen className="w-4 h-4 mr-2" />
               Unlock Notes
             </Button>
             {user ? (
@@ -131,19 +131,67 @@ const Navbar = ({ onUnlockClick, onLoginClick }: NavbarProps) => {
               </DropdownMenu>
             ) : (
               <Button variant="hero" size="sm" onClick={onLoginClick} className="rounded-full">
-                <User className="w-4 h-4" />
+                <User className="w-4 h-4 mr-2" />
                 Login
               </Button>
             )}
           </div>
 
           {/* Mobile Menu Button */}
-          <button
-            onClick={() => setIsOpen(!isOpen)}
-            className="md:hidden p-2 text-foreground"
-          >
-            {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-          </button>
+          <div className="flex items-center md:hidden">
+            {user ? (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" className="relative h-10 w-10 rounded-full mr-2">
+                      <Avatar className="h-10 w-10">
+                        <AvatarImage src={user.photoURL ?? ''} alt={user.displayName ?? ''} />
+                        <AvatarFallback>{getInitials(user.displayName)}</AvatarFallback>
+                      </Avatar>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent className="w-56" align="end" forceMount>
+                    <DropdownMenuLabel className="font-normal">
+                      <div className="flex flex-col space-y-1">
+                        <p className="text-sm font-medium leading-none">{user.displayName}</p>
+                        <p className="text-xs leading-none text-muted-foreground">
+                          {user.email}
+                        </p>
+                      </div>
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem asChild>
+                      <Link href="/dashboard">
+                        <LayoutDashboard className="mr-2 h-4 w-4" />
+                        <span>Dashboard</span>
+                      </Link>
+                    </DropdownMenuItem>
+                    {userRole === 'admin' && (
+                      <DropdownMenuItem asChild>
+                        <Link href="/admin">
+                          <Shield className="mr-2 h-4 w-4" />
+                          <span>Admin Dashboard</span>
+                        </Link>
+                      </DropdownMenuItem>
+                    )}
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={signOut}>
+                      <LogOut className="mr-2 h-4 w-4" />
+                      <span>Log out</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : (
+                <Button variant="hero" size="sm" onClick={onLoginClick} className="rounded-full mr-2">
+                  <User className="w-4 h-4" />
+                </Button>
+              )}
+            <button
+              onClick={() => setIsOpen(!isOpen)}
+              className="p-2 text-foreground"
+            >
+              {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+            </button>
+          </div>
         </div>
 
         {/* Mobile Navigation */}
@@ -161,26 +209,13 @@ const Navbar = ({ onUnlockClick, onLoginClick }: NavbarProps) => {
                 </a>
               ))}
               <Button variant="outline" size="sm" className="w-full" onClick={() => { onUnlockClick(); setIsOpen(false); }}>
-                <BookOpen className="w-4 h-4" />
+                <BookOpen className="w-4 h-4 mr-2" />
                 Unlock Notes
               </Button>
-               {user ? (
-                <>
-                  <Button asChild variant="secondary" size="sm" className="w-full">
-                    <Link href="/dashboard" onClick={() => setIsOpen(false)}>
-                      <LayoutDashboard className="w-4 h-4" />
-                      Dashboard
-                    </Link>
-                  </Button>
-                   <Button variant="hero" size="sm" className="w-full" onClick={() => { signOut(); setIsOpen(false); }}>
-                    <LogOut className="w-4 h-4" />
-                    Logout
-                  </Button>
-                </>
-              ) : (
+               {!user && (
                 <Button variant="hero" size="sm" className="w-full mt-2" onClick={() => { onLoginClick(); setIsOpen(false); }}>
-                  <User className="w-4 h-4" />
-                  Login
+                  <User className="w-4 h-4 mr-2" />
+                  Login / Sign Up
                 </Button>
               )}
             </div>
