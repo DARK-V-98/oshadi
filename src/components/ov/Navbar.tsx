@@ -4,6 +4,7 @@ import { Menu, X, BookOpen, User, LogOut, LayoutDashboard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth, useUser } from "@/firebase";
 import Link from "next/link";
+import Image from "next/image";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -50,9 +51,7 @@ const Navbar = ({ onUnlockClick, onLoginClick }: NavbarProps) => {
         <div className="flex items-center justify-between h-16 md:h-20">
           {/* Logo */}
           <a href="/" className="flex items-center gap-2 group">
-            <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center shadow-soft group-hover:shadow-glow transition-shadow duration-300">
-              <span className="font-heading text-lg font-bold text-primary-foreground">OV</span>
-            </div>
+            <Image src="/logo (2).png" alt="Oshadi Vidarshana Logo" width={40} height={40} className="rounded-full" />
             <span className="font-heading text-xl font-semibold text-foreground hidden sm:block">
               Oshadi Vidarshana
             </span>

@@ -1,4 +1,5 @@
 import { Heart } from "lucide-react";
+import Image from "next/image";
 
 const Footer = () => {
   const currentYear = new Date().getFullYear();
@@ -9,9 +10,7 @@ const Footer = () => {
         <div className="flex flex-col md:flex-row items-center justify-between gap-4">
           {/* Logo & Copyright */}
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
-              <span className="font-heading text-sm font-bold text-primary-foreground">OV</span>
-            </div>
+            <Image src="/logo (2).png" alt="Oshadi Vidarshana Logo" width={32} height={32} className="rounded-full" />
             <div>
               <p className="text-sm text-muted-foreground">
                 © {currentYear} Oshadi Vidarshana. All rights reserved.
