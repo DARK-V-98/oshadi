@@ -10,7 +10,7 @@ const Footer = () => {
         <div className="flex flex-col md:flex-row items-center justify-between gap-4">
           {/* Logo & Copyright */}
           <div className="flex items-center gap-3">
-            <Image src="/logo.png" alt="Oshadi Vidarshana Logo" width={32} height={32} className="rounded-full" />
+            <Image src="/ov.png" alt="Oshadi Vidarshana Logo" width={32} height={32} className="rounded-full" />
             <div>
               <p className="text-sm text-muted-foreground">
                 © {currentYear} Oshadi Vidarshana. All rights reserved.
