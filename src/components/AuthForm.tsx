@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { X, LogIn, UserPlus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { doc, setDoc } from 'firebase/firestore';
@@ -23,6 +23,12 @@ export default function AuthForm({ open, onOpenChange }: AuthFormProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="bg-transparent border-none shadow-none p-0 max-w-sm">
+        <DialogHeader className="sr-only">
+          <DialogTitle>Authentication</DialogTitle>
+          <DialogDescription>
+            Sign in or create a new account to continue.
+          </DialogDescription>
+        </DialogHeader>
         <div className={cn('relative w-full h-[550px] [transform-style:preserve-3d] transition-transform duration-700', isFlipped && '[transform:rotateY(180deg)]')}>
           {/* Front Side: Sign In */}
           <div className="absolute w-full h-full [backface-visibility:hidden]">
