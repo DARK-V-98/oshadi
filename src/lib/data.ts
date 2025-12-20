@@ -4,7 +4,8 @@ export type Unit = {
   nameSI: string;
   modelCount: string;
   category: string;
-  price?: string;
+  priceNotes?: string;
+  priceAssignments?: string;
 };
 
 export const units: Unit[] = [

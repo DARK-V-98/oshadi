@@ -136,13 +136,14 @@ const AdminUnitManagement = () => {
 
   // State for adding a new unit
   const [isAddUnitDialogOpen, setIsAddUnitDialogOpen] = useState(false);
-  const [newUnit, setNewUnit] = useState<Omit<Unit, 'category' | 'modelCount'> & { category: string; modelCount: string; price: string }>({
+  const [newUnit, setNewUnit] = useState<Omit<Unit, 'category' | 'modelCount' | 'priceNotes' | 'priceAssignments'> & { category: string; modelCount: string; priceNotes: string; priceAssignments: string }>({
     unitNo: '',
     nameEN: '',
     nameSI: '',
     modelCount: '',
     category: '',
-    price: '',
+    priceNotes: '',
+    priceAssignments: '',
   });
 
   useEffect(() => {
@@ -235,7 +236,7 @@ const AdminUnitManagement = () => {
 
         toast({ title: "Unit Added", description: `Successfully added ${newUnit.nameEN}.`});
         setIsAddUnitDialogOpen(false);
-        setNewUnit({ unitNo: '', nameEN: '', nameSI: '', modelCount: '', category: '', price: ''});
+        setNewUnit({ unitNo: '', nameEN: '', nameSI: '', modelCount: '', category: '', priceNotes: '', priceAssignments: ''});
 
     } catch (error) {
         console.error("Error adding new unit: ", error);
@@ -247,17 +248,20 @@ const AdminUnitManagement = () => {
     const firestore = useFirestore();
     const storage = useStorage();
     const { toast } = useToast();
-    const pdfs = unit.pdfs || [];
-    const [newPartName, setNewPartName] = useState('');
+    const [partName, setPartName] = useState(''); // Local state for input
     const [uploading, setUploading] = useState(false);
-    
+    const pdfs = unit.pdfs || [];
+
     const handleFileUpload = async (unitId: string, file: File) => {
         if (!storage || !firestore || !file) {
           toast({ title: 'Error', description: 'Services not ready.', variant: 'destructive' });
           return;
         }
         
-        const partName = newPartName || `Part ${Date.now()}`;
+        if (!partName.trim()) {
+            toast({ title: 'Part Name Required', description: 'Please enter a name for the PDF part.', variant: 'destructive' });
+            return;
+        }
     
         setUploading(true);
         const filePath = `units/${unitId}/${file.name}`;
@@ -267,7 +271,7 @@ const AdminUnitManagement = () => {
           await uploadBytes(fileRef, file);
           
           const newPdfPart: PdfPart = {
-            partName,
+            partName: partName,
             fileName: file.name,
             downloadUrl: filePath,
           };
@@ -277,7 +281,7 @@ const AdminUnitManagement = () => {
             pdfs: arrayUnion(newPdfPart)
           });
           
-          setNewPartName('');
+          setPartName(''); // Clear input after successful upload
           toast({ title: 'Success', description: `${file.name} uploaded.` });
         } catch (error) {
           console.error("Error uploading file: ", error);
@@ -336,8 +340,8 @@ const AdminUnitManagement = () => {
           <Input
             type="text"
             placeholder="Name for new PDF part"
-            value={newPartName}
-            onChange={(e) => setNewPartName(e.target.value)}
+            value={partName} // Use local state here
+            onChange={(e) => setPartName(e.target.value)} // Update local state
             className="flex-grow"
           />
           <div className="relative">
@@ -392,7 +396,8 @@ const AdminUnitManagement = () => {
                         <Input placeholder="Unit Name (English)" value={newUnit.nameEN} onChange={(e) => setNewUnit({...newUnit, nameEN: e.target.value})}/>
                         <Input placeholder="Unit Name (Sinhala)" value={newUnit.nameSI} onChange={(e) => setNewUnit({...newUnit, nameSI: e.target.value})}/>
                         <Input placeholder="Model Count" value={newUnit.modelCount} onChange={(e) => setNewUnit({...newUnit, modelCount: e.target.value})}/>
-                        <Input placeholder="Price (LKR)" value={newUnit.price} onChange={(e) => setNewUnit({...newUnit, price: e.target.value})}/>
+                        <Input placeholder="Price for Notes (LKR)" value={newUnit.priceNotes} onChange={(e) => setNewUnit({...newUnit, priceNotes: e.target.value})}/>
+                        <Input placeholder="Price for Assignments (LKR)" value={newUnit.priceAssignments} onChange={(e) => setNewUnit({...newUnit, priceAssignments: e.target.value})}/>
                         <CategoryCombobox 
                             value={newUnit.category}
                             onChange={(value) => setNewUnit({...newUnit, category: value})}
@@ -447,10 +452,6 @@ const AdminUnitManagement = () => {
                             <Label>Model Count</Label>
                             <Input value={editableUnitData?.modelCount} onChange={(e) => handleUnitInputChange('modelCount', e.target.value)} />
                         </div>
-                        <div>
-                            <Label>Price (LKR)</Label>
-                            <Input value={editableUnitData?.price || ''} onChange={(e) => handleUnitInputChange('price', e.target.value)} />
-                        </div>
                         <div className="col-span-2">
                              <Label>Category</Label>
                             <CategoryCombobox 
@@ -458,6 +459,14 @@ const AdminUnitManagement = () => {
                                 onChange={(value) => handleUnitInputChange('category', value)}
                                 categories={categories}
                             />
+                        </div>
+                        <div>
+                            <Label>Notes Price (LKR)</Label>
+                            <Input value={editableUnitData?.priceNotes || ''} onChange={(e) => handleUnitInputChange('priceNotes', e.target.value)} />
+                        </div>
+                        <div>
+                            <Label>Assignments Price (LKR)</Label>
+                            <Input value={editableUnitData?.priceAssignments || ''} onChange={(e) => handleUnitInputChange('priceAssignments', e.target.value)} />
                         </div>
                     </div>
                 )}

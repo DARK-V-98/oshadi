@@ -13,7 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Search, Eye, Unlock, FileText, Filter, Loader2, Tag } from 'lucide-react';
+import { Search, Eye, Unlock, FileText, Filter, Loader2, Tag, ShoppingCart } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 interface UnitWithPdfCount extends Unit {
@@ -53,7 +53,8 @@ const NotesList = () => {
                 nameSI: data.nameSI,
                 modelCount: data.modelCount,
                 category: data.category,
-                price: data.price,
+                priceNotes: data.priceNotes,
+                priceAssignments: data.priceAssignments,
                 pdfCount: (data.pdfs || []).length
             };
         });
@@ -102,8 +103,8 @@ const NotesList = () => {
       });
   }
 
-  const handleBuyClick = () => {
-    const message = encodeURIComponent("Hi! I'm interested in buying the NVQ Level 4 notes. Can you please provide more information?");
+  const handleBuyClick = (unitName: string, materialType: 'Notes' | 'Assignments', price: string) => {
+    const message = encodeURIComponent(`Hi! I'm interested in buying the *${unitName} - ${materialType}* for LKR ${price}. Can you please provide more information?`);
     window.open(`https://wa.me/94754420805?text=${message}`, '_blank');
   };
 
@@ -160,11 +161,10 @@ const NotesList = () => {
           <div className="bg-card rounded-2xl border border-border shadow-card overflow-hidden animate-fade-in-up" style={{ animationDelay: "0.2s" }}>
             {/* Table Header */}
             <div className="hidden md:grid md:grid-cols-12 gap-4 p-4 bg-secondary/50 border-b border-border font-medium text-sm text-muted-foreground">
-              <div className="col-span-2">Unit No</div>
-              <div className="col-span-3">Unit Name (EN/SIN)</div>
+              <div className="col-span-2">Unit</div>
+              <div className="col-span-4">Name & Price</div>
               <div className="col-span-2 text-center">PDF Parts</div>
-              <div className="col-span-2 text-center">Price</div>
-              <div className="col-span-3 text-right">Actions</div>
+              <div className="col-span-4 text-right">Actions</div>
             </div>
 
             {/* Table Body */}
@@ -188,10 +188,22 @@ const NotesList = () => {
                       </span>
                     </div>
 
-                    {/* Unit Name */}
-                    <div className="md:col-span-3">
+                    {/* Unit Name & Price */}
+                    <div className="md:col-span-4">
                       <p className="font-medium text-foreground">{unit.nameEN}</p>
                       <p className="text-sm text-muted-foreground mt-0.5">{unit.nameSI}</p>
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        {unit.priceNotes && (
+                            <div className="text-xs inline-flex items-center gap-1.5 bg-blue-100 text-blue-800 rounded-full px-2 py-0.5">
+                                <Tag className="w-3 h-3" /> Notes: LKR {unit.priceNotes}
+                            </div>
+                        )}
+                        {unit.priceAssignments && (
+                            <div className="text-xs inline-flex items-center gap-1.5 bg-green-100 text-green-800 rounded-full px-2 py-0.5">
+                                <Tag className="w-3 h-3" /> Assignments: LKR {unit.priceAssignments}
+                            </div>
+                        )}
+                      </div>
                     </div>
 
                     {/* PDF Count */}
@@ -201,20 +213,19 @@ const NotesList = () => {
                       </span>
                     </div>
 
-                     {/* Price */}
-                     <div className="md:col-span-2 text-center">
-                        <span className="inline-flex items-center justify-center px-3 h-8 rounded-full bg-blue-100 text-blue-800 font-semibold text-sm">
-                           <Tag className="w-4 h-4 mr-1.5" />
-                           {unit.price ? `LKR ${unit.price}` : 'N/A'}
-                        </span>
-                    </div>
-
                     {/* Actions */}
-                    <div className="md:col-span-3 flex items-center justify-end gap-2">
-                      <Button variant="hero" size="sm" onClick={handleBuyClick}>
-                        Buy
-                      </Button>
-                      <Button variant="outline" size="sm" onClick={handleUnlockClick}>
+                    <div className="md:col-span-4 flex items-center justify-end gap-2 flex-wrap">
+                      {unit.priceNotes && (
+                        <Button variant="hero" size="sm" onClick={() => handleBuyClick(unit.nameEN, 'Notes', unit.priceNotes!)}>
+                            <ShoppingCart className="w-4 h-4 mr-1.5" /> Buy Notes
+                        </Button>
+                      )}
+                      {unit.priceAssignments && (
+                        <Button variant="elegant" size="sm" onClick={() => handleBuyClick(unit.nameEN, 'Assignments', unit.priceAssignments!)}>
+                           <ShoppingCart className="w-4 h-4 mr-1.5" /> Buy Assignments
+                        </Button>
+                      )}
+                       <Button variant="outline" size="sm" onClick={handleUnlockClick}>
                         <Unlock className="w-4 h-4 mr-1" />
                         Unlock
                       </Button>
