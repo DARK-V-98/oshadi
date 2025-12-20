@@ -3,29 +3,29 @@ import { Star, Quote } from "lucide-react";
 const testimonials = [
   {
     name: "Sanduni Perera",
-    role: "NVQ Level 4 Graduate",
-    content: "මේ notes collection එක නිසා මගේ exams ගොඩක් easy වුණා. Theory parts clear-ම explain කරලා තියෙනවා. Highly recommend!",
+    role: "Bride",
+    content: "Oshadi made my wedding day absolutely perfect! The makeup was flawless and lasted all day. She understood my vision perfectly. Highly recommend!",
     rating: 5,
     avatar: "SP",
   },
   {
     name: "Nimali Fernando",
     role: "Beauty Student",
-    content: "Best study materials I've found for NVQ Level 4. The practical guidelines helped me so much during my assessments. Thank you Oshadi!",
+    content: "The best teacher for NVQ Level 4! Oshadi's practical guidelines helped me so much during my assessments. Thank you for your guidance!",
     rating: 5,
     avatar: "NF",
   },
   {
     name: "Hasini Jayawardena",
-    role: "Bridal Dresser Trainee",
-    content: "Assignments සහ sample answers ගොඩක් helpful. Time save කරගන්න පුළුවන් වුණා. Very well organized notes!",
+    role: "Client",
+    content: "I booked Oshadi for a special event and she did an amazing job. I received so many compliments. Very professional and talented!",
     rating: 5,
     avatar: "HJ",
   },
   {
     name: "Dilini Wickrama",
     role: "NVQ Student",
-    content: "I was struggling with the theory part but these notes made everything so clear. The Sinhala explanations really helped me understand better.",
+    content: "I was struggling with the theory part but her notes made everything so clear. The Sinhala explanations really helped me understand better.",
     rating: 5,
     avatar: "DW",
   },
@@ -33,17 +33,17 @@ const testimonials = [
 
 const Testimonials = () => {
   return (
-    <section className="py-20 md:py-32 bg-soft-gradient">
+    <section id="testimonials" className="py-20 md:py-32 bg-soft-gradient">
       <div className="container mx-auto px-4">
         <div className="max-w-6xl mx-auto">
           {/* Section Header */}
           <div className="text-center mb-12 animate-fade-in">
-            <span className="text-sm font-medium text-primary uppercase tracking-wider">Student Reviews</span>
+            <span className="text-sm font-medium text-primary uppercase tracking-wider">Testimonials</span>
             <h2 className="font-heading text-3xl md:text-4xl lg:text-5xl font-bold text-foreground mt-3 mb-4">
-              What Students Say
+              What My Clients & Students Say
             </h2>
             <p className="text-muted-foreground max-w-xl mx-auto">
-              Hear from students who have successfully completed their NVQ Level 4 with our notes.
+              Hear from people who have experienced my work and teaching firsthand.
             </p>
           </div>
 

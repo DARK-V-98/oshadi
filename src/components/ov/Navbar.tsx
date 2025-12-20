@@ -1,5 +1,6 @@
+"use client";
 import { useState } from "react";
-import { Menu, X, BookOpen } from "lucide-react";
+import { Menu, X, BookOpen, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 type NavbarProps = {
@@ -12,9 +13,9 @@ const Navbar = ({ onUnlockClick }: NavbarProps) => {
   const navLinks = [
     { name: "Home", href: "#home" },
     { name: "About", href: "#about" },
-    { name: "Pricing", href: "#pricing" },
-    { name: "Units", href: "#units" },
-    { name: "FAQ", href: "#faq" },
+    { name: "Services", href: "#services" },
+    { name: "Portfolio", href: "#portfolio" },
+    { name: "Testimonials", href: "#testimonials" },
     { name: "Contact", href: "#contact" },
   ];
 
@@ -43,9 +44,9 @@ const Navbar = ({ onUnlockClick }: NavbarProps) => {
                 {link.name}
               </a>
             ))}
-            <Button variant="hero" size="sm">
+            <Button variant="hero" size="sm" onClick={onUnlockClick}>
               <BookOpen className="w-4 h-4" />
-              Buy Notes
+              Unlock Notes
             </Button>
           </div>
 
@@ -72,9 +73,9 @@ const Navbar = ({ onUnlockClick }: NavbarProps) => {
                   {link.name}
                 </a>
               ))}
-              <Button variant="hero" size="sm" className="w-full mt-2">
+              <Button variant="hero" size="sm" className="w-full mt-2" onClick={() => { onUnlockClick(); setIsOpen(false); }}>
                 <BookOpen className="w-4 h-4" />
-                Buy Notes
+                Unlock Notes
               </Button>
             </div>
           </div>

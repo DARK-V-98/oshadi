@@ -1,6 +1,6 @@
-'use client';
+"use client";
 import { useEffect, useState, useRef } from "react";
-import { Users, BookOpen, Award, Star } from "lucide-react";
+import { Users, Award, Star, Heart } from "lucide-react";
 
 interface StatItemProps {
   icon: React.ElementType;
@@ -26,13 +26,14 @@ const StatItem = ({ icon: Icon, value, suffix, label, delay }: StatItemProps) =>
       { threshold: 0.1 }
     );
 
-    if (ref.current) {
-      observer.observe(ref.current);
+    const currentRef = ref.current;
+    if (currentRef) {
+      observer.observe(currentRef);
     }
 
     return () => {
-      if(ref.current) {
-        observer.unobserve(ref.current);
+      if(currentRef) {
+        observer.unobserve(currentRef);
       }
     };
   }, []);
@@ -43,7 +44,13 @@ const StatItem = ({ icon: Icon, value, suffix, label, delay }: StatItemProps) =>
     const timer = setTimeout(() => {
       const duration = 2000;
       const steps = 60;
-      const stepValue = value / steps;
+      let stepValue = value / steps;
+      // Handle floating point values
+      const isFloat = !Number.isInteger(value);
+      if(isFloat) {
+        stepValue = parseFloat((value / steps).toFixed(2));
+      }
+
       let current = 0;
 
       const interval = setInterval(() => {
@@ -52,7 +59,7 @@ const StatItem = ({ icon: Icon, value, suffix, label, delay }: StatItemProps) =>
           setCount(value);
           clearInterval(interval);
         } else {
-          setCount(Math.floor(current));
+          setCount(isFloat ? parseFloat(current.toFixed(1)) : Math.floor(current));
         }
       }, duration / steps);
 
@@ -80,9 +87,9 @@ const StatItem = ({ icon: Icon, value, suffix, label, delay }: StatItemProps) =>
 
 const Stats = () => {
   const stats = [
-    { icon: Users, value: 500, suffix: "+", label: "Happy Students", delay: 0 },
-    { icon: BookOpen, value: 11, suffix: "", label: "Complete Units", delay: 200 },
-    { icon: Award, value: 100, suffix: "%", label: "Exam Success Rate", delay: 400 },
+    { icon: Heart, value: 150, suffix: "+", label: "Happy Brides", delay: 0 },
+    { icon: Award, value: 5, suffix: "+", label: "Years of Experience", delay: 200 },
+    { icon: Users, value: 500, suffix: "+", label: "Students Taught", delay: 400 },
     { icon: Star, value: 4.9, suffix: "", label: "Average Rating", delay: 600 },
   ];
 
