@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { LogIn, UserPlus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { doc, setDoc } from 'firebase/firestore';
+import { updateProfile } from 'firebase/auth';
 
 type AuthFormProps = {
   open: boolean;
@@ -110,17 +111,18 @@ const SignInForm = ({ onSignUpClick, onOpenChange }: { onSignUpClick: () => void
 };
 
 const SignUpForm = ({ onSignInClick }: { onSignInClick: () => void }) => {
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const { signUp } = useAuth();
+  const { auth, signUp } = useAuth();
   const firestore = useFirestore();
   const { toast } = useToast();
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!firestore) {
-        toast({ variant: 'destructive', title: 'Database not available' });
+    if (!firestore || !auth) {
+        toast({ variant: 'destructive', title: 'Firebase not available' });
         return;
     }
     if (password !== confirmPassword) {
@@ -131,9 +133,12 @@ const SignUpForm = ({ onSignInClick }: { onSignInClick: () => void }) => {
       const userCredential = await signUp(email, password);
       const user = userCredential.user;
 
+      await updateProfile(user, { displayName: name });
+      
       // Save user data to Firestore
       await setDoc(doc(firestore, 'users', user.uid), {
         uid: user.uid,
+        name: name,
         email: user.email,
         role: 'user', // Default role
       });
@@ -158,7 +163,11 @@ const SignUpForm = ({ onSignInClick }: { onSignInClick: () => void }) => {
         <h2 className="text-3xl font-bold font-heading">Sign Up</h2>
         <p className="text-muted-foreground">Create a new admin account.</p>
       </div>
-      <form onSubmit={handleSignUp} className="space-y-4">
+      <form onSubmit={handleSignUp} className="space-y-3">
+        <div className="space-y-2">
+          <Label htmlFor="signup-name">Name</Label>
+          <Input id="signup-name" type="text" value={name} onChange={(e) => setName(e.target.value)} required />
+        </div>
         <div className="space-y-2">
           <Label htmlFor="signup-email">Email</Label>
           <Input id="signup-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
@@ -171,7 +180,7 @@ const SignUpForm = ({ onSignInClick }: { onSignInClick: () => void }) => {
           <Label htmlFor="confirm-password">Confirm Password</Label>
           <Input id="confirm-password" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required />
         </div>
-        <Button type="submit" className="w-full">
+        <Button type="submit" className="w-full !mt-6">
           <UserPlus className="mr-2" /> Create Account
         </Button>
       </form>

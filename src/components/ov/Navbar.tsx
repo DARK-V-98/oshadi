@@ -1,9 +1,23 @@
 "use client";
 import { useState } from "react";
-import { Menu, X, BookOpen, Sparkles, User } from "lucide-react";
+import { Menu, X, BookOpen, User, LogOut, LayoutDashboard } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useUser } from "@/firebase";
+import { useAuth, useUser } from "@/firebase";
 import Link from "next/link";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+} from "@/components/ui/avatar"
+
 
 type NavbarProps = {
   onUnlockClick: () => void;
@@ -13,6 +27,7 @@ type NavbarProps = {
 const Navbar = ({ onUnlockClick, onLoginClick }: NavbarProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const { user } = useUser();
+  const { signOut } = useAuth();
 
   const navLinks = [
     { name: "Home", href: "#home" },
@@ -23,6 +38,11 @@ const Navbar = ({ onUnlockClick, onLoginClick }: NavbarProps) => {
     { name: "Testimonials", href: "#testimonials" },
     { name: "Contact", href: "#contact" },
   ];
+  
+  const getInitials = (name: string | null | undefined) => {
+    if (!name) return 'A';
+    return name.charAt(0).toUpperCase();
+  }
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b border-border/50">
@@ -54,12 +74,37 @@ const Navbar = ({ onUnlockClick, onLoginClick }: NavbarProps) => {
               Unlock Notes
             </Button>
             {user ? (
-               <Button asChild variant="hero" size="sm">
-                <Link href="/admin">
-                  <User className="w-4 h-4" />
-                  Dashboard
-                </Link>
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="relative h-10 w-10 rounded-full">
+                    <Avatar className="h-10 w-10">
+                      <AvatarImage src={user.photoURL ?? ''} alt={user.displayName ?? ''} />
+                      <AvatarFallback>{getInitials(user.displayName)}</AvatarFallback>
+                    </Avatar>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-56" align="end" forceMount>
+                  <DropdownMenuLabel className="font-normal">
+                    <div className="flex flex-col space-y-1">
+                      <p className="text-sm font-medium leading-none">{user.displayName}</p>
+                      <p className="text-xs leading-none text-muted-foreground">
+                        {user.email}
+                      </p>
+                    </div>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link href="/admin">
+                      <LayoutDashboard className="mr-2 h-4 w-4" />
+                      <span>Dashboard</span>
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={signOut}>
+                    <LogOut className="mr-2 h-4 w-4" />
+                    <span>Log out</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             ) : (
               <Button variant="hero" size="sm" onClick={onLoginClick}>
                 <User className="w-4 h-4" />
@@ -96,12 +141,18 @@ const Navbar = ({ onUnlockClick, onLoginClick }: NavbarProps) => {
                 Unlock Notes
               </Button>
                {user ? (
-                <Button asChild variant="hero" size="sm" className="w-full mt-2">
-                  <Link href="/admin" onClick={() => setIsOpen(false)}>
-                    <User className="w-4 h-4" />
-                    Dashboard
-                  </Link>
-                </Button>
+                <>
+                  <Button asChild variant="secondary" size="sm" className="w-full">
+                    <Link href="/admin" onClick={() => setIsOpen(false)}>
+                      <LayoutDashboard className="w-4 h-4" />
+                      Dashboard
+                    </Link>
+                  </Button>
+                   <Button variant="hero" size="sm" className="w-full" onClick={() => { signOut(); setIsOpen(false); }}>
+                    <LogOut className="w-4 h-4" />
+                    Logout
+                  </Button>
+                </>
               ) : (
                 <Button variant="hero" size="sm" className="w-full mt-2" onClick={() => { onLoginClick(); setIsOpen(false); }}>
                   <User className="w-4 h-4" />
