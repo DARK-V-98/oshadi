@@ -2,7 +2,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useFirestore } from '@/firebase';
-import { collection, query, orderBy, getDocs, doc, getDoc, Timestamp, addDoc } from 'firebase/firestore';
+import { collection, query, orderBy, getDocs, doc, getDoc, Timestamp, addDoc, where } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Unit } from '@/lib/data';
 import {
@@ -31,9 +31,8 @@ import {
 } from "@/components/ui/select";
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '../ui/skeleton';
-import { User, Key, PlusCircle, ExternalLink, Copy } from 'lucide-react';
+import { User, Key, PlusCircle, Copy, CheckCircle, Hourglass } from 'lucide-react';
 import { Button } from '../ui/button';
-import Link from 'next/link';
 import { Input } from '../ui/input';
 
 interface AccessKey {
@@ -52,11 +51,16 @@ interface UserProfile {
   email: string;
 }
 
+interface UnlockedPdfStatus {
+    downloaded: boolean;
+}
+
 const KeyManagementList = () => {
   const firestore = useFirestore();
   const { toast } = useToast();
   const [keys, setKeys] = useState<AccessKey[]>([]);
   const [users, setUsers] = useState<Record<string, UserProfile>>({});
+  const [downloadStatus, setDownloadStatus] = useState<Record<string, 'downloaded' | 'pending'>>({});
   const [loading, setLoading] = useState(true);
   const [isGeneratorOpen, setIsGeneratorOpen] = useState(false);
   const [units, setUnits] = useState<Unit[]>([]);
@@ -66,7 +70,7 @@ const KeyManagementList = () => {
   const [generatedKey, setGeneratedKey] = useState<string | null>(null);
 
 
-  const fetchKeys = async () => {
+  const fetchKeysAndStatus = async () => {
     if (!firestore) return;
     setLoading(true);
     try {
@@ -78,7 +82,7 @@ const KeyManagementList = () => {
 
       const userIds = new Set(fetchedKeys.map(k => k.boundTo).filter(Boolean));
       const userPromises = Array.from(userIds).map(async (uid) => {
-        if(!uid || users[uid]) return;
+        if (!uid || users[uid]) return;
         const userDocRef = doc(firestore, 'users', uid);
         const userDoc = await getDoc(userDocRef);
         if (userDoc.exists()) {
@@ -86,6 +90,20 @@ const KeyManagementList = () => {
         }
       });
       await Promise.all(userPromises);
+
+      const statusPromises = fetchedKeys.map(async (key) => {
+        if (key.status === 'bound') {
+          const unlockedPdfsRef = collection(firestore, 'userUnlockedPdfs');
+          const qStatus = query(unlockedPdfsRef, where('keyId', '==', key.id));
+          const statusSnapshot = await getDocs(qStatus);
+          if (!statusSnapshot.empty) {
+            // If any part is not downloaded, the key is pending.
+            const allDownloaded = statusSnapshot.docs.every(doc => doc.data().downloaded);
+            setDownloadStatus(prev => ({ ...prev, [key.id]: allDownloaded ? 'downloaded' : 'pending' }));
+          }
+        }
+      });
+      await Promise.all(statusPromises);
 
     } catch (error) {
       console.error("Error fetching access keys: ", error);
@@ -111,7 +129,7 @@ const KeyManagementList = () => {
     }
     
     fetchUnits();
-    fetchKeys();
+    fetchKeysAndStatus();
   }, [firestore, toast]);
   
   const getUnitName = (unitId: string) => {
@@ -138,7 +156,7 @@ const KeyManagementList = () => {
         
         setGeneratedKey(key);
         setIsGeneratorOpen(false);
-        fetchKeys(); // Refresh the list
+        fetchKeysAndStatus(); // Refresh the list
 
     } catch (error) {
         console.error('Error generating key: ', error);
@@ -178,9 +196,8 @@ const KeyManagementList = () => {
               <TableHead>Unit</TableHead>
               <TableHead>Type</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead>Created At</TableHead>
               <TableHead>Bound To</TableHead>
-              <TableHead>Bound At</TableHead>
+              <TableHead>Download Status</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -200,7 +217,6 @@ const KeyManagementList = () => {
                       {k.status}
                     </Badge>
                   </TableCell>
-                  <TableCell>{k.createdAt ? k.createdAt.toDate().toLocaleDateString() : 'N/A'}</TableCell>
                   <TableCell>
                     {k.boundTo && users[k.boundTo] ? (
                       <div className="flex items-center gap-2">
@@ -216,7 +232,23 @@ const KeyManagementList = () => {
                       'N/A'
                     )}
                   </TableCell>
-                  <TableCell>{k.boundAt ? k.boundAt.toDate().toLocaleDateString() : 'N/A'}</TableCell>
+                  <TableCell>
+                    {k.status === 'bound' ? (
+                        downloadStatus[k.id] === 'downloaded' ? (
+                            <Badge variant="secondary" className="bg-green-100 text-green-800">
+                                <CheckCircle className="w-3 h-3 mr-1" />
+                                Downloaded
+                            </Badge>
+                        ) : downloadStatus[k.id] === 'pending' ? (
+                            <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">
+                                <Hourglass className="w-3 h-3 mr-1" />
+                                Pending
+                            </Badge>
+                        ) : (
+                            'Loading...'
+                        )
+                    ) : 'N/A' }
+                  </TableCell>
                 </TableRow>
               ))
             ) : (
@@ -306,3 +338,5 @@ const KeyManagementList = () => {
 };
 
 export default KeyManagementList;
+
+    
