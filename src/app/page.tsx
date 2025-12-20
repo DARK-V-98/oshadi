@@ -31,9 +31,9 @@ const Home = () => {
         <UnitList />
         <Portfolio />
         <Testimonials />
-        <Pricing />
-        <FAQ />
-        <PDFAccess />
+        {/* <Pricing /> */}
+        {/* <FAQ /> */}
+        {/* <PDFAccess /> */}
         <Contact />
       </main>
       <Footer />

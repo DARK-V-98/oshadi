@@ -53,14 +53,17 @@ const Navbar = ({ onUnlockClick, onLoginClick }: NavbarProps) => {
     { name: "Home", href: "#home" },
     { name: "About", href: "#about" },
     { name: "Services", href: "#services" },
-    { name: "Units", href: "#units" },
+    { name: "Notes", href: "/notes" },
     { name: "Portfolio", href: "#portfolio" },
     { name: "Testimonials", href: "#testimonials" },
     { name: "Contact", href: "#contact" },
   ];
 
-  const getHref = (hash: string) => {
-    return isHomePage ? hash : `/${hash}`;
+  const getHref = (link: {name: string, href: string}) => {
+    if (link.href.startsWith('/')) {
+        return link.href;
+    }
+    return isHomePage ? link.href : `/${link.href}`;
   }
   
   const getInitials = (name: string | null | undefined) => {
@@ -85,7 +88,7 @@ const Navbar = ({ onUnlockClick, onLoginClick }: NavbarProps) => {
             {navLinks.map((link) => (
               <a
                 key={link.name}
-                href={getHref(link.href)}
+                href={getHref(link)}
                 className="px-3 py-2 rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground font-medium transition-colors duration-300"
               >
                 {link.name}
@@ -208,7 +211,7 @@ const Navbar = ({ onUnlockClick, onLoginClick }: NavbarProps) => {
               {navLinks.map((link) => (
                 <a
                   key={link.name}
-                  href={getHref(link.href)}
+                  href={getHref(link)}
                   onClick={() => setIsOpen(false)}
                   className="text-muted-foreground hover:text-foreground font-medium transition-colors duration-300 py-2"
                 >
