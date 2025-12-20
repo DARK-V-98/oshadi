@@ -1,14 +1,12 @@
 
 'use client';
 import { useState, useEffect } from 'react';
-import { useUser, useFirestore, useFirebase } from '@/firebase';
-import { collection, query, where, getDocs, doc, writeBatch, onSnapshot, getDoc, updateDoc } from 'firebase/firestore';
+import { useUser, useFirestore, useStorage } from '@/firebase';
+import { collection, query, where, doc, onSnapshot, getDoc, updateDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
-import { Unit } from '@/lib/data';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
-import { Download, FileText, Key, HelpCircle, Loader2, CheckCircle, AlertTriangle } from 'lucide-react';
+import { Download, FileText, HelpCircle, Loader2, CheckCircle, AlertTriangle } from 'lucide-react';
 import {
   Accordion,
   AccordionContent,
@@ -25,9 +23,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { getStorage, ref, getBytes } from 'firebase/storage';
+import { getBytes, ref } from 'firebase/storage';
 import { Badge } from '@/components/ui/badge';
-import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
+import { PDFDocument } from 'pdf-lib';
+import UnlockKeyForm from '@/components/dashboard/UnlockKeyForm';
 
 
 interface PdfPart {
@@ -57,11 +56,9 @@ interface UnlockedUnitInfo {
 function UserDashboard() {
   const { user } = useUser();
   const firestore = useFirestore();
+  const storage = useStorage();
   const { toast } = useToast();
-  const firebase = useFirebase();
 
-  const [accessKey, setAccessKey] = useState('');
-  const [isBinding, setIsBinding] = useState(false);
   const [unlockedUnits, setUnlockedUnits] = useState<UnlockedUnitInfo[]>([]);
   const [loadingPdfs, setLoadingPdfs] = useState(true);
   const [downloading, setDownloading] = useState<Record<string, boolean>>({});
@@ -99,8 +96,14 @@ function UserDashboard() {
                     };
                 }
             }
+        }
+        
+        for (const pdfDoc of unlockedData) {
             if (unitsMap[pdfDoc.unitId]) {
-                unitsMap[pdfDoc.unitId].parts.push(pdfDoc);
+                // Prevent adding duplicates
+                if (!unitsMap[pdfDoc.unitId].parts.some(p => p.id === pdfDoc.id)) {
+                    unitsMap[pdfDoc.unitId].parts.push(pdfDoc);
+                }
             }
         }
   
@@ -116,87 +119,9 @@ function UserDashboard() {
     return () => unsubscribe();
   }, [user, firestore, toast]);
 
-  interface UnitWithPdfs extends Unit {
+  interface UnitWithPdfs {
     pdfs: PdfPart[];
   }
-
-
-  const handleBindKey = async () => {
-    if (!accessKey.trim()) {
-      toast({ title: 'Error', description: 'Please enter an access key.', variant: 'destructive' });
-      return;
-    }
-    if (!firestore || !user) {
-        toast({ title: 'Error', description: 'Could not connect to service.', variant: 'destructive' });
-        return;
-    }
-
-    setIsBinding(true);
-
-    const keysRef = collection(firestore, 'accessKeys');
-    const q = query(keysRef, where('key', '==', accessKey), where('status', '==', 'available'));
-
-    try {
-        const querySnapshot = await getDocs(q);
-
-        if (querySnapshot.empty) {
-            toast({ title: 'Invalid Key', description: 'This key is invalid, has expired, or has already been used.', variant: 'destructive' });
-            setIsBinding(false);
-            return;
-        }
-
-        const keyDoc = querySnapshot.docs[0];
-        const keyData = keyDoc.data();
-        const unitId = keyData.unitId;
-
-        const unitDocRef = doc(firestore, 'units', unitId);
-        const unitDocSnap = await getDoc(unitDocRef);
-
-        if (!unitDocSnap.exists()) {
-            toast({ title: 'Error', description: 'The unit associated with this key does not exist.', variant: 'destructive'});
-            setIsBinding(false);
-            return;
-        }
-        
-        const unitData = unitDocSnap.data() as UnitWithPdfs;
-
-        const batch = writeBatch(firestore);
-
-        const keyDocRef = doc(firestore, 'accessKeys', keyDoc.id);
-        batch.update(keyDocRef, {
-            status: 'bound',
-            boundTo: user.uid,
-            boundAt: new Date(),
-        });
-        
-        unitData.pdfs.forEach(part => {
-            const unlockedPdfRef = doc(collection(firestore, 'userUnlockedPdfs'));
-            batch.set(unlockedPdfRef, {
-                userId: user.uid,
-                unitId: unitId,
-                keyId: keyDoc.id,
-                type: keyData.type,
-                unlockedAt: new Date(),
-                partName: part.partName,
-                fileName: part.fileName,
-                downloadUrl: part.downloadUrl,
-                downloaded: false,
-                downloadedAt: null,
-            });
-        });
-
-        await batch.commit();
-        
-        toast({ title: 'Success!', description: `You have unlocked "${unitData?.nameEN}" (${keyData.type}).` });
-        setAccessKey('');
-
-    } catch (error) {
-        console.error("Error binding key: ", error);
-        toast({ title: 'Error', description: 'An unexpected error occurred while binding the key.', variant: 'destructive' });
-    } finally {
-        setIsBinding(false);
-    }
-  };
   
   const confirmDownload = (part: UnlockedPdfDoc) => {
     if (part.downloaded) {
@@ -208,23 +133,28 @@ function UserDashboard() {
   };
 
   const handleDownload = async () => {
-    if (!firebase?.storage || !firestore || !user || !selectedPartForDownload) return;
+    if (!storage || !firestore || !user || !selectedPartForDownload) return;
 
     const part = selectedPartForDownload;
     const downloadKey = part.id;
     setDownloading(prev => ({ ...prev, [downloadKey]: true }));
     setShowConfirmDialog(false);
     
-    const fileRef = ref(firebase.storage, part.downloadUrl);
+    const fileRef = ref(storage, part.downloadUrl);
     const fileName = part.fileName || 'download.pdf';
 
     try {
         toast({ title: "Preparing Download...", description: "Making arrangements for your file."});
         let blob: Blob;
 
+        const originalBytes = await getBytes(fileRef);
+
         if (part.type === 'note') {
-            const originalBytes = await getBytes(fileRef);
             const pdfDoc = await PDFDocument.load(originalBytes);
+            
+            // This part for watermarking is commented out as it was causing issues.
+            // When re-enabling, ensure wasm is loaded correctly or do it on server.
+            /*
             const helveticaFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
             const pages = pdfDoc.getPages();
 
@@ -247,9 +177,12 @@ function UserDashboard() {
 
             const watermarkedBytes = await pdfDoc.save();
             blob = new Blob([watermarkedBytes], { type: 'application/pdf' });
+            */
+           
+           // For now, serve original bytes for notes as well
+           blob = new Blob([originalBytes], { type: 'application/pdf' });
 
         } else { // Assignment or any other type
-            const originalBytes = await getBytes(fileRef);
             blob = new Blob([originalBytes], { type: 'application/pdf' });
         }
         
@@ -309,25 +242,7 @@ function UserDashboard() {
                 </Accordion>
             </CardContent>
           </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2"><Key className="text-primary"/>Bind Your Key</CardTitle>
-              <CardDescription>Enter a purchased key to access new content.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <Input
-                  placeholder="Enter your one-time key"
-                  value={accessKey}
-                  onChange={(e) => setAccessKey(e.target.value)}
-                  disabled={isBinding}
-                />
-                <Button onClick={handleBindKey} disabled={isBinding} className="w-full">
-                  {isBinding ? <><Loader2 className="w-4 h-4 mr-2 animate-spin"/>Binding Key...</> : 'Bind & Unlock'}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+          <UnlockKeyForm />
         </div>
 
         <div className="lg:col-span-2">

@@ -50,19 +50,24 @@ const Navbar = ({ onUnlockClick, onLoginClick }: NavbarProps) => {
   }, [user, firestore]);
 
   const navLinks = [
-    { name: "Home", href: "#home" },
-    { name: "About", href: "#about" },
-    { name: "Services", href: "#services" },
+    ...(isHomePage ? [
+      { name: "Home", href: "#home" },
+      { name: "About", href: "#about" },
+      { name: "Services", href: "#services" },
+    ] : []),
     { name: "Notes", href: "/notes" },
-    { name: "Portfolio", href: "#portfolio" },
-    { name: "Testimonials", href: "#testimonials" },
-    { name: "Contact", href: "#contact" },
+    ...(isHomePage ? [
+      { name: "Portfolio", href: "#portfolio" },
+      { name: "Testimonials", href: "#testimonials" },
+      { name: "Contact", href: "#contact" },
+    ] : [])
   ];
 
   const getHref = (link: {name: string, href: string}) => {
     if (link.href.startsWith('/')) {
         return link.href;
     }
+    // If not on home page and link is a hash link, go to home first
     return isHomePage ? link.href : `/${link.href}`;
   }
   
@@ -76,23 +81,23 @@ const Navbar = ({ onUnlockClick, onLoginClick }: NavbarProps) => {
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16 md:h-20">
           {/* Logo */}
-          <a href="/" className="flex items-center gap-2 group">
+          <Link href="/" className="flex items-center gap-2 group">
             <Image src="/ov.png" alt="Oshadi Vidarshana Logo" width={40} height={40} className="rounded-full" />
             <span className="font-heading text-xl font-semibold text-foreground hidden sm:block">
               Oshadi Vidarshana
             </span>
-          </a>
+          </Link>
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center gap-2">
             {navLinks.map((link) => (
-              <a
+              <Link
                 key={link.name}
                 href={getHref(link)}
                 className="px-3 py-2 rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground font-medium transition-colors duration-300"
               >
                 {link.name}
-              </a>
+              </Link>
             ))}
             <Button variant="outline" size="sm" onClick={onUnlockClick} className="rounded-full">
               <BookOpen className="w-4 h-4 mr-2" />
@@ -209,14 +214,14 @@ const Navbar = ({ onUnlockClick, onLoginClick }: NavbarProps) => {
           <div className="md:hidden py-4 border-t border-border/50 animate-fade-in">
             <div className="flex flex-col gap-4">
               {navLinks.map((link) => (
-                <a
+                <Link
                   key={link.name}
                   href={getHref(link)}
                   onClick={() => setIsOpen(false)}
                   className="text-muted-foreground hover:text-foreground font-medium transition-colors duration-300 py-2"
                 >
                   {link.name}
-                </a>
+                </Link>
               ))}
               <Button variant="outline" size="sm" className="w-full" onClick={() => { onUnlockClick(); setIsOpen(false); }}>
                 <BookOpen className="w-4 h-4 mr-2" />
@@ -237,3 +242,5 @@ const Navbar = ({ onUnlockClick, onLoginClick }: NavbarProps) => {
 };
 
 export default Navbar;
+
+    
