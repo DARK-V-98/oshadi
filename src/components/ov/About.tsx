@@ -1,4 +1,5 @@
 import { Award, Heart, Star } from "lucide-react";
+import Image from "next/image";
 
 const About = () => {
   return (
@@ -16,8 +17,8 @@ const About = () => {
                 <div className="absolute inset-4 rounded-full bg-gradient-to-br from-rose-gold-light/30 to-champagne/30 backdrop-blur-sm border border-border/30">
                   <div className="absolute inset-4 rounded-full bg-secondary/50 flex items-center justify-center">
                     <div className="text-center p-8">
-                      <div className="w-24 h-24 mx-auto rounded-full bg-primary/10 flex items-center justify-center mb-4">
-                        <span className="font-heading text-4xl font-bold text-primary">OV</span>
+                      <div className="w-24 h-24 mx-auto rounded-full bg-primary/10 flex items-center justify-center mb-4 overflow-hidden">
+                        <Image src="/ov.png" alt="Oshadi Vidarshana Logo" width={96} height={96} className="object-cover" />
                       </div>
                       <p className="font-heading text-xl font-semibold text-foreground">Content Developer</p>
                       <p className="text-sm text-muted-foreground mt-1">NVQ Level 4 Qualified</p>
