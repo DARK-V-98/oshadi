@@ -2,7 +2,6 @@
 import { useState, useEffect } from 'react';
 import { useUser, useFirestore } from '@/firebase';
 import { collection, query, where, getDocs, doc, writeBatch, onSnapshot, getDoc } from 'firebase/firestore';
-import { getStorage, ref, getDownloadURL } from "firebase/storage";
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -35,6 +34,8 @@ function UserDashboard() {
   const [isBinding, setIsBinding] = useState(false);
   const [unlockedPdfs, setUnlockedPdfs] = useState<UnlockedUnitInfo[]>([]);
   const [loadingPdfs, setLoadingPdfs] = useState(true);
+  const [downloading, setDownloading] = useState<Record<string, boolean>>({});
+
 
   useEffect(() => {
     if (!user || !firestore) return;
@@ -136,14 +137,32 @@ function UserDashboard() {
   };
   
   const handleDownload = async (filePath: string) => {
-    const storage = getStorage();
+    setDownloading(prev => ({ ...prev, [filePath]: true }));
+    toast({ title: "Processing...", description: `Your file is being prepared with a watermark.`});
     try {
-        const url = await getDownloadURL(ref(storage, filePath));
-        window.open(url, '_blank');
-        toast({ title: "Download started", description: `Your file is opening in a new tab.`});
+        const response = await fetch(`/api/download?file=${encodeURIComponent(filePath)}`);
+
+        if (!response.ok) {
+            throw new Error(`Server responded with ${response.status}`);
+        }
+
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        const fileName = filePath.split('/').pop();
+        a.download = fileName || 'download.pdf';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(url);
+        toast({ title: "Download started!", description: `Your file is being downloaded.`});
+
     } catch(error) {
-        console.error("Error getting download URL: ", error);
+        console.error("Error downloading file: ", error);
         toast({ title: "Download failed", description: `Could not get the file. Please try again later.`, variant: 'destructive' });
+    } finally {
+        setDownloading(prev => ({ ...prev, [filePath]: false }));
     }
   }
 
@@ -221,8 +240,8 @@ function UserDashboard() {
                                    unit.parts.map(part => (
                                       <div key={part.partName} className="flex items-center justify-between p-3 bg-secondary/50 rounded-md">
                                           <span>{part.partName}</span>
-                                          <Button size="sm" variant="ghost" onClick={() => handleDownload(part.downloadUrl)}>
-                                              <Download className="w-4 h-4 mr-2"/>
+                                          <Button size="sm" variant="ghost" onClick={() => handleDownload(part.downloadUrl)} disabled={downloading[part.downloadUrl]}>
+                                              {downloading[part.downloadUrl] ? <Loader2 className="w-4 h-4 mr-2 animate-spin"/> : <Download className="w-4 h-4 mr-2"/>}
                                               Download
                                          </Button>
                                       </div>
