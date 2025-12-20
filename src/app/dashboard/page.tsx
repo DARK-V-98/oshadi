@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { useUser, useFirestore } from '@/firebase';
+import { useUser, useFirestore, useFirebase } from '@/firebase';
 import { collection, query, where, getDocs, doc, writeBatch, onSnapshot, getDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
@@ -14,13 +14,18 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { getStorage, ref, getDownloadURL } from 'firebase/storage';
 
 interface UnlockedPdfPart {
     partName: string;
     downloadUrl: string;
+    type: 'note' | 'assignment';
 }
 
-interface UnlockedUnitInfo extends Unit {
+interface UnlockedUnitInfo {
+    unitId: string;
+    unitNameEN: string;
+    unitNameSI: string;
     parts: UnlockedPdfPart[];
 }
 
@@ -29,6 +34,8 @@ function UserDashboard() {
   const { user } = useUser();
   const firestore = useFirestore();
   const { toast } = useToast();
+  const firebase = useFirebase();
+
 
   const [accessKey, setAccessKey] = useState('');
   const [isBinding, setIsBinding] = useState(false);
@@ -45,22 +52,39 @@ function UserDashboard() {
     const q = query(unlockedRef, where('userId', '==', user.uid));
 
     const unsubscribe = onSnapshot(q, async (querySnapshot) => {
-        const unlockedUnitIds = querySnapshot.docs.map(doc => doc.data().unitId);
+        const unlockedDocs = querySnapshot.docs.map(doc => ({ ...doc.data() as any, id: doc.id }));
         
-        const userPdfsData: UnlockedUnitInfo[] = [];
+        const groupedByUnit: Record<string, UnlockedUnitInfo> = {};
 
-        for (const unitId of unlockedUnitIds) {
-            const unitDocRef = doc(firestore, 'units', unitId);
+        for (const unlockedDoc of unlockedDocs) {
+            const unitDocRef = doc(firestore, 'units', unlockedDoc.unitId);
             const unitDocSnap = await getDoc(unitDocRef);
             
             if (unitDocSnap.exists()) {
                 const unitData = unitDocSnap.data() as Unit;
-                const parts: UnlockedPdfPart[] = unitDocSnap.data().pdfs || [];
-                userPdfsData.push({ ...unitData, parts });
+                const pdfsToUnlock = unlockedDoc.type === 'note' ? (unitData as any).notePdfs : (unitData as any).assignmentPdfs;
+
+                if (!groupedByUnit[unlockedDoc.unitId]) {
+                    groupedByUnit[unlockedDoc.unitId] = {
+                        unitId: unlockedDoc.unitId,
+                        unitNameEN: unitData.nameEN,
+                        unitNameSI: unitData.nameSI,
+                        parts: [],
+                    };
+                }
+                
+                if(pdfsToUnlock) {
+                    pdfsToUnlock.forEach((part: any) => {
+                         // Avoid duplicates
+                        if (!groupedByUnit[unlockedDoc.unitId].parts.some(p => p.downloadUrl === part.downloadUrl)) {
+                             groupedByUnit[unlockedDoc.unitId].parts.push({ ...part, type: unlockedDoc.type });
+                        }
+                    });
+                }
             }
         }
         
-        setUnlockedPdfs(userPdfsData);
+        setUnlockedPdfs(Object.values(groupedByUnit));
         setLoadingPdfs(false);
 
     }, (error) => {
@@ -102,7 +126,6 @@ function UserDashboard() {
 
         const batch = writeBatch(firestore);
 
-        // Update the key status
         const keyDocRef = doc(firestore, 'accessKeys', keyDoc.id);
         batch.update(keyDocRef, {
             status: 'bound',
@@ -110,12 +133,12 @@ function UserDashboard() {
             boundAt: new Date(),
         });
         
-        // Create a new document in userUnlockedPdfs
         const unlockedPdfRef = doc(collection(firestore, 'userUnlockedPdfs'));
         batch.set(unlockedPdfRef, {
             userId: user.uid,
             unitId: keyData.unitId,
             keyId: keyDoc.id,
+            type: keyData.type,
             unlockedAt: new Date(),
         });
 
@@ -125,7 +148,7 @@ function UserDashboard() {
         const unitDocSnap = await getDoc(unitDocRef);
         const unlockedUnitInfo = unitDocSnap.data() as Unit;
 
-        toast({ title: 'Success!', description: `You have unlocked "${unlockedUnitInfo?.nameEN}".` });
+        toast({ title: 'Success!', description: `You have unlocked "${unlockedUnitInfo?.nameEN}" (${keyData.type}).` });
         setAccessKey('');
 
     } catch (error) {
@@ -136,34 +159,60 @@ function UserDashboard() {
     }
   };
   
-  const handleDownload = async (filePath: string) => {
-    setDownloading(prev => ({ ...prev, [filePath]: true }));
-    toast({ title: "Processing...", description: `Your file is being prepared with a watermark.`});
-    try {
-        const response = await fetch(`/api/download?file=${encodeURIComponent(filePath)}`);
+  const handleDownload = async (part: UnlockedPdfPart) => {
+    setDownloading(prev => ({ ...prev, [part.downloadUrl]: true }));
+    
+    if (part.type === 'note') {
+        toast({ title: "Processing...", description: `Your note is being prepared with a watermark.`});
+        try {
+            const response = await fetch(`/api/download?file=${encodeURIComponent(part.downloadUrl)}`);
 
-        if (!response.ok) {
-            throw new Error(`Server responded with ${response.status}`);
+            if (!response.ok) {
+                throw new Error(`Server responded with ${response.status}`);
+            }
+
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            const fileName = part.downloadUrl.split('/').pop();
+            a.download = fileName || 'download.pdf';
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            window.URL.revokeObjectURL(url);
+            toast({ title: "Download started!", description: `Your watermarked note is downloading.`});
+
+        } catch(error) {
+            console.error("Error downloading watermarked file: ", error);
+            toast({ title: "Download failed", description: `Could not get the file. Please try again later.`, variant: 'destructive' });
         }
+    } else { // Assignment or any other type
+        if (!firebase?.storage) return;
+        toast({ title: "Preparing download..."});
+        try {
+            const fileRef = ref(firebase.storage, part.downloadUrl);
+            const url = await getDownloadURL(fileRef);
 
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        const fileName = filePath.split('/').pop();
-        a.download = fileName || 'download.pdf';
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        window.URL.revokeObjectURL(url);
-        toast({ title: "Download started!", description: `Your file is being downloaded.`});
+            // This opens the file in a new tab, which is often better for non-watermarked originals
+            const a = document.createElement('a');
+            a.href = url;
+            a.target = '_blank';
+            a.rel = "noopener noreferrer";
+            const fileName = part.downloadUrl.split('/').pop();
+            a.download = fileName || 'download.pdf';
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
 
-    } catch(error) {
-        console.error("Error downloading file: ", error);
-        toast({ title: "Download failed", description: `Could not get the file. Please try again later.`, variant: 'destructive' });
-    } finally {
-        setDownloading(prev => ({ ...prev, [filePath]: false }));
+            toast({ title: "Download started!", description: `Your assignment file is downloading.`});
+        } catch (error) {
+            console.error("Error getting direct download URL: ", error);
+            toast({ title: "Download failed", description: `Could not get the file. Please try again.`, variant: 'destructive' });
+        }
     }
+
+    setDownloading(prev => ({ ...prev, [part.downloadUrl]: false }));
   }
 
   return (
@@ -179,9 +228,9 @@ function UserDashboard() {
                 <AccordionItem value="item-1">
                     <AccordionTrigger>How to Download Notes</AccordionTrigger>
                     <AccordionContent className="space-y-2 text-muted-foreground">
-                        <p>1. Purchase notes to receive a one-time key.</p>
+                        <p>1. Purchase content to receive a one-time key.</p>
                         <p>2. Enter the key in the 'Bind Your Key' section below.</p>
-                        <p>3. Once bound, your PDF will appear in 'My Unlocked Notes'.</p>
+                        <p>3. Once bound, your PDF will appear in 'My Unlocked Content'.</p>
                         <p>4. Click 'Download' to get your file.</p>
                     </AccordionContent>
                 </AccordionItem>
@@ -197,7 +246,7 @@ function UserDashboard() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2"><Key className="text-primary"/>Bind Your Key</CardTitle>
-              <CardDescription>Enter a purchased key to access a new PDF.</CardDescription>
+              <CardDescription>Enter a purchased key to access new content.</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
@@ -216,31 +265,34 @@ function UserDashboard() {
         </div>
 
         <div className="lg:col-span-2">
-            <h2 className="text-2xl font-bold font-heading mb-4">My Unlocked Notes</h2>
+            <h2 className="text-2xl font-bold font-heading mb-4">My Unlocked Content</h2>
             {loadingPdfs ? (
                 <div className="flex justify-center items-center py-10">
                     <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                    <p className="ml-3 text-muted-foreground">Loading your notes...</p>
+                    <p className="ml-3 text-muted-foreground">Loading your content...</p>
                 </div>
             ) : unlockedPdfs.length > 0 ? (
                 <div className="space-y-6">
                     {unlockedPdfs.map(unit => (
-                        <Card key={unit.unitNo}>
+                        <Card key={unit.unitId}>
                            <CardHeader>
                                <CardTitle className="flex items-center gap-3">
                                    <FileText className="w-6 h-6 text-primary" />
                                    <div>
-                                       {unit.nameEN}
-                                       <p className="text-sm text-muted-foreground font-normal">{unit.nameSI}</p>
+                                       {unit.unitNameEN}
+                                       <p className="text-sm text-muted-foreground font-normal">{unit.unitNameSI}</p>
                                    </div>
                                </CardTitle>
                            </CardHeader>
                            <CardContent className="space-y-3">
                                {unit.parts && unit.parts.length > 0 ? (
                                    unit.parts.map(part => (
-                                      <div key={part.partName} className="flex items-center justify-between p-3 bg-secondary/50 rounded-md">
-                                          <span>{part.partName}</span>
-                                          <Button size="sm" variant="ghost" onClick={() => handleDownload(part.downloadUrl)} disabled={downloading[part.downloadUrl]}>
+                                      <div key={part.downloadUrl} className="flex items-center justify-between p-3 bg-secondary/50 rounded-md">
+                                          <div className='flex items-center gap-2'>
+                                             <Badge variant={part.type === 'note' ? 'default' : 'secondary'}>{part.type}</Badge>
+                                             <span>{part.partName}</span>
+                                          </div>
+                                          <Button size="sm" variant="ghost" onClick={() => handleDownload(part)} disabled={downloading[part.downloadUrl]}>
                                               {downloading[part.downloadUrl] ? <Loader2 className="w-4 h-4 mr-2 animate-spin"/> : <Download className="w-4 h-4 mr-2"/>}
                                               Download
                                          </Button>
@@ -256,7 +308,7 @@ function UserDashboard() {
             ) : (
                 <Card className="flex flex-col items-center justify-center p-8 text-center border-dashed">
                     <CardHeader>
-                        <CardTitle>No Unlocked Notes Yet</CardTitle>
+                        <CardTitle>No Unlocked Content Yet</CardTitle>
                         <CardDescription>
                             Your unlocked PDFs will appear here once you bind a key.
                         </CardDescription>

@@ -40,6 +40,7 @@ import {
     PopoverTrigger,
 } from "@/components/ui/popover"
 import { cn } from '@/lib/utils';
+import { Separator } from '../ui/separator';
 
 
 interface PdfPart {
@@ -50,7 +51,8 @@ interface PdfPart {
 
 interface UnitWithPdfs extends Unit {
   id: string; // Firestore document ID
-  pdfs: PdfPart[];
+  notePdfs: PdfPart[];
+  assignmentPdfs: PdfPart[];
 }
 
 interface Category {
@@ -191,16 +193,17 @@ const AdminUnitManagement = () => {
     };
   }, [firestore, toast]);
 
-  const handleFileUpload = async (unitId: string, file: File) => {
+  const handleFileUpload = async (unitId: string, file: File, type: 'note' | 'assignment') => {
     if (!storage || !firestore || !file) {
       toast({ title: 'Error', description: 'Services not ready.', variant: 'destructive' });
       return;
     }
     
     const partName = newPartName[unitId] || `Part ${Date.now()}`;
+    const fieldToUpdate = type === 'note' ? 'notePdfs' : 'assignmentPdfs';
 
     setUploading(prev => ({ ...prev, [unitId]: true }));
-    const filePath = `units/${unitId}/${file.name}`;
+    const filePath = `units/${unitId}/${type}s/${file.name}`;
     const fileRef = ref(storage, filePath);
 
     try {
@@ -214,11 +217,11 @@ const AdminUnitManagement = () => {
 
       const unitDocRef = doc(firestore, 'units', unitId);
       await updateDoc(unitDocRef, {
-        pdfs: arrayUnion(newPdfPart)
+        [fieldToUpdate]: arrayUnion(newPdfPart)
       });
       
       setNewPartName(prev => ({...prev, [unitId]: ''}));
-      toast({ title: 'Success', description: `${file.name} uploaded and linked to ${unitId}.` });
+      toast({ title: 'Success', description: `${file.name} uploaded as a ${type}.` });
     } catch (error) {
       console.error("Error uploading file: ", error);
       toast({ title: 'Upload failed', description: 'Could not upload the file.', variant: 'destructive' });
@@ -227,13 +230,14 @@ const AdminUnitManagement = () => {
     }
   };
   
-  const handleFileDelete = async (unitId: string, pdfPartToDelete: PdfPart) => {
+  const handleFileDelete = async (unitId: string, pdfPartToDelete: PdfPart, type: 'note' | 'assignment') => {
     if (!firestore || !storage) return;
 
     if (!confirm(`Are you sure you want to delete "${pdfPartToDelete.partName}"? This will also delete the file from storage.`)) {
       return;
     }
 
+    const fieldToUpdate = type === 'note' ? 'notePdfs' : 'assignmentPdfs';
     const unitDocRef = doc(firestore, 'units', unitId);
     const fileRef = ref(storage, pdfPartToDelete.downloadUrl);
 
@@ -241,7 +245,7 @@ const AdminUnitManagement = () => {
       const batch = writeBatch(firestore);
 
       batch.update(unitDocRef, {
-        pdfs: arrayRemove(pdfPartToDelete)
+        [fieldToUpdate]: arrayRemove(pdfPartToDelete)
       });
       
       await deleteObject(fileRef);
@@ -276,7 +280,7 @@ const AdminUnitManagement = () => {
 
     const unitDocRef = doc(firestore, 'units', editingUnitId);
     try {
-        const { id, pdfs, ...dataToSave } = editableUnitData;
+        const { id, notePdfs, assignmentPdfs, ...dataToSave } = editableUnitData;
         await updateDoc(unitDocRef, dataToSave);
         toast({ title: "Unit Updated", description: "Your changes have been saved." });
         cancelEditing();
@@ -303,7 +307,8 @@ const AdminUnitManagement = () => {
 
         await setDoc(newUnitDocRef, {
             ...newUnit,
-            pdfs: []
+            notePdfs: [],
+            assignmentPdfs: []
         });
 
         toast({ title: "Unit Added", description: `Successfully added ${newUnit.nameEN}.`});
@@ -315,6 +320,57 @@ const AdminUnitManagement = () => {
         toast({ title: "Error", description: "Could not add the new unit.", variant: "destructive" });
     }
   };
+
+  const PdfPartManager = ({ unit, type }: { unit: UnitWithPdfs, type: 'note' | 'assignment' }) => {
+    const pdfs = type === 'note' ? unit.notePdfs : unit.assignmentPdfs;
+    const title = type === 'note' ? 'Notes (Watermarked)' : 'Assignments (Original)';
+    
+    return (
+      <div className="space-y-4">
+        <h4 className="font-semibold text-muted-foreground">{title}</h4>
+        {pdfs?.map((pdf) => (
+          <div key={pdf.fileName} className="flex items-center justify-between p-3 bg-secondary/50 rounded-md">
+            <div className="flex items-center gap-3">
+              <FileText className="w-5 h-5 text-primary" />
+              <div>
+                <p className="font-medium">{pdf.partName}</p>
+                <p className="text-xs text-muted-foreground">{pdf.fileName}</p>
+              </div>
+            </div>
+            <Button variant="ghost" size="icon" onClick={() => handleFileDelete(unit.id, pdf, type)}>
+              <Trash2 className="w-4 h-4 text-destructive" />
+            </Button>
+          </div>
+        ))}
+        <div className="flex items-center gap-4 pt-4 border-t">
+          <Input
+            type="text"
+            placeholder={`Name for this ${type} part`}
+            value={newPartName[unit.id] || ''}
+            onChange={(e) => setNewPartName(prev => ({ ...prev, [unit.id]: e.target.value }))}
+            className="flex-grow"
+          />
+          <div className="relative">
+            <Button asChild variant="outline">
+              <label htmlFor={`file-upload-${unit.id}-${type}`} className="cursor-pointer">
+                {uploading[unit.id] ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <PlusCircle className="w-4 h-4 mr-2" />}
+                Add {type === 'note' ? 'Note' : 'Assignment'}
+              </label>
+            </Button>
+            <Input 
+              id={`file-upload-${unit.id}-${type}`}
+              type="file" 
+              accept=".pdf" 
+              className="sr-only"
+              onChange={(e) => e.target.files && handleFileUpload(unit.id, e.target.files[0], type)}
+              disabled={uploading[unit.id]}
+            />
+          </div>
+        </div>
+      </div>
+    );
+  };
+
 
   return (
     <div>
@@ -404,47 +460,9 @@ const AdminUnitManagement = () => {
                         />
                     </div>
                 )}
-                <div className="space-y-4">
-                  <h4 className="font-semibold text-muted-foreground">PDF Parts</h4>
-                  {unit.pdfs?.map((pdf) => (
-                    <div key={pdf.fileName} className="flex items-center justify-between p-3 bg-secondary/50 rounded-md">
-                      <div className="flex items-center gap-3">
-                        <FileText className="w-5 h-5 text-primary" />
-                        <div>
-                          <p className="font-medium">{pdf.partName}</p>
-                          <p className="text-xs text-muted-foreground">{pdf.fileName}</p>
-                        </div>
-                      </div>
-                      <Button variant="ghost" size="icon" onClick={() => handleFileDelete(unit.id, pdf)}>
-                        <Trash2 className="w-4 h-4 text-destructive" />
-                      </Button>
-                    </div>
-                  ))}
-                  <div className="flex items-center gap-4 pt-4 border-t">
-                     <Input
-                        type="text"
-                        placeholder="Name for this part (e.g., Part 1)"
-                        value={newPartName[unit.id] || ''}
-                        onChange={(e) => setNewPartName(prev => ({ ...prev, [unit.id]: e.target.value }))}
-                        className="flex-grow"
-                      />
-                    <div className="relative">
-                      <Button asChild variant="outline">
-                        <label htmlFor={`file-upload-${unit.id}`} className="cursor-pointer">
-                            {uploading[unit.id] ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <PlusCircle className="w-4 h-4 mr-2" />}
-                            Add PDF Part
-                        </label>
-                      </Button>
-                      <Input 
-                        id={`file-upload-${unit.id}`}
-                        type="file" 
-                        accept=".pdf" 
-                        className="sr-only"
-                        onChange={(e) => e.target.files && handleFileUpload(unit.id, e.target.files[0])}
-                        disabled={uploading[unit.id]}
-                      />
-                    </div>
-                  </div>
+                <div className='grid md:grid-cols-2 gap-8'>
+                    <PdfPartManager unit={unit} type="note" />
+                    <PdfPartManager unit={unit} type="assignment" />
                 </div>
               </CardContent>
             </Card>
