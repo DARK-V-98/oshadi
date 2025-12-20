@@ -2,14 +2,14 @@
 import { useState, useEffect } from 'react';
 import { useFirestore } from '@/firebase';
 import { useStorage } from '@/firebase/provider';
-import { collection, doc, getDoc, setDoc, updateDoc, arrayUnion, onSnapshot, query, orderBy, deleteField, writeBatch, getDocs, arrayRemove } from 'firebase/firestore';
+import { collection, doc, getDoc, setDoc, updateDoc, arrayUnion, onSnapshot, query, orderBy, deleteField, writeBatch, getDocs, arrayRemove, addDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { useToast } from '@/hooks/use-toast';
-import { Unit, categories } from '@/lib/data';
+import { Unit } from '@/lib/data';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Upload, FileText, Trash2, PlusCircle, ArrowLeft, Edit, Save, X, Loader2 } from 'lucide-react';
+import { Upload, FileText, Trash2, PlusCircle, ArrowLeft, Edit, Save, X, Loader2, ChevronsUpDown } from 'lucide-react';
 import Link from 'next/link';
 import {
   Dialog,
@@ -27,6 +27,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+    Command,
+    CommandEmpty,
+    CommandGroup,
+    CommandInput,
+    CommandItem,
+  } from "@/components/ui/command"
+import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from "@/components/ui/popover"
+import { cn } from '@/lib/utils';
 
 
 interface PdfPart {
@@ -40,11 +53,89 @@ interface UnitWithPdfs extends Unit {
   pdfs: PdfPart[];
 }
 
+interface Category {
+    id: string;
+    value: string;
+    label: string;
+}
+
+const CategoryCombobox = ({ value, onChange, categories }: { value: string, onChange: (value: string) => void, categories: Category[] }) => {
+    const [open, setOpen] = useState(false);
+    const [newCategory, setNewCategory] = useState('');
+    const firestore = useFirestore();
+
+    const handleAddCategory = async () => {
+        if (!firestore || !newCategory.trim()) return;
+        const formattedValue = newCategory.toLowerCase().replace(/\s+/g, '-');
+        
+        await addDoc(collection(firestore, 'categories'), {
+            label: newCategory,
+            value: formattedValue
+        });
+
+        onChange(formattedValue);
+        setNewCategory('');
+        setOpen(false);
+    }
+
+    return (
+        <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            variant="outline"
+            role="combobox"
+            aria-expanded={open}
+            className="w-full justify-between"
+          >
+            {value
+              ? categories.find((category) => category.value === value)?.label
+              : "Select category..."}
+            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+          <Command>
+            <CommandInput 
+                placeholder="Search or add category..."
+                value={newCategory}
+                onValueChange={setNewCategory}
+            />
+            <CommandEmpty>
+                <Button className="w-full" onClick={handleAddCategory}>Add "{newCategory}"</Button>
+            </CommandEmpty>
+            <CommandGroup>
+              {categories.map((category) => (
+                <CommandItem
+                  key={category.value}
+                  value={category.value}
+                  onSelect={(currentValue) => {
+                    onChange(currentValue === value ? "" : currentValue);
+                    setOpen(false);
+                    setNewCategory('');
+                  }}
+                >
+                  <Check
+                    className={cn(
+                      "mr-2 h-4 w-4",
+                      value === category.value ? "opacity-100" : "opacity-0"
+                    )}
+                  />
+                  {category.label}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </Command>
+        </PopoverContent>
+      </Popover>
+    )
+}
+
 const AdminUnitManagement = () => {
   const firestore = useFirestore();
   const storage = useStorage();
   const { toast } = useToast();
   const [units, setUnits] = useState<UnitWithPdfs[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState<Record<string, boolean>>({});
   const [newPartName, setNewPartName] = useState<Record<string, string>>({});
@@ -68,9 +159,12 @@ const AdminUnitManagement = () => {
     setLoading(true);
     
     const unitsRef = collection(firestore, 'units');
-    const q = query(unitsRef, orderBy('unitNo'));
+    const qUnits = query(unitsRef, orderBy('unitNo'));
 
-    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+    const categoriesRef = collection(firestore, 'categories');
+    const qCategories = query(categoriesRef, orderBy('label'));
+
+    const unsubscribeUnits = onSnapshot(qUnits, (querySnapshot) => {
       const fetchedUnits: UnitWithPdfs[] = querySnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
@@ -83,7 +177,18 @@ const AdminUnitManagement = () => {
       setLoading(false);
     });
 
-    return () => unsubscribe();
+    const unsubscribeCategories = onSnapshot(qCategories, (querySnapshot) => {
+        const fetchedCategories: Category[] = querySnapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data(),
+        } as Category));
+        setCategories(fetchedCategories);
+    });
+
+    return () => {
+        unsubscribeUnits();
+        unsubscribeCategories();
+    };
   }, [firestore, toast]);
 
   const handleFileUpload = async (unitId: string, file: File) => {
@@ -125,7 +230,6 @@ const AdminUnitManagement = () => {
   const handleFileDelete = async (unitId: string, pdfPartToDelete: PdfPart) => {
     if (!firestore || !storage) return;
 
-    // Show confirmation dialog
     if (!confirm(`Are you sure you want to delete "${pdfPartToDelete.partName}"? This will also delete the file from storage.`)) {
       return;
     }
@@ -134,18 +238,14 @@ const AdminUnitManagement = () => {
     const fileRef = ref(storage, pdfPartToDelete.downloadUrl);
 
     try {
-      // Create a batch to update Firestore and delete from Storage
       const batch = writeBatch(firestore);
 
-      // Remove the PDF part from the 'pdfs' array in the unit document
       batch.update(unitDocRef, {
         pdfs: arrayRemove(pdfPartToDelete)
       });
       
-      // Delete the file from Firebase Storage
       await deleteObject(fileRef);
 
-      // Commit the batch
       await batch.commit();
 
       toast({ title: 'Success', description: `"${pdfPartToDelete.partName}" and its file have been deleted.` });
@@ -165,7 +265,7 @@ const AdminUnitManagement = () => {
     setEditableUnitData(null);
   };
 
-  const handleUnitInputChange = (field: keyof Unit, value: string) => {
+  const handleUnitInputChange = (field: keyof UnitWithPdfs, value: string) => {
     if (editableUnitData) {
       setEditableUnitData({ ...editableUnitData, [field]: value });
     }
@@ -242,20 +342,15 @@ const AdminUnitManagement = () => {
                         <DialogDescription>Fill in the details for the new unit.</DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4 py-4">
-                        <Input placeholder="Unit No (e.g., Unit 11)" value={newUnit.unitNo} onChange={(e) => setNewUnit({...newUnit, unitNo: e.target.value})}/>
+                        <Input placeholder="Unit No (e.g., Unit-11)" value={newUnit.unitNo} onChange={(e) => setNewUnit({...newUnit, unitNo: e.target.value})}/>
                         <Input placeholder="Unit Name (English)" value={newUnit.nameEN} onChange={(e) => setNewUnit({...newUnit, nameEN: e.target.value})}/>
                         <Input placeholder="Unit Name (Sinhala)" value={newUnit.nameSI} onChange={(e) => setNewUnit({...newUnit, nameSI: e.target.value})}/>
                         <Input placeholder="Model Count" value={newUnit.modelCount} onChange={(e) => setNewUnit({...newUnit, modelCount: e.target.value})}/>
-                        <Select onValueChange={(value) => setNewUnit({...newUnit, category: value})}>
-                            <SelectTrigger>
-                                <SelectValue placeholder="Select a category" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {categories.filter(c => c.value !== 'all').map(cat => (
-                                    <SelectItem key={cat.value} value={cat.value}>{cat.label}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                        <CategoryCombobox 
+                            value={newUnit.category}
+                            onChange={(value) => setNewUnit({...newUnit, category: value})}
+                            categories={categories}
+                        />
                     </div>
                     <DialogFooter>
                         <Button variant="ghost" onClick={() => setIsAddUnitDialogOpen(false)}>Cancel</Button>
@@ -301,22 +396,17 @@ const AdminUnitManagement = () => {
               <CardContent>
                 {editingUnitId === unit.id && (
                      <div className="grid grid-cols-2 gap-4 mb-4">
-                        <Input label="Model Count" value={editableUnitData?.modelCount} onChange={(e) => handleUnitInputChange('modelCount', e.target.value)} />
-                        <Select value={editableUnitData?.category} onValueChange={(value) => handleUnitInputChange('category', value)}>
-                            <SelectTrigger>
-                                <SelectValue placeholder="Select category" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {categories.filter(c => c.value !== 'all').map(cat => (
-                                    <SelectItem key={cat.value} value={cat.value}>{cat.label}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                        <Input value={editableUnitData?.modelCount} onChange={(e) => handleUnitInputChange('modelCount', e.target.value)} />
+                        <CategoryCombobox 
+                            value={editableUnitData?.category || ''}
+                            onChange={(value) => handleUnitInputChange('category', value)}
+                            categories={categories}
+                        />
                     </div>
                 )}
                 <div className="space-y-4">
                   <h4 className="font-semibold text-muted-foreground">PDF Parts</h4>
-                  {unit.pdfs.map((pdf) => (
+                  {unit.pdfs?.map((pdf) => (
                     <div key={pdf.fileName} className="flex items-center justify-between p-3 bg-secondary/50 rounded-md">
                       <div className="flex items-center gap-3">
                         <FileText className="w-5 h-5 text-primary" />

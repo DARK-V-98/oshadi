@@ -1,6 +1,6 @@
 'use client';
-import { useState } from "react";
-import { Search, Eye, Unlock, FileText, Filter } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Search, Eye, Unlock, FileText, Filter, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -10,12 +10,53 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { units, categories } from "@/lib/data";
+import { useFirestore } from "@/firebase";
+import { collection, onSnapshot, query, orderBy } from "firebase/firestore";
+import { Unit } from "@/lib/data";
 
+interface Category {
+  id: string;
+  value: string;
+  label: string;
+}
 
 const UnitList = () => {
+  const firestore = useFirestore();
+  const [units, setUnits] = useState<Unit[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
+
+  useEffect(() => {
+    if (!firestore) return;
+
+    setLoading(true);
+    const unitsRef = collection(firestore, 'units');
+    const q = query(unitsRef, orderBy('unitNo'));
+
+    const unsubscribeUnits = onSnapshot(q, (snapshot) => {
+        const unitsFromDb: Unit[] = snapshot.docs.map(doc => doc.data() as Unit);
+        setUnits(unitsFromDb);
+        setLoading(false);
+    });
+
+    const categoriesRef = collection(firestore, 'categories');
+    const qCategories = query(categoriesRef, orderBy('label'));
+    const unsubscribeCategories = onSnapshot(qCategories, (snapshot) => {
+      const fetchedCategories: Category[] = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+      } as Category));
+      setCategories([{ id: 'all', value: 'all', label: 'All Units' }, ...fetchedCategories]);
+    });
+
+    return () => {
+      unsubscribeUnits();
+      unsubscribeCategories();
+    };
+  }, [firestore]);
+
 
   const filteredUnits = units.filter((unit) => {
     const matchesSearch =
@@ -56,7 +97,7 @@ const UnitList = () => {
             <div className="flex items-center gap-2">
               <Filter className="w-5 h-5 text-muted-foreground" />
               <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                <SelectTrigger className="w-[180px] h-12">
+                <SelectTrigger className="w-full sm:w-[180px] h-12">
                   <SelectValue placeholder="Filter by category" />
                 </SelectTrigger>
                 <SelectContent>
@@ -87,7 +128,12 @@ const UnitList = () => {
 
             {/* Table Body */}
             <div className="divide-y divide-border">
-              {filteredUnits.length > 0 ? (
+              {loading ? (
+                <div className="flex justify-center items-center p-8 text-muted-foreground">
+                  <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                  Loading units...
+                </div>
+              ) : filteredUnits.length > 0 ? (
                 filteredUnits.map((unit, index) => (
                   <div
                     key={index}

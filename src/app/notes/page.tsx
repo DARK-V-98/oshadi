@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { useFirestore } from '@/firebase';
 import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
-import { Unit, categories } from '@/lib/data';
+import { Unit } from '@/lib/data';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -23,12 +23,19 @@ interface UnitWithPdfCount extends Unit {
     pdfCount: number;
 }
 
+interface Category {
+  id: string;
+  value: string;
+  label: string;
+}
+
 const NotesPage = () => {
   const firestore = useFirestore();
   const { toast } = useToast();
   const router = useRouter();
 
   const [units, setUnits] = useState<UnitWithPdfCount[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -41,7 +48,7 @@ const NotesPage = () => {
     const unitsRef = collection(firestore, 'units');
     const q = query(unitsRef, orderBy('unitNo'));
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
+    const unsubscribeUnits = onSnapshot(q, (snapshot) => {
         const unitsFromDb: UnitWithPdfCount[] = snapshot.docs.map(doc => {
             const data = doc.data();
             return {
@@ -65,7 +72,20 @@ const NotesPage = () => {
         setLoading(false);
     });
 
-    return () => unsubscribe();
+    const categoriesRef = collection(firestore, 'categories');
+    const qCategories = query(categoriesRef, orderBy('label'));
+    const unsubscribeCategories = onSnapshot(qCategories, (snapshot) => {
+      const fetchedCategories: Category[] = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+      } as Category));
+      setCategories([{ id: 'all', value: 'all', label: 'All Units' }, ...fetchedCategories]);
+    });
+
+    return () => {
+      unsubscribeUnits();
+      unsubscribeCategories();
+    };
   }, [firestore, toast]);
   
   const filteredUnits = units.filter((unit) => {
