@@ -12,7 +12,7 @@ const Hero = ({ onUnlockClick }: HeroProps) => {
     <section id="home" className="relative min-h-screen flex items-center justify-center overflow-hidden pt-20">
       {/* Background Image */}
       <Image 
-        src="https://picsum.photos/seed/hero/1920/1080"
+        src="/bg.jpg"
         alt="Elegant bridal background"
         fill
         className="object-cover bg-center bg-no-repeat"
