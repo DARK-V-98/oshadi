@@ -4,10 +4,10 @@ import { useState, useEffect } from 'react';
 import { useUser, useFirestore, useFirebase } from '@/firebase';
 import { collection, query, where, getDocs, doc, writeBatch, onSnapshot, getDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
+import { Unit } from '@/lib/data';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
-import { Unit } from '@/lib/data';
 import { Download, FileText, Key, HelpCircle, Loader2 } from 'lucide-react';
 import {
   Accordion,
@@ -18,17 +18,17 @@ import {
 import { getStorage, ref, getDownloadURL } from 'firebase/storage';
 import { Badge } from '@/components/ui/badge';
 
-interface UnlockedPdfPart {
+interface PdfPart {
     partName: string;
+    fileName: string;
     downloadUrl: string;
-    type: 'note' | 'assignment';
 }
 
 interface UnlockedUnitInfo {
     unitId: string;
     unitNameEN: string;
     unitNameSI: string;
-    parts: UnlockedPdfPart[];
+    parts: (PdfPart & { type: 'note' | 'assignment' })[];
 }
 
 
@@ -41,65 +41,72 @@ function UserDashboard() {
 
   const [accessKey, setAccessKey] = useState('');
   const [isBinding, setIsBinding] = useState(false);
-  const [unlockedPdfs, setUnlockedPdfs] = useState<UnlockedUnitInfo[]>([]);
+  const [unlockedUnits, setUnlockedUnits] = useState<UnlockedUnitInfo[]>([]);
   const [loadingPdfs, setLoadingPdfs] = useState(true);
   const [downloading, setDownloading] = useState<Record<string, boolean>>({});
 
 
   useEffect(() => {
     if (!user || !firestore) return;
-
+  
     setLoadingPdfs(true);
     const unlockedRef = collection(firestore, 'userUnlockedPdfs');
     const q = query(unlockedRef, where('userId', '==', user.uid));
-
+  
     const unsubscribe = onSnapshot(q, async (querySnapshot) => {
-        const unlockedDocs = querySnapshot.docs.map(doc => ({ ...doc.data() as any, id: doc.id }));
-        
-        const groupedByUnit: Record<string, UnlockedUnitInfo> = {};
-
-        for (const unlockedDoc of unlockedDocs) {
-            const unitDocRef = doc(firestore, 'units', unlockedDoc.unitId);
-            const unitDocSnap = await getDoc(unitDocRef);
-            
-            if (unitDocSnap.exists()) {
-                const unitData = unitDocSnap.data() as UnitWithPdfs;
-                const pdfsToUnlock = unitData.pdfs;
-
-                if (!groupedByUnit[unlockedDoc.unitId]) {
-                    groupedByUnit[unlockedDoc.unitId] = {
-                        unitId: unlockedDoc.unitId,
-                        unitNameEN: unitData.nameEN,
-                        unitNameSI: unitData.nameSI,
-                        parts: [],
-                    };
-                }
-                
-                if(pdfsToUnlock) {
-                    pdfsToUnlock.forEach((part: any) => {
-                         // Avoid duplicates
-                        if (!groupedByUnit[unlockedDoc.unitId].parts.some(p => p.downloadUrl === part.downloadUrl && p.type === unlockedDoc.type)) {
-                             groupedByUnit[unlockedDoc.unitId].parts.push({ ...part, type: unlockedDoc.type });
-                        }
-                    });
-                }
-            }
+      const unlockedDocs = querySnapshot.docs.map(doc => doc.data() as { unitId: string; type: 'note' | 'assignment' });
+      
+      const unlockedMap: Record<string, { unitId: string, types: Set<'note' | 'assignment'> }> = {};
+  
+      for (const unlockedDoc of unlockedDocs) {
+        if (!unlockedMap[unlockedDoc.unitId]) {
+          unlockedMap[unlockedDoc.unitId] = { unitId: unlockedDoc.unitId, types: new Set() };
         }
-        
-        setUnlockedPdfs(Object.values(groupedByUnit));
-        setLoadingPdfs(false);
+        unlockedMap[unlockedDoc.unitId].types.add(unlockedDoc.type);
+      }
+      
+      const finalUnlockedList: UnlockedUnitInfo[] = [];
 
+      for (const { unitId, types } of Object.values(unlockedMap)) {
+        const unitDocRef = doc(firestore, 'units', unitId);
+        const unitDocSnap = await getDoc(unitDocRef);
+  
+        if (unitDocSnap.exists()) {
+          const unitData = unitDocSnap.data() as UnitWithPdfs;
+          
+          const unlockedUnitInfo: UnlockedUnitInfo = {
+            unitId: unitId,
+            unitNameEN: unitData.nameEN,
+            unitNameSI: unitData.nameSI,
+            parts: [],
+          };
+
+          const pdfParts = unitData.pdfs || [];
+
+          types.forEach(type => {
+            pdfParts.forEach(part => {
+              unlockedUnitInfo.parts.push({ ...part, type: type });
+            });
+          });
+
+          finalUnlockedList.push(unlockedUnitInfo);
+        }
+      }
+  
+      setUnlockedUnits(finalUnlockedList);
+      setLoadingPdfs(false);
+  
     }, (error) => {
-        console.error("Error fetching unlocked PDFs: ", error);
-        toast({ title: 'Error', description: 'Could not load your unlocked PDFs.', variant: 'destructive' });
-        setLoadingPdfs(false);
+      console.error("Error fetching unlocked PDFs: ", error);
+      toast({ title: 'Error', description: 'Could not load your unlocked PDFs.', variant: 'destructive' });
+      setLoadingPdfs(false);
     });
-
+  
     return () => unsubscribe();
   }, [user, firestore, toast]);
 
   interface UnitWithPdfs extends Unit {
-    pdfs: any[];
+    pdfs: PdfPart[];
   }
 
 
@@ -165,7 +172,7 @@ function UserDashboard() {
     }
   };
   
-  const handleDownload = async (part: UnlockedPdfPart) => {
+  const handleDownload = async (part: PdfPart & { type: 'note' | 'assignment' }) => {
     setDownloading(prev => ({ ...prev, [part.downloadUrl + part.type]: true }));
     
     if (part.type === 'note') {
@@ -277,9 +284,9 @@ function UserDashboard() {
                     <Loader2 className="w-8 h-8 animate-spin text-primary" />
                     <p className="ml-3 text-muted-foreground">Loading your content...</p>
                 </div>
-            ) : unlockedPdfs.length > 0 ? (
+            ) : unlockedUnits.length > 0 ? (
                 <div className="space-y-6">
-                    {unlockedPdfs.map(unit => (
+                    {unlockedUnits.map(unit => (
                         <Card key={unit.unitId}>
                            <CardHeader>
                                <CardTitle className="flex items-center gap-3">
@@ -337,3 +344,5 @@ export default function DashboardPage() {
         <UserDashboard />
     )
 }
+
+    
