@@ -9,7 +9,6 @@ const packages = [
     features: [
       "All Unit Notes PDFs",
       "Complete Theory + Practical notes",
-      "Lifetime access to updates",
     ],
     popular: true,
     cta: "Buy Full Note Bundle",
