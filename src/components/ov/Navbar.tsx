@@ -53,7 +53,7 @@ const Navbar = ({ onUnlockClick, onLoginClick }: NavbarProps) => {
     ...(isHomePage ? [
       { name: "Home", href: "#home" },
       { name: "About", href: "#about" },
-      { name: "Services", href: "#services" },
+      { name: "Pricing", href: "#pricing" },
       { name: "Notes", href: "#notes" },
     ] : [
       { name: "Home", href: "/" },
