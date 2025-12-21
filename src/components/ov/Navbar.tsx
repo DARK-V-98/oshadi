@@ -168,52 +168,6 @@ const Navbar = ({ onUnlockClick, onLoginClick }: NavbarProps) => {
 
             {/* Mobile Menu Button */}
             <div className="flex items-center md:hidden">
-              {user ? (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" className="relative h-10 w-10 rounded-full mr-2">
-                        <Avatar className="h-10 w-10">
-                          <AvatarImage src={user.photoURL ?? ''} alt={user.displayName ?? 'User Avatar'} />
-                          <AvatarFallback>{getInitials(user.displayName)}</AvatarFallback>
-                        </Avatar>
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent className="w-56" align="end" forceMount>
-                      <DropdownMenuLabel className="font-normal">
-                        <div className="flex flex-col space-y-1">
-                          <p className="text-sm font-medium leading-none">{user.displayName}</p>
-                          <p className="text-xs leading-none text-muted-foreground">
-                            {user.email}
-                          </p>
-                        </div>
-                      </DropdownMenuLabel>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem asChild>
-                        <Link href="/dashboard">
-                          <LayoutDashboard className="mr-2 h-4 w-4" />
-                          <span>Dashboard</span>
-                        </Link>
-                      </DropdownMenuItem>
-                      {userRole === 'admin' && (
-                        <DropdownMenuItem asChild>
-                          <Link href="/admin">
-                            <Shield className="mr-2 h-4 w-4" />
-                            <span>Admin Dashboard</span>
-                          </Link>
-                        </DropdownMenuItem>
-                      )}
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={signOut}>
-                        <LogOut className="mr-2 h-4 w-4" />
-                        <span>Log out</span>
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                ) : (
-                  <Button variant="hero" size="sm" onClick={onLoginClick} className="rounded-full mr-2">
-                    <User className="w-4 h-4" />
-                  </Button>
-                )}
               <button
                 onClick={() => setIsOpen(!isOpen)}
                 className="p-2 text-foreground"
@@ -227,6 +181,20 @@ const Navbar = ({ onUnlockClick, onLoginClick }: NavbarProps) => {
           {isOpen && (
             <div className="md:hidden py-4 border-t border-border/50 animate-fade-in">
               <div className="flex flex-col gap-4">
+                {user && (
+                    <div className="flex items-center gap-3 px-2 py-2">
+                        <Avatar className="h-10 w-10">
+                            <AvatarImage src={user.photoURL ?? ''} alt={user.displayName ?? 'User Avatar'} />
+                            <AvatarFallback>{getInitials(user.displayName)}</AvatarFallback>
+                        </Avatar>
+                         <div className="flex flex-col space-y-1">
+                            <p className="text-sm font-medium leading-none">{user.displayName}</p>
+                            <p className="text-xs leading-none text-muted-foreground">
+                            {user.email}
+                            </p>
+                        </div>
+                    </div>
+                )}
                 {navLinks.map((link) => (
                   <Link
                     key={link.name}
@@ -237,13 +205,24 @@ const Navbar = ({ onUnlockClick, onLoginClick }: NavbarProps) => {
                     {link.name}
                   </Link>
                 ))}
+                 {user && (
+                     <>
+                        <Link href="/dashboard" onClick={() => setIsOpen(false)} className="text-muted-foreground hover:text-foreground font-medium transition-colors duration-300 py-2 flex items-center"><LayoutDashboard className="mr-2 h-4 w-4" />Dashboard</Link>
+                        {userRole === 'admin' && <Link href="/admin" onClick={() => setIsOpen(false)} className="text-muted-foreground hover:text-foreground font-medium transition-colors duration-300 py-2 flex items-center"><Shield className="mr-2 h-4 w-4" />Admin</Link>}
+                     </>
+                 )}
                 <Button asChild variant="outline" size="sm" className="w-full">
                   <Link href="/notes" onClick={() => setIsOpen(false)}>
                     <BookOpen className="w-4 h-4 mr-2" />
                     Unlock Notes
                   </Link>
                 </Button>
-                 {!user && (
+                 {user ? (
+                    <Button variant="destructive" size="sm" className="w-full mt-2" onClick={() => { signOut(); setIsOpen(false); }}>
+                        <LogOut className="w-4 h-4 mr-2" />
+                        Log Out
+                    </Button>
+                 ) : (
                   <Button variant="hero" size="sm" className="w-full mt-2" onClick={() => { onLoginClick(); setIsOpen(false); }}>
                     <User className="w-4 h-4 mr-2" />
                     Login / Sign Up

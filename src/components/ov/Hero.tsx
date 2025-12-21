@@ -43,9 +43,9 @@ const Hero = ({ onUnlockClick }: HeroProps) => {
           </div>
 
           {/* Main Heading */}
-          <h1 className="font-heading text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-foreground mb-6 animate-fade-in-up" style={{ animationDelay: "0.1s" }}>
+          <h1 className="font-heading text-4xl sm:text-5xl font-bold text-foreground mb-6 animate-fade-in-up" style={{ animationDelay: "0.1s" }}>
             <span className="text-gradient-rose">Oshadi Vidarshana</span>
-             <span className="block text-3xl sm:text-4xl md:text-5xl mt-2 font-medium">NVQ Level 4 Notes & Bridal Services</span>
+             <span className="block text-2xl sm:text-4xl mt-2 font-medium">NVQ Level 4 Notes & Bridal Services</span>
           </h1>
 
           {/* Subtitle */}
