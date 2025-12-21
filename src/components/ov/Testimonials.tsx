@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useFirestore } from '@/firebase';
 import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestore';
 import { Star, Quote } from "lucide-react";
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '../ui/skeleton';
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -20,7 +20,6 @@ import Autoplay from "embla-carousel-autoplay";
 interface Testimonial {
   id: string;
   userName: string;
-  userAvatar?: string;
   content: string;
   rating: number;
   role?: string; 
@@ -33,7 +32,6 @@ const staticTestimonials: Testimonial[] = [
     role: "Bride",
     content: "Oshadi made my wedding day absolutely perfect! The makeup was flawless and lasted all day. She understood my vision perfectly. Highly recommend!",
     rating: 5,
-    userAvatar: "https://picsum.photos/seed/sanduni/100/100"
   },
   {
     id: "static-2",
@@ -41,7 +39,6 @@ const staticTestimonials: Testimonial[] = [
     role: "Beauty Student",
     content: "The best teacher for NVQ Level 4! Oshadi's practical guidelines helped me so much during my assessments. Thank you for your guidance!",
     rating: 5,
-    userAvatar: "https://picsum.photos/seed/nimali/100/100"
   },
   {
     id: "static-3",
@@ -49,7 +46,6 @@ const staticTestimonials: Testimonial[] = [
     role: "NVQ Student",
     content: "I bought the full note bundle and it was a lifesaver! Everything is so well-organized. The Sinhala explanations really helped me understand complex topics.",
     rating: 5,
-    userAvatar: "https://picsum.photos/seed/hasini/100/100"
   },
   {
     id: "static-4",
@@ -57,7 +53,6 @@ const staticTestimonials: Testimonial[] = [
     role: "Beautician Trainee",
     content: "The assignment pack is worth every rupee. The sample answers are detailed and helped me structure my own assignments perfectly. Saved me so much time.",
     rating: 5,
-    userAvatar: "https://picsum.photos/seed/fathima/100/100"
   },
   {
     id: "static-5",
@@ -65,7 +60,6 @@ const staticTestimonials: Testimonial[] = [
     role: "Salon Owner",
     content: "Excellent service and professionalism. Oshadi did the makeup for my entire bridal party and everyone looked stunning. She's a true artist.",
     rating: 5,
-    userAvatar: "https://picsum.photos/seed/priya/100/100"
   },
   {
     id: "static-6",
@@ -73,7 +67,6 @@ const staticTestimonials: Testimonial[] = [
     role: "NVQ Student",
     content: "I was struggling with the practicals, but the notes on Manicure & Pedicure and Facials were incredibly detailed. Passed my exam with flying colors!",
     rating: 5,
-    userAvatar: "https://picsum.photos/seed/anusha/100/100"
   },
   {
     id: "static-7",
@@ -81,7 +74,6 @@ const staticTestimonials: Testimonial[] = [
     role: "Makeup Artist",
     content: "Learning from Oshadi has elevated my skills. Her techniques are modern and she has a deep understanding of her craft. The notes are a great reference.",
     rating: 5,
-    userAvatar: "https://picsum.photos/seed/ravi/100/100"
   },
   {
     id: "static-8",
@@ -89,7 +81,6 @@ const staticTestimonials: Testimonial[] = [
     role: "NVQ Aspirant",
     content: "I was hesitant to buy notes online, but these are top quality. The content directly matches the VTA syllabus. Highly recommended for anyone serious about NVQ.",
     rating: 5,
-    userAvatar: "https://picsum.photos/seed/chamari/100/100"
   },
   {
     id: "static-9",
@@ -97,7 +88,6 @@ const staticTestimonials: Testimonial[] = [
     role: "Bride",
     content: "Thank you for making me feel like a queen on my big day. The makeup was natural yet glamorous, just what I wanted. Oshadi is patient and so talented.",
     rating: 5,
-    userAvatar: "https://picsum.photos/seed/ishara/100/100"
   },
   {
     id: "static-10",
@@ -105,7 +95,6 @@ const staticTestimonials: Testimonial[] = [
     role: "Student",
     content: "The notes are easy to read and understand. The diagrams and step-by-step guides for practicals are the best part. I feel much more confident for my exams.",
     rating: 4,
-    userAvatar: "https://picsum.photos/seed/dilshan/100/100"
   },
   {
     id: "static-11",
@@ -113,7 +102,6 @@ const staticTestimonials: Testimonial[] = [
     role: "NVQ Student",
     content: "I purchased the assignment bundle. It was so helpful to see how to answer the questions properly. It gave me a great head start on my work.",
     rating: 5,
-    userAvatar: "https://picsum.photos/seed/tharushi/100/100"
   },
   {
     id: "static-12",
@@ -121,7 +109,6 @@ const staticTestimonials: Testimonial[] = [
     role: "Beautician",
     content: "Oshadi's work is amazing. I booked her for a party makeup session and received so many compliments. She's my go-to makeup artist now.",
     rating: 5,
-    userAvatar: "https://picsum.photos/seed/kavindya/100/100"
   },
   {
     id: "static-13",
@@ -129,7 +116,6 @@ const staticTestimonials: Testimonial[] = [
     role: "Student",
     content: "The Health & Safety notes were very thorough. It's a boring topic but the notes made it easy to learn and remember for the exam.",
     rating: 5,
-    userAvatar: "https://picsum.photos/seed/sachini/100/100"
   },
   {
     id: "static-14",
@@ -137,7 +123,6 @@ const staticTestimonials: Testimonial[] = [
     role: "Bride",
     content: "A true professional. Oshadi was punctual, used high-quality products, and was so friendly. My bridal makeup was perfect. Thank you!",
     rating: 5,
-    userAvatar: "https://picsum.photos/seed/ruwanthi/100/100"
   },
   {
     id: "static-15",
@@ -145,7 +130,6 @@ const staticTestimonials: Testimonial[] = [
     role: "NVQ Student",
     content: "The full note bundle is the best investment for your studies. It covers every single unit in detail. Don't think twice, just get it!",
     rating: 5,
-    userAvatar: "https://picsum.photos/seed/madhavi/100/100"
   },
   {
     id: "static-16",
@@ -153,7 +137,6 @@ const staticTestimonials: Testimonial[] = [
     role: "Student",
     content: "The combination of English and Sinhala terms is a fantastic idea. It helps so much to understand the technical words. Great work!",
     rating: 5,
-    userAvatar: "https://picsum.photos/seed/nadeesha/100/100"
   },
   {
     id: "static-17",
@@ -161,7 +144,6 @@ const staticTestimonials: Testimonial[] = [
     role: "Bridal Client",
     content: "I had a wonderful experience. Oshadi listened to all my requests and created a look that was even better than I imagined. Felt so beautiful!",
     rating: 5,
-    userAvatar: "https://picsum.photos/seed/amaya/100/100"
   },
   {
     id: "static-18",
@@ -169,7 +151,6 @@ const staticTestimonials: Testimonial[] = [
     role: "NVQ Student",
     content: "I only bought the notes for the Makeup unit, and it was amazing. So many details and tips that you won't find elsewhere. Now I'm buying the full bundle.",
     rating: 5,
-    userAvatar: "https://picsum.photos/seed/lakshini/100/100"
   },
   {
     id: "static-19",
@@ -177,7 +158,6 @@ const staticTestimonials: Testimonial[] = [
     role: "Student",
     content: "The notes are clear, concise, and to the point. No unnecessary information, just what you need for the exam. This is exactly what I was looking for.",
     rating: 5,
-    userAvatar: "https://picsum.photos/seed/upeksha/100/100"
   },
   {
     id: "static-20",
@@ -185,7 +165,6 @@ const staticTestimonials: Testimonial[] = [
     role: "Beautician",
     content: "I recommend these notes to all my students now. It's the most comprehensive and reliable resource available for NVQ Level 4 in Sri Lanka.",
     rating: 5,
-    userAvatar: "https://picsum.photos/seed/shashikala/100/100"
   }
 ];
 
@@ -297,7 +276,6 @@ const Testimonials = () => {
                                 </div>
                                 <div className="flex items-center gap-4 mt-auto">
                                     <Avatar>
-                                        <AvatarImage src={testimonial.userAvatar} alt={testimonial.userName} />
                                         <AvatarFallback>{getInitials(testimonial.userName)}</AvatarFallback>
                                     </Avatar>
                                 <div>
