@@ -2,7 +2,8 @@
 
 import { createContext, useContext } from 'react';
 import type { FirebaseApp } from 'firebase/app';
-import type { Auth, signOut as firebaseSignOut, signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
+import type { Auth, signOut as firebaseSignOut, signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup } from 'firebase/auth';
+import { GoogleAuthProvider } from 'firebase/auth';
 import type { Firestore } from 'firebase/firestore';
 import type { FirebaseStorage } from 'firebase/storage';
 import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
@@ -46,7 +47,7 @@ export function FirebaseProvider({
   }
 
   const signInWithGoogle = () => {
-    const { GoogleAuthProvider, signInWithPopup } = require('firebase/auth');
+    const { signInWithPopup } = require('firebase/auth');
     const provider = new GoogleAuthProvider();
     return signInWithPopup(auth, provider);
   }
