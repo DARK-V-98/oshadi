@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { usePathname } from 'next/navigation';
 import Head from 'next/head';
-import { Menu, X, BookOpen, User, LogOut, LayoutDashboard, Shield } from "lucide-react";
+import { Menu, X, BookOpen, User, LogOut, LayoutDashboard, Shield, Image as ImageIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth, useUser, useFirestore } from "@/firebase";
 import Link from "next/link";
@@ -53,6 +53,7 @@ const Navbar = ({ onUnlockClick, onLoginClick }: NavbarProps) => {
     ...(isHomePage ? [
       { name: "Home", href: "#home" },
       { name: "About", href: "#about" },
+      { name: "Portfolio", href: "#portfolio" },
       { name: "Pricing", href: "#pricing" },
       { name: "Notes", href: "#notes" },
     ] : [

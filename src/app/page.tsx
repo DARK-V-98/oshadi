@@ -6,6 +6,7 @@ import Navbar from "@/components/ov/Navbar";
 import Hero from "@/components/ov/Hero";
 import About from "@/components/ov/About";
 import Pricing from "@/components/ov/Pricing";
+import Portfolio from "@/components/ov/Portfolio";
 import Testimonials from "@/components/ov/Testimonials";
 import Contact from "@/components/ov/Contact";
 import Footer from "@/components/ov/Footer";
@@ -32,6 +33,7 @@ const Home = () => {
       <main>
         <Hero onUnlockClick={() => setIsAuthModalOpen(true)} />
         <About />
+        <Portfolio />
         <Pricing />
         <NotesList />
         <Testimonials />

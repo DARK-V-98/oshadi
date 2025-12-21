@@ -5,14 +5,16 @@ import { FirebaseClientProvider } from '@/firebase/client-provider';
 
 export const metadata: Metadata = {
   title: {
-    default: 'Oshadi Vidarshana | NVQ Level 4 Bridal & Beauty Notes Sri Lanka',
+    default: 'Oshadi Vidarshana | Bridal Makeup Artist & NVQ Beauty Course Notes',
     template: '%s | Oshadi Vidarshana',
   },
-  description: 'Expertly crafted NVQ Level 4 Bridal & Beauty course notes and study materials by Oshadi Vidarshana. Your complete resource for exam preparation in Sri Lanka. Unlock theory notes, practical guides, and assignments.',
-  keywords: "NVQ Level 4, Bridal Notes, Beauty Course Sri Lanka, Oshadi Vidarshana, NVQ Notes, Exam Preparation, Study Materials, Beautician Course, Bridal Dresser",
-  authors: [{ name: 'M.K.D Oshadi Vidarshana Perera' }],
+  description: 'Official website of Oshadi Vidarshana, a professional bridal makeup artist in Sri Lanka. Discover bridal services and purchase expertly crafted NVQ Level 4 Bridal & Beauty course notes and study materials.',
+  keywords: "Oshadi Vidarshana, Bridal Makeup Sri Lanka, NVQ Level 4, Beauty Course Sri Lanka, Bridal Dresser, Makeup Artist, NVQ Notes",
+  authors: [{ name: 'M.K.D Oshadi Vidarshana Perera', url: 'https://www.esystemlk.xyz' }],
   creator: 'Oshadi Vidarshana',
   publisher: 'Oshadi Vidarshana',
+  generator: 'Next.js',
+  applicationName: 'Oshadi Vidarshana',
 };
 
 export default function RootLayout({
