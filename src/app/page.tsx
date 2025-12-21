@@ -27,7 +27,7 @@ const Home = () => {
           content="Your premier resource for NVQ Level 4 Bridal & Beauty notes in Sri Lanka. Get comprehensive theory, practical guides, and assignments by qualified bridal dresser Oshadi Vidarshana."
         />
       </Head>
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background overflow-x-hidden">
       <Navbar onUnlockClick={() => setIsAuthModalOpen(true)} onLoginClick={() => setIsAuthModalOpen(true)} />
       <main>
         <Hero onUnlockClick={() => setIsAuthModalOpen(true)} />

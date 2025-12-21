@@ -24,9 +24,8 @@ const Hero = ({ onUnlockClick }: HeroProps) => {
       
       {/* Decorative elements */}
       <div className="absolute inset-0 overflow-hidden -z-10">
-        <div className="absolute top-20 -left-20 w-72 h-72 bg-rose-gold-light/20 rounded-full blur-3xl animate-pulse-soft" />
-        <div className="absolute bottom-20 -right-20 w-96 h-96 bg-champagne/30 rounded-full blur-3xl animate-pulse-soft" style={{ animationDelay: "1s" }} />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-soft-pink/20 rounded-full blur-3xl" />
+        <div className="absolute top-20 -left-40 w-72 h-72 bg-rose-gold-light/20 rounded-full blur-3xl animate-pulse-soft" />
+        <div className="absolute bottom-20 -right-40 w-96 h-96 bg-champagne/30 rounded-full blur-3xl animate-pulse-soft" style={{ animationDelay: "1s" }} />
       </div>
 
       <div className="container mx-auto px-4 relative z-10">
