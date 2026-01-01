@@ -54,10 +54,13 @@ const Navbar = ({ onUnlockClick, onLoginClick }: NavbarProps) => {
     { name: "Home", href: "/" },
     ...(isHomePage ? [
       { name: "About", href: "#about" },
+      { name: "Pricing", href: "#pricing" },
+      { name: "Notes", href: "#notes" },
       { name: "Testimonials", href: "#testimonials" },
       { name: "Contact", href: "#contact" },
-    ] : []),
-    { name: "Notes", href: "/notes"}
+    ] : [
+      { name: "Notes", href: "/#notes" }
+    ]),
   ];
 
   const getHref = (link: {name: string, href: string}) => {
