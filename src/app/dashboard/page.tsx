@@ -249,18 +249,13 @@ function UserDashboard() {
             <CardContent>
                 <Accordion type="single" collapsible className="w-full">
                 <AccordionItem value="item-1">
-                    <AccordionTrigger>How to Download Notes</AccordionTrigger>
+                    <AccordionTrigger>How to Get Your Notes</AccordionTrigger>
                     <AccordionContent className="space-y-2 text-muted-foreground">
                         <p>1. Add items to your cart from the homepage and checkout.</p>
-                        <p>2. After we confirm your payment, we will mark the order as "Completed".</p>
-                        <p>3. Once completed, your PDF files will appear in 'My Unlocked Content'.</p>
-                        <p>4. Click 'Download' to get your file. <strong className="text-destructive">This is a one-time action.</strong></p>
-                    </AccordionContent>
-                </AccordionItem>
-                <AccordionItem value="item-2">
-                    <AccordionTrigger>How does payment work?</AccordionTrigger>
-                    <AccordionContent>
-                    After you place an order, you will be prompted to contact us on WhatsApp with your Order ID. We will provide payment instructions (e.g., bank transfer). Once payment is confirmed, we will process your order.
+                        <p>2. You will be prompted to contact us on WhatsApp to arrange payment.</p>
+                        <p>3. Once your payment is confirmed, we will mark the order as "Completed".</p>
+                        <p>4. Your PDF files will then appear below in 'My Unlocked Content'.</p>
+                        <p>5. Click 'Download' to get your file. <strong className="text-destructive">This is a one-time action per file.</strong></p>
                     </AccordionContent>
                 </AccordionItem>
                 </Accordion>

@@ -1,4 +1,3 @@
-
 'use client';
 import { useState, useEffect } from 'react';
 import { useFirestore } from '@/firebase';
@@ -88,7 +87,7 @@ const AdminOrderManagement = () => {
             await updateDoc(orderDocRef, { status: newStatus });
             
             if (newStatus === 'completed') {
-                await generateAndAssignKeys(order);
+                await unlockContentForOrder(order);
             }
             
             toast({ title: "Status Updated", description: `Order status changed to ${newStatus}.` });
@@ -111,13 +110,15 @@ const AdminOrderManagement = () => {
         }
     };
 
-    const generateAndAssignKeys = async (order: Order) => {
+    const unlockContentForOrder = async (order: Order) => {
         if (!firestore) return;
     
         const batch = writeBatch(firestore);
     
         for (const item of order.items) {
             const unlockedPdfsRef = collection(firestore, 'userUnlockedPdfs');
+            
+            // Check if this specific item type (note/assignment) for this language is already unlocked
             const q = query(unlockedPdfsRef, 
                 where('userId', '==', order.userId),
                 where('unitId', '==', item.unitId),
@@ -125,33 +126,27 @@ const AdminOrderManagement = () => {
                 where('language', '==', item.language)
             );
             
-            const existingUnlock = await getDocs(q);
-            if (!existingUnlock.empty) {
+            const existingUnlockSnapshot = await getDocs(q);
+            if (!existingUnlockSnapshot.empty) {
                 toast({ title: "Already Unlocked", description: `${item.unitName} (${item.language} ${item.type}) is already unlocked for this user.`, variant: "default" });
-                continue;
+                continue; // Skip to the next item
             }
-
-            const key = `OV-${item.language}-${item.unitId.toUpperCase()}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
-            const keyDocRef = doc(collection(firestore, 'accessKeys'));
-            const keyData = {
-                key,
-                unitId: item.unitId,
-                type: item.type,
-                language: item.language,
-                status: 'bound',
-                createdAt: new Date(),
-                boundTo: order.userId,
-                boundAt: new Date(),
-                orderId: order.id,
-            };
-            batch.set(keyDocRef, keyData);
 
             const unitDocRef = doc(firestore, 'units', item.unitId);
             const unitDocSnap = await getDoc(unitDocRef);
 
             if (unitDocSnap.exists()) {
                 const unitData = unitDocSnap.data() as UnitWithPdfs;
-                const pdfsToUnlock = item.language === 'SI' ? unitData.pdfsSI : unitData.pdfsEN;
+                let pdfsToUnlock: { partName: string, fileName: string, downloadUrl: string }[] = [];
+
+                if (item.language === 'SI') {
+                    pdfsToUnlock = unitData.pdfsSI || [];
+                } else { // 'EN'
+                    pdfsToUnlock = unitData.pdfsEN || [];
+                }
+
+                // Filter for the correct type ('note' or 'assignment') if your file structure supports it.
+                // Assuming the type is implicitly handled by what's in the cart for now.
                 
                 if (pdfsToUnlock && pdfsToUnlock.length > 0) {
                     pdfsToUnlock.forEach(part => {
@@ -159,7 +154,7 @@ const AdminOrderManagement = () => {
                         batch.set(unlockedPdfRef, {
                             userId: order.userId,
                             unitId: item.unitId,
-                            keyId: keyDocRef.id,
+                            orderId: order.id,
                             language: item.language,
                             type: item.type,
                             unlockedAt: new Date(),
@@ -175,7 +170,7 @@ const AdminOrderManagement = () => {
         }
     
         await batch.commit();
-        toast({ title: "Content Unlocked", description: "Access keys generated and content unlocked for the user." });
+        toast({ title: "Content Unlocked", description: "The user now has access to the purchased materials." });
     };
 
     const getStatusColor = (status: Order['status']) => {
