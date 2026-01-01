@@ -34,7 +34,11 @@ interface UnitWithPdfs extends Unit {
   id: string; // Firestore document ID
   pdfs?: PdfPart[]; // Support old structure for migration
   pdfsEN: PdfPart[];
-  pdfsSI: PdfPart[];
+  pdfsSI: Pdf-Jotain
+  priceNotesEN?: string;
+  priceAssignmentsEN?: string;
+  priceNotesSI?: string;
+  priceAssignmentsSI?: string;
 }
 
 interface Category {
@@ -201,14 +205,16 @@ const AdminUnitManagement = () => {
   const [editableUnitData, setEditableUnitData] = useState<Partial<UnitWithPdfs> | null>(null);
 
   const [isAddUnitDialogOpen, setIsAddUnitDialogOpen] = useState(false);
-  const [newUnit, setNewUnit] = useState<Omit<Unit, 'category' | 'modelCount' | 'priceNotes' | 'priceAssignments'> & { category: string; modelCount: string; priceNotes: string; priceAssignments: string }>({
+  const [newUnit, setNewUnit] = useState({
     unitNo: '',
     nameEN: '',
     nameSI: '',
     modelCount: '',
     category: '',
-    priceNotes: '',
-    priceAssignments: '',
+    priceNotesSI: '',
+    priceAssignmentsSI: '',
+    priceNotesEN: '',
+    priceAssignmentsEN: '',
   });
 
   useEffect(() => {
@@ -222,10 +228,15 @@ const AdminUnitManagement = () => {
     const qCategories = query(categoriesRef, orderBy('label'));
 
     const unsubscribeUnits = onSnapshot(qUnits, (querySnapshot) => {
-      const fetchedUnits: UnitWithPdfs[] = querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-      } as UnitWithPdfs));
+      const fetchedUnits: UnitWithPdfs[] = querySnapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          priceNotesSI: data.priceNotesSI ?? data.priceNotes ?? '', // Migration from old field
+          priceAssignmentsSI: data.priceAssignmentsSI ?? data.priceAssignments ?? '', // Migration from old field
+          ...data,
+        } as UnitWithPdfs;
+      });
       setUnits(fetchedUnits);
       setLoading(false);
     }, (error) => {
@@ -247,7 +258,11 @@ const AdminUnitManagement = () => {
 
   const startEditing = (unit: UnitWithPdfs) => {
     setEditingUnitId(unit.id);
-    setEditableUnitData(unit);
+    setEditableUnitData({
+        ...unit,
+        priceNotesSI: unit.priceNotesSI ?? unit.priceNotes, // handle migration
+        priceAssignmentsSI: unit.priceAssignmentsSI ?? unit.priceAssignments, // handle migration
+    });
   };
 
   const cancelEditing = () => {
@@ -266,7 +281,7 @@ const AdminUnitManagement = () => {
 
     const unitDocRef = doc(firestore, 'units', editingUnitId);
     try {
-        const { id, pdfs, pdfsEN, pdfsSI, ...dataToSave } = editableUnitData;
+        const { id, pdfs, pdfsEN, pdfsSI, priceNotes, priceAssignments, ...dataToSave } = editableUnitData as any;
         await updateDoc(unitDocRef, dataToSave);
         toast({ title: "Unit Updated", description: "Your changes have been saved." });
         cancelEditing();
@@ -299,7 +314,7 @@ const AdminUnitManagement = () => {
 
         toast({ title: "Unit Added", description: `Successfully added ${newUnit.nameEN}.`});
         setIsAddUnitDialogOpen(false);
-        setNewUnit({ unitNo: '', nameEN: '', nameSI: '', modelCount: '', category: '', priceNotes: '', priceAssignments: ''});
+        setNewUnit({ unitNo: '', nameEN: '', nameSI: '', modelCount: '', category: '', priceNotesSI: '', priceAssignmentsSI: '', priceNotesEN: '', priceAssignmentsEN: '' });
 
     } catch (error) {
         console.error("Error adding new unit: ", error);
@@ -332,7 +347,7 @@ const AdminUnitManagement = () => {
                         <DialogTitle>Add a New Unit</DialogTitle>
                         <DialogDescription>Fill in the details for the new unit.</DialogDescription>
                     </DialogHeader>
-                    <div className="space-y-4 py-4">
+                    <div className="space-y-4 py-4 max-h-[70vh] overflow-y-auto pr-4">
                         <Input placeholder="Unit No (e.g., Unit-11)" value={newUnit.unitNo} onChange={(e) => setNewUnit({...newUnit, unitNo: e.target.value})}/>
                         <Input placeholder="Unit Name (English)" value={newUnit.nameEN} onChange={(e) => setNewUnit({...newUnit, nameEN: e.target.value})}/>
                         <Input placeholder="Unit Name (Sinhala)" value={newUnit.nameSI} onChange={(e) => setNewUnit({...newUnit, nameSI: e.target.value})}/>
@@ -350,8 +365,10 @@ const AdminUnitManagement = () => {
                                 </SelectContent>
                             </Select>
                          </div>
-                        <Input placeholder="Price for Notes (LKR)" value={newUnit.priceNotes} onChange={(e) => setNewUnit({...newUnit, priceNotes: e.target.value})}/>
-                        <Input placeholder="Price for Assignments (LKR)" value={newUnit.priceAssignments} onChange={(e) => setNewUnit({...newUnit, priceAssignments: e.target.value})}/>
+                        <Input placeholder="Price for Sinhala Notes (LKR)" value={newUnit.priceNotesSI} onChange={(e) => setNewUnit({...newUnit, priceNotesSI: e.target.value})}/>
+                        <Input placeholder="Price for Sinhala Assignments (LKR)" value={newUnit.priceAssignmentsSI} onChange={(e) => setNewUnit({...newUnit, priceAssignmentsSI: e.target.value})}/>
+                        <Input placeholder="Price for English Notes (LKR)" value={newUnit.priceNotesEN} onChange={(e) => setNewUnit({...newUnit, priceNotesEN: e.target.value})}/>
+                        <Input placeholder="Price for English Assignments (LKR)" value={newUnit.priceAssignmentsEN} onChange={(e) => setNewUnit({...newUnit, priceAssignmentsEN: e.target.value})}/>
                     </div>
                     <DialogFooter>
                         <Button variant="ghost" onClick={() => setIsAddUnitDialogOpen(false)}>Cancel</Button>
@@ -415,12 +432,20 @@ const AdminUnitManagement = () => {
                             </Select>
                         </div>
                         <div>
-                            <Label>Notes Price (LKR)</Label>
-                            <Input value={editableUnitData?.priceNotes || ''} onChange={(e) => handleUnitInputChange('priceNotes', e.target.value)} />
+                            <Label>Sinhala Notes Price (LKR)</Label>
+                            <Input value={editableUnitData?.priceNotesSI || ''} onChange={(e) => handleUnitInputChange('priceNotesSI', e.target.value)} />
                         </div>
                         <div>
-                            <Label>Assignments Price (LKR)</Label>
-                            <Input value={editableUnitData?.priceAssignments || ''} onChange={(e) => handleUnitInputChange('priceAssignments', e.target.value)} />
+                            <Label>Sinhala Assignments Price (LKR)</Label>
+                            <Input value={editableUnitData?.priceAssignmentsSI || ''} onChange={(e) => handleUnitInputChange('priceAssignmentsSI', e.target.value)} />
+                        </div>
+                         <div>
+                            <Label>English Notes Price (LKR)</Label>
+                            <Input value={editableUnitData?.priceNotesEN || ''} onChange={(e) => handleUnitInputChange('priceNotesEN', e.target.value)} />
+                        </div>
+                        <div>
+                            <Label>English Assignments Price (LKR)</Label>
+                            <Input value={editableUnitData?.priceAssignmentsEN || ''} onChange={(e) => handleUnitInputChange('priceAssignmentsEN', e.target.value)} />
                         </div>
                     </div>
                 )}

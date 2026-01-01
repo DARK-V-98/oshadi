@@ -1,11 +1,16 @@
+
 export type Unit = {
   unitNo: string;
   nameEN: string;
   nameSI: string;
   modelCount: string;
   category: string;
-  priceNotes?: string;
-  priceAssignments?: string;
+  priceNotes?: string; // old field, for migration
+  priceAssignments?: string; // old field, for migration
+  priceNotesSI?: string;
+  priceAssignmentsSI?: string;
+  priceNotesEN?: string;
+  priceAssignmentsEN?: string;
 };
 
 // This data is now managed in Firestore and this static list is no longer used by the application,

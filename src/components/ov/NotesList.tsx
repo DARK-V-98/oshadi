@@ -22,6 +22,10 @@ import { Badge } from '../ui/badge';
 interface UnitWithPdfCount extends Unit {
     pdfsENCount: number;
     pdfsSICount: number;
+    priceNotesEN?: string;
+    priceAssignmentsEN?: string;
+    priceNotesSI?: string;
+    priceAssignmentsSI?: string;
 }
 
 interface Category {
@@ -49,17 +53,24 @@ const NotesList = () => {
     const unitsRef = collection(firestore, 'units');
     const qUnits = query(unitsRef, orderBy('unitNo'));
     const unsubUnits = onSnapshot(qUnits, (snapshot) => {
-        const fetchedUnits = snapshot.docs.map(doc => ({
-            unitNo: doc.id,
-            nameEN: doc.data().nameEN,
-            nameSI: doc.data().nameSI,
-            modelCount: doc.data().modelCount,
-            category: doc.data().category,
-            priceNotes: doc.data().priceNotes,
-            priceAssignments: doc.data().priceAssignments,
-            pdfsENCount: (doc.data().pdfsEN || []).length,
-            pdfsSICount: (doc.data().pdfsSI || []).length,
-        }));
+        const fetchedUnits = snapshot.docs.map(doc => {
+            const data = doc.data();
+            return {
+                unitNo: doc.id,
+                nameEN: data.nameEN,
+                nameSI: data.nameSI,
+                modelCount: data.modelCount,
+                category: data.category,
+                priceNotes: data.priceNotes,
+                priceAssignments: data.priceAssignments,
+                priceNotesSI: data.priceNotesSI ?? data.priceNotes, // Migration
+                priceAssignmentsSI: data.priceAssignmentsSI ?? data.priceAssignments, // Migration
+                priceNotesEN: data.priceNotesEN,
+                priceAssignmentsEN: data.priceAssignmentsEN,
+                pdfsENCount: (data.pdfsEN || []).length,
+                pdfsSICount: (data.pdfsSI || []).length,
+            };
+        });
         setUnits(fetchedUnits);
     });
 
@@ -172,14 +183,24 @@ const NotesList = () => {
                                             <p className="font-medium text-foreground">{unit.nameEN}</p>
                                             <p className="text-sm text-muted-foreground mt-0.5">{unit.nameSI}</p>
                                             <div className="flex flex-wrap gap-2 mt-2">
-                                                {unit.priceNotes && (
+                                                {unit.priceNotesSI && (
                                                     <div className="text-xs inline-flex items-center gap-1.5 bg-blue-100 text-blue-800 rounded-full px-2 py-0.5">
-                                                        <Tag className="w-3 h-3" /> Notes: LKR {unit.priceNotes}
+                                                        <Tag className="w-3 h-3" /> SI Notes: LKR {unit.priceNotesSI}
                                                     </div>
                                                 )}
-                                                {unit.priceAssignments && (
+                                                {unit.priceAssignmentsSI && (
                                                     <div className="text-xs inline-flex items-center gap-1.5 bg-green-100 text-green-800 rounded-full px-2 py-0.5">
-                                                        <Tag className="w-3 h-3" /> Assignments: LKR {unit.priceAssignments}
+                                                        <Tag className="w-3 h-3" /> SI Assignments: LKR {unit.priceAssignmentsSI}
+                                                    </div>
+                                                )}
+                                                {unit.priceNotesEN && (
+                                                    <div className="text-xs inline-flex items-center gap-1.5 bg-purple-100 text-purple-800 rounded-full px-2 py-0.5">
+                                                        <Tag className="w-3 h-3" /> EN Notes: LKR {unit.priceNotesEN}
+                                                    </div>
+                                                )}
+                                                {unit.priceAssignmentsEN && (
+                                                    <div className="text-xs inline-flex items-center gap-1.5 bg-orange-100 text-orange-800 rounded-full px-2 py-0.5">
+                                                        <Tag className="w-3 h-3" /> EN Assignments: LKR {unit.priceAssignmentsEN}
                                                     </div>
                                                 )}
                                             </div>
