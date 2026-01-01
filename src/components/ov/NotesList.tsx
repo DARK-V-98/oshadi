@@ -19,6 +19,7 @@ import { Search, Unlock, FileText, Loader2, Tag, ShoppingCart, Folder, Languages
 import { useRouter } from 'next/navigation';
 import { Badge } from '../ui/badge';
 import { useCart } from '@/context/CartContext';
+import { cn } from '@/lib/utils';
 
 interface UnitWithPdfCount extends Unit {
     pdfsENCount: number;
@@ -35,12 +36,90 @@ interface Category {
     value: string;
 }
 
+const UnitCard = ({ unit }: { unit: UnitWithPdfCount }) => {
+    const [selectedLanguage, setSelectedLanguage] = useState<'SI' | 'EN'>('SI');
+    const { toast } = useToast();
+    const { addToCart } = useCart();
+  
+    const handleAddToCart = (unit: UnitWithPdfCount, type: 'note' | 'assignment', language: 'EN' | 'SI') => {
+        const priceStr = type === 'note' 
+          ? (language === 'EN' ? unit.priceNotesEN : unit.priceNotesSI)
+          : (language === 'EN' ? unit.priceAssignmentsEN : unit.priceAssignmentsSI);
+        
+        if (!priceStr) {
+            toast({title: "Not for sale", description: "This item is not currently available for purchase.", variant: "destructive"});
+            return;
+        }
+        
+        const price = parseFloat(priceStr);
+        if (isNaN(price)) {
+          toast({title: "Price error", description: "Invalid price format for this item.", variant: "destructive"});
+          return;
+        }
+        
+        addToCart({
+            unitId: unit.unitNo,
+            unitName: unit.nameEN,
+            type: type,
+            language: language,
+            price: price,
+        });
+    }
+
+    const notePrice = selectedLanguage === 'SI' ? unit.priceNotesSI : unit.priceNotesEN;
+    const assignmentPrice = selectedLanguage === 'SI' ? unit.priceAssignmentsSI : unit.priceAssignmentsEN;
+
+    return (
+        <div className="p-4 md:p-5 hover:bg-secondary/30 transition-colors duration-300">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                <div className="md:col-span-2">
+                    <Badge variant="outline">{unit.unitNo}</Badge>
+                    <p className="font-medium text-foreground mt-2">{unit.nameEN}</p>
+                    <p className="text-sm text-muted-foreground mt-0.5">{unit.nameSI}</p>
+                </div>
+                <div className="md:col-span-3 space-y-3">
+                    <div className="flex items-center gap-2 rounded-lg bg-secondary/50 p-1">
+                        <Button 
+                            variant={selectedLanguage === 'SI' ? 'default' : 'ghost'} 
+                            size="sm" 
+                            className="flex-1"
+                            onClick={() => setSelectedLanguage('SI')}>
+                            Sinhala
+                        </Button>
+                        <Button 
+                            variant={selectedLanguage === 'EN' ? 'default' : 'ghost'} 
+                            size="sm" 
+                            className="flex-1"
+                            onClick={() => setSelectedLanguage('EN')}>
+                            English
+                        </Button>
+                    </div>
+
+                    <div className="space-y-2">
+                        {notePrice && (
+                             <Button size="sm" variant="outline" className="w-full justify-between" onClick={() => handleAddToCart(unit, 'note', selectedLanguage)}>
+                                <span className="flex items-center gap-2"><Book className="w-4 h-4"/> Notes</span>
+                                <span>LKR {notePrice}</span>
+                             </Button>
+                        )}
+                        {assignmentPrice && (
+                             <Button size="sm" variant="outline" className="w-full justify-between" onClick={() => handleAddToCart(unit, 'assignment', selectedLanguage)}>
+                                <span className="flex items-center gap-2"><FileArchive className="w-4 h-4"/> Assignments</span>
+                                <span>LKR {assignmentPrice}</span>
+                             </Button>
+                        )}
+                         {!notePrice && !assignmentPrice && (
+                            <p className="text-xs text-center text-muted-foreground p-2">No items available for purchase in {selectedLanguage === 'SI' ? 'Sinhala' : 'English'}.</p>
+                        )}
+                    </div>
+                </div>
+            </div>
+        </div>
+    )
+}
+
 const NotesList = () => {
   const firestore = useFirestore();
-  const { toast } = useToast();
-  const router = useRouter();
-  const { addToCart } = useCart();
-
   const [units, setUnits] = useState<UnitWithPdfCount[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
@@ -63,8 +142,6 @@ const NotesList = () => {
                 nameSI: data.nameSI,
                 modelCount: data.modelCount,
                 category: data.category,
-                priceNotes: data.priceNotes,
-                priceAssignments: data.priceAssignments,
                 priceNotesSI: data.priceNotesSI ?? data.priceNotes, // Migration
                 priceAssignmentsSI: data.priceAssignmentsSI ?? data.priceAssignments, // Migration
                 priceNotesEN: data.priceNotesEN,
@@ -115,60 +192,6 @@ const NotesList = () => {
     );
   };
 
-  const handleAddToCart = (unit: UnitWithPdfCount, type: 'note' | 'assignment', language: 'EN' | 'SI') => {
-      const priceStr = type === 'note' 
-        ? (language === 'EN' ? unit.priceNotesEN : unit.priceNotesSI)
-        : (language === 'EN' ? unit.priceAssignmentsEN : unit.priceAssignmentsSI);
-      
-      if (!priceStr) {
-          toast({title: "Not for sale", description: "This item is not currently available for purchase.", variant: "destructive"});
-          return;
-      }
-      
-      const price = parseFloat(priceStr);
-      if (isNaN(price)) {
-        toast({title: "Price error", description: "Invalid price format for this item.", variant: "destructive"});
-        return;
-      }
-      
-      addToCart({
-          unitId: unit.unitNo,
-          unitName: unit.nameEN,
-          type: type,
-          language: language,
-          price: price,
-      });
-  }
-
-  const renderPurchaseOptions = (unit: UnitWithPdfCount, language: 'SI' | 'EN') => {
-    const notePrice = language === 'SI' ? unit.priceNotesSI : unit.priceNotesEN;
-    const assignmentPrice = language === 'SI' ? unit.priceAssignmentsSI : unit.priceAssignmentsEN;
-
-    if (!notePrice && !assignmentPrice) {
-      return null;
-    }
-
-    return (
-      <div className="p-3 bg-secondary/30 rounded-md">
-        <h4 className="font-semibold text-sm mb-2 flex items-center gap-2"><Languages className="w-4 h-4"/> {language === 'SI' ? 'Sinhala' : 'English'} Medium</h4>
-        <div className="flex gap-2 flex-wrap">
-          {notePrice && (
-            <Button size="sm" variant="outline" className="flex-1" onClick={() => handleAddToCart(unit, 'note', language)}>
-              <Book className="w-4 h-4 mr-2" />
-              Notes (LKR {notePrice})
-            </Button>
-          )}
-          {assignmentPrice && (
-            <Button size="sm" variant="outline" className="flex-1" onClick={() => handleAddToCart(unit, 'assignment', language)}>
-              <FileArchive className="w-4 h-4 mr-2" />
-              Assignments (LKR {assignmentPrice})
-            </Button>
-          )}
-        </div>
-      </div>
-    );
-  };
-
   return (
     <section id="notes" className="py-20 md:py-32 bg-background">
       <div className="container mx-auto px-4">
@@ -215,22 +238,7 @@ const NotesList = () => {
                                 <div className="bg-card rounded-2xl border border-border shadow-card overflow-hidden animate-fade-in-up">
                                 <div className="divide-y divide-border">
                                 {categoryUnits.length > 0 ? categoryUnits.map((unit, index) => (
-                                    <div
-                                        key={index}
-                                        className="p-4 md:p-5 hover:bg-secondary/30 transition-colors duration-300"
-                                    >
-                                        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-                                            <div className="md:col-span-2">
-                                                <Badge variant="outline">{unit.unitNo}</Badge>
-                                                <p className="font-medium text-foreground mt-2">{unit.nameEN}</p>
-                                                <p className="text-sm text-muted-foreground mt-0.5">{unit.nameSI}</p>
-                                            </div>
-                                            <div className="md:col-span-3 space-y-3">
-                                                {renderPurchaseOptions(unit, 'SI')}
-                                                {renderPurchaseOptions(unit, 'EN')}
-                                            </div>
-                                        </div>
-                                    </div>
+                                    <UnitCard key={index} unit={unit} />
                                 )) : (
                                     <div className="p-8 text-center text-muted-foreground">
                                         <p>No units found in this category{searchQuery && ' matching your search'}.</p>
