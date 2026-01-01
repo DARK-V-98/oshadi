@@ -1,6 +1,6 @@
 
 'use client';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useFirestore } from '@/firebase';
 import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
@@ -84,15 +84,23 @@ const NotesList = () => {
     };
   }, [firestore, toast]);
   
-  useEffect(() => {
-    if (!api) return;
- 
+  const onSelect = useCallback((api: CarouselApi) => {
+    if (!api) {
+      return
+    }
     setCurrentCategoryIndex(api.selectedScrollSnap())
- 
-    api.on("select", () => {
-      setCurrentCategoryIndex(api.selectedScrollSnap())
-    })
-  }, [api])
+  }, [])
+
+  useEffect(() => {
+    if (!api) {
+      return
+    }
+    onSelect(api)
+    api.on('select', onSelect)
+    return () => {
+      api.off('select', onSelect)
+    }
+  }, [api, onSelect])
   
   const getUnitsForCategory = (categoryValue: string) => {
     return units.filter((unit) =>
