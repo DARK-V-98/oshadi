@@ -47,14 +47,10 @@ interface UnlockedPdfDoc {
     type: 'note' | 'assignment';
     language: 'EN' | 'SI';
     downloaded: boolean;
-    downloadedAt?: Date;
-}
-
-interface UnlockedUnitInfo {
-    unitId: string;
-    unitNameEN: string;
-    unitNameSI: string;
-    parts: UnlockedPdfDoc[];
+    downloadedAt?: { toDate: () => Date };
+    unlockedAt: { toDate: () => Date };
+    unitNameEN: string; // Add this
+    unitNameSI: string; // Add this
 }
 
 interface Order {
@@ -71,7 +67,7 @@ function UserDashboard() {
   const storage = useStorage();
   const { toast } = useToast();
 
-  const [unlockedUnits, setUnlockedUnits] = useState<UnlockedUnitInfo[]>([]);
+  const [unlockedPdfs, setUnlockedPdfs] = useState<UnlockedPdfDoc[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [loadingContent, setLoadingContent] = useState(true);
   const [loadingOrders, setLoadingOrders] = useState(true);
@@ -86,42 +82,33 @@ function UserDashboard() {
   
     setLoadingContent(true);
     const unlockedRef = collection(firestore, 'userUnlockedPdfs');
-    const q = query(unlockedRef, where('userId', '==', user.uid));
+    const q = query(unlockedRef, where('userId', '==', user.uid), orderBy('unlockedAt', 'desc'));
   
     const unsubscribeUnlocked = onSnapshot(q, async (querySnapshot) => {
-      const unlockedData: UnlockedPdfDoc[] = querySnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-      } as UnlockedPdfDoc));
+        const unlockedPromises = querySnapshot.docs.map(async (pdfDoc) => {
+            const pdfData = pdfDoc.data();
+            const unitDocRef = doc(firestore, 'units', pdfData.unitId);
+            const unitDocSnap = await getDoc(unitDocRef);
+            let unitNameEN = 'Unknown Unit';
+            let unitNameSI = 'Unknown Unit';
 
-      const unitsMap: Record<string, UnlockedUnitInfo> = {};
-
-      for (const pdfDoc of unlockedData) {
-          if (!unitsMap[pdfDoc.unitId]) {
-              const unitDocRef = doc(firestore, 'units', pdfDoc.unitId);
-              const unitDocSnap = await getDoc(unitDocRef);
-              if (unitDocSnap.exists()) {
-                  const unitData = unitDocSnap.data();
-                  unitsMap[pdfDoc.unitId] = {
-                      unitId: pdfDoc.unitId,
-                      unitNameEN: unitData.nameEN,
-                      unitNameSI: unitData.nameSI,
-                      parts: []
-                  };
-              }
-          }
-           if (unitsMap[pdfDoc.unitId]) {
-            const existingPartIndex = unitsMap[pdfDoc.unitId].parts.findIndex(p => p.id === pdfDoc.id);
-            if (existingPartIndex === -1) {
-                unitsMap[pdfDoc.unitId].parts.push(pdfDoc);
-            } else {
-                unitsMap[pdfDoc.unitId].parts[existingPartIndex] = pdfDoc;
+            if (unitDocSnap.exists()) {
+                const unitData = unitDocSnap.data();
+                unitNameEN = unitData.nameEN;
+                unitNameSI = unitData.nameSI;
             }
-          }
-      }
-  
-      setUnlockedUnits(Object.values(unitsMap));
-      setLoadingContent(false);
+
+            return {
+                id: pdfDoc.id,
+                ...pdfData,
+                unitNameEN,
+                unitNameSI,
+            } as UnlockedPdfDoc;
+        });
+
+        const unlockedData = await Promise.all(unlockedPromises);
+        setUnlockedPdfs(unlockedData);
+        setLoadingContent(false);
   
     }, (error) => {
       console.error("Error fetching unlocked PDFs: ", error);
@@ -273,41 +260,32 @@ function UserDashboard() {
                         <Loader2 className="w-8 h-8 animate-spin text-primary" />
                         <p className="ml-3 text-muted-foreground">Loading your content...</p>
                     </div>
-                ) : unlockedUnits.length > 0 ? (
-                    <div className="space-y-6">
-                        {unlockedUnits.map(unit => (
-                            <Card key={unit.unitId}>
-                               <CardHeader>
-                                   <CardTitle className="flex items-center gap-3">
-                                       <FileText className="w-6 h-6 text-primary" />
-                                       <div>
-                                           {unit.unitNameEN}
-                                           <p className="text-sm text-muted-foreground font-normal">{unit.unitNameSI}</p>
-                                       </div>
-                                   </CardTitle>
-                               </CardHeader>
-                               <CardContent className="space-y-3">
-                                   {unit.parts && unit.parts.length > 0 ? (
-                                       unit.parts.map(part => (
-                                          <div key={part.id} className="flex items-center justify-between p-3 bg-secondary/50 rounded-full">
-                                              <div className='flex items-center gap-2'>
-                                                 <Badge variant={part.type === 'note' ? 'default' : 'secondary'}>{part.type}</Badge>
-                                                 <Badge variant="outline">{part.language}</Badge>
-                                                 <span>{part.partName}</span>
-                                              </div>
-                                              <Button size="sm" variant="ghost" className="rounded-full" onClick={() => confirmDownload(part)} disabled={part.downloaded || downloading[part.id]}>
-                                                  {downloading[part.id] ? <Loader2 className="w-4 h-4 mr-2 animate-spin"/> : part.downloaded ? <CheckCircle className="w-4 h-4 mr-2"/> : <Download className="w-4 h-4 mr-2"/>}
-                                                  {part.downloaded ? 'Downloaded' : 'Download'}
-                                             </Button>
-                                          </div>
-                                       ))
-                                   ) : (
-                                       <p className="text-muted-foreground text-sm">No PDF parts available for this unit yet.</p>
-                                   )}
-                               </CardContent>
-                            </Card>
-                        ))}
-                    </div>
+                ) : unlockedPdfs.length > 0 ? (
+                    <Card>
+                        <CardContent className="p-0">
+                           <div className="divide-y divide-border">
+                            {unlockedPdfs.map(part => (
+                                <div key={part.id} className="flex items-center justify-between p-4">
+                                   <div className="flex items-center gap-4">
+                                        <FileText className="w-6 h-6 text-primary flex-shrink-0"/>
+                                        <div>
+                                            <p className="font-semibold">{part.unitNameEN} - {part.partName}</p>
+                                            <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
+                                                <Badge variant={part.type === 'note' ? 'default' : 'secondary'}>{part.type}</Badge>
+                                                <Badge variant="outline">{part.language}</Badge>
+                                                <span>Unlocked: {part.unlockedAt.toDate().toLocaleDateString()}</span>
+                                            </div>
+                                        </div>
+                                   </div>
+                                    <Button size="sm" variant="ghost" className="rounded-full" onClick={() => confirmDownload(part)} disabled={part.downloaded || downloading[part.id]}>
+                                        {downloading[part.id] ? <Loader2 className="w-4 h-4 mr-2 animate-spin"/> : part.downloaded ? <CheckCircle className="w-4 h-4 mr-2"/> : <Download className="w-4 h-4 mr-2"/>}
+                                        {part.downloaded ? 'Downloaded' : 'Download'}
+                                    </Button>
+                                </div>
+                            ))}
+                           </div>
+                        </CardContent>
+                    </Card>
                 ) : (
                     <Card className="flex flex-col items-center justify-center p-8 text-center border-dashed">
                         <CardHeader>
@@ -394,3 +372,5 @@ export default function DashboardPage() {
         <UserDashboard />
     )
 }
+
+    
