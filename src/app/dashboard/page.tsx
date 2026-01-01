@@ -6,7 +6,7 @@ import { collection, query, where, doc, onSnapshot, getDoc, updateDoc, orderBy }
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
-import { Download, FileText, HelpCircle, Loader2, CheckCircle, AlertTriangle, Languages, ShoppingBag, Clock } from 'lucide-react';
+import { Download, FileText, HelpCircle, Loader2, CheckCircle, AlertTriangle, ShoppingBag } from 'lucide-react';
 import {
   Accordion,
   AccordionContent,
@@ -167,46 +167,43 @@ function UserDashboard() {
     setDownloading(prev => ({ ...prev, [downloadKey]: true }));
     setShowConfirmDialog(false);
     
-    toast({ title: "Preparing Download...", description: "Your download will begin shortly."});
+    toast({ title: "Preparing Download...", description: "Your secure download will begin shortly."});
     
-    const fileRef = ref(storage, part.downloadUrl);
-    const fileName = part.fileName || 'download.pdf';
-
     try {
-        let blob: Blob;
-
+        const fileRef = ref(storage, part.downloadUrl);
         const originalBytes = await getBytes(fileRef);
+        let blob: Blob;
 
         if (part.type === 'note') {
             const pdfDoc = await PDFDocument.load(originalBytes);
             const helveticaFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
-            const pages = pdfDoc.getPages();
+            const watermarkText = `${user.displayName} (${user.email})`.toLowerCase();
             
-            for (const page of pages) {
+            for (const page of pdfDoc.getPages()) {
                 const { width, height } = page.getSize();
-                page.drawText('oshadi vidarshana', {
-                    x: width / 2 - 100,
+                page.drawText(watermarkText, {
+                    x: width / 2 - 150,
                     y: height / 2,
-                    size: 50,
+                    size: 40,
                     font: helveticaFont,
                     color: rgb(0.95, 0.1, 0.1),
-                    opacity: 0.2,
+                    opacity: 0.15,
                     rotate: { type: 'degrees', angle: -45 },
                 });
             }
 
             const watermarkedBytes = await pdfDoc.save();
             blob = new Blob([watermarkedBytes], { type: 'application/pdf' });
-        } else { // Assignment or any other type
+        } else { // For assignments, no watermark is applied
             blob = new Blob([originalBytes], { type: 'application/pdf' });
         }
         
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = fileName;
+        a.download = part.fileName || `${part.unitId}-${part.partName}.pdf`;
         document.body.appendChild(a);
-        a.click();
+a.click();
         
         const partDocRef = doc(firestore, 'userUnlockedPdfs', part.id);
         await updateDoc(partDocRef, {
@@ -216,12 +213,15 @@ function UserDashboard() {
         
         a.remove();
         window.URL.revokeObjectURL(url);
-        toast({ title: "Download started!", description: `Your file is downloading.`});
+        toast({ title: "Download Started!", description: `Your file is downloading.`});
         
 
-    } catch (error) {
+    } catch (error: any) {
         console.error("Error during download process: ", error);
-        toast({ title: "Download failed", description: `Could not get the file. Please try again later.`, variant: 'destructive' });
+        const errorMessage = error.code === 'storage/object-not-found' 
+            ? "The file could not be found. Please contact support."
+            : "An unexpected error occurred. Please try again later.";
+        toast({ title: "Download Failed", description: errorMessage, variant: 'destructive' });
     } finally {
         setDownloading(prev => ({ ...prev, [downloadKey]: false }));
         setSelectedPartForDownload(null);
@@ -288,13 +288,13 @@ function UserDashboard() {
                                <CardContent className="space-y-3">
                                    {unit.parts && unit.parts.length > 0 ? (
                                        unit.parts.map(part => (
-                                          <div key={part.id} className="flex items-center justify-between p-3 bg-secondary/50 rounded-md">
+                                          <div key={part.id} className="flex items-center justify-between p-3 bg-secondary/50 rounded-full">
                                               <div className='flex items-center gap-2'>
                                                  <Badge variant={part.type === 'note' ? 'default' : 'secondary'}>{part.type}</Badge>
                                                  <Badge variant="outline">{part.language}</Badge>
                                                  <span>{part.partName}</span>
                                               </div>
-                                              <Button size="sm" variant="ghost" onClick={() => confirmDownload(part)} disabled={part.downloaded || downloading[part.id]}>
+                                              <Button size="sm" variant="ghost" className="rounded-full" onClick={() => confirmDownload(part)} disabled={part.downloaded || downloading[part.id]}>
                                                   {downloading[part.id] ? <Loader2 className="w-4 h-4 mr-2 animate-spin"/> : part.downloaded ? <CheckCircle className="w-4 h-4 mr-2"/> : <Download className="w-4 h-4 mr-2"/>}
                                                   {part.downloaded ? 'Downloaded' : 'Download'}
                                              </Button>
@@ -393,3 +393,5 @@ export default function DashboardPage() {
         <UserDashboard />
     )
 }
+
+    
