@@ -1,3 +1,4 @@
+
 "use client";
 import { useState, useEffect } from "react";
 import { usePathname } from 'next/navigation';
@@ -50,39 +51,27 @@ const Navbar = ({ onUnlockClick, onLoginClick }: NavbarProps) => {
   }, [user, firestore]);
 
   const navLinks = [
+    { name: "Home", href: "/" },
     ...(isHomePage ? [
-      { name: "Home", href: "#home" },
       { name: "About", href: "#about" },
-      { name: "Pricing", href: "#pricing" },
-      { name: "Notes", href: "#notes" },
-    ] : [
-      { name: "Home", href: "/" },
-    ]),
-    ...(isHomePage ? [
       { name: "Testimonials", href: "#testimonials" },
       { name: "Contact", href: "#contact" },
-    ] : [
-      { name: "Notes", href: "/notes"}
-    ])
+    ] : []),
+    { name: "Notes", href: "/notes"}
   ];
 
   const getHref = (link: {name: string, href: string}) => {
-    if (link.href.startsWith('/')) {
-        return link.href;
+    // If on a different page and the link is a hash, prepend with '/'
+    if (!isHomePage && link.href.startsWith('#')) {
+      return `/${link.href}`;
     }
-    // If not on home page and link is a hash link, go to home first
-    return isHomePage ? link.href : `/${link.href}`;
+    return link.href;
   }
   
   const getInitials = (name: string | null | undefined) => {
     if (!name) return 'A';
     return name.charAt(0).toUpperCase();
   }
-
-  const handleBuyNotes = () => {
-    const message = encodeURIComponent("Hi! I'm interested in buying the NVQ Level 4 notes. Can you please provide more information?");
-    window.open(`https://wa.me/94754420805?text=${message}`, '_blank');
-  };
 
   return (
     <>
@@ -112,7 +101,7 @@ const Navbar = ({ onUnlockClick, onLoginClick }: NavbarProps) => {
                 </Link>
               ))}
               <Button asChild variant="outline" size="sm" className="rounded-full">
-                <Link href="/notes">
+                <Link href="/dashboard">
                   <BookOpen className="w-4 h-4 mr-2" />
                   Unlock Notes
                 </Link>
@@ -212,7 +201,7 @@ const Navbar = ({ onUnlockClick, onLoginClick }: NavbarProps) => {
                      </>
                  )}
                 <Button asChild variant="outline" size="sm" className="w-full">
-                  <Link href="/notes" onClick={() => setIsOpen(false)}>
+                  <Link href="/dashboard" onClick={() => setIsOpen(false)}>
                     <BookOpen className="w-4 h-4 mr-2" />
                     Unlock Notes
                   </Link>

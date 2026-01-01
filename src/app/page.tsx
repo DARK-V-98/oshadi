@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -5,14 +6,12 @@ import Head from 'next/head';
 import Navbar from "@/components/ov/Navbar";
 import Hero from "@/components/ov/Hero";
 import About from "@/components/ov/About";
-import Pricing from "@/components/ov/Pricing";
 import Testimonials from "@/components/ov/Testimonials";
 import Contact from "@/components/ov/Contact";
 import Footer from "@/components/ov/Footer";
 import FloatingWhatsApp from "@/components/ov/FloatingWhatsApp";
 import ScrollToTop from "@/components/ov/ScrollToTop";
 import AuthForm from "@/components/AuthForm";
-import NotesList from "@/components/ov/NotesList";
 
 
 const Home = () => {
@@ -32,8 +31,6 @@ const Home = () => {
       <main>
         <Hero onUnlockClick={() => setIsAuthModalOpen(true)} />
         <About />
-        <Pricing />
-        <NotesList />
         <Testimonials />
         <Contact />
       </main>
