@@ -32,7 +32,6 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { ref, getBytes } from 'firebase/storage';
-import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import { Badge } from '@/components/ui/badge';
 import TestimonialForm from '@/components/dashboard/TestimonialForm';
 import { CartItem } from '@/context/CartContext';
@@ -165,30 +164,7 @@ function UserDashboard() {
     
     try {
         const fileRef = ref(storage, part.downloadUrl);
-        const originalBytes = await getBytes(fileRef);
-        let pdfBytes = originalBytes;
-
-        if (part.type === 'note') {
-            const pdfDoc = await PDFDocument.load(originalBytes);
-            const helveticaFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
-            const pages = pdfDoc.getPages();
-            
-            const watermarkText = 'Oshadi Vidarshana | esystemlk.xyz';
-
-            for (const page of pages) {
-                const { width, height } = page.getSize();
-                page.drawText(watermarkText, {
-                    x: width / 2 - 150,
-                    y: height / 2,
-                    size: 50,
-                    font: helveticaFont,
-                    color: rgb(0.9, 0.9, 0.9),
-                    opacity: 0.3,
-                    rotate: { type: 'degrees', angle: 45 },
-                });
-            }
-            pdfBytes = await pdfDoc.save();
-        }
+        const pdfBytes = await getBytes(fileRef);
         
         const blob = new Blob([pdfBytes], { type: 'application/pdf' });
         
@@ -233,38 +209,31 @@ function UserDashboard() {
         }
     }
 
-    const groupedContent = useMemo(() => {
-        return unlockedPdfs.reduce((acc, pdf) => {
-            const key = `${pdf.orderId}-${pdf.unitId}-${pdf.type}`;
-            if (!acc[key]) {
-                acc[key] = [];
+    const { activeContent, historicalContent } = useMemo(() => {
+        const active: UnlockedPdfDoc[] = [];
+        const historical: UnlockedPdfDoc[] = [];
+        unlockedPdfs.forEach(pdf => {
+            if (pdf.downloaded) {
+                historical.push(pdf);
+            } else {
+                active.push(pdf);
             }
-            acc[key].push(pdf);
-            return acc;
-        }, {} as GroupedContent);
+        });
+        return { activeContent: active, historicalContent: historical };
     }, [unlockedPdfs]);
-
-    const orderDownloads = useMemo(() => {
-        return orders.reduce((acc, order) => {
-          acc[order.id] = unlockedPdfs.filter(pdf => pdf.orderId === order.id);
-          return acc;
-        }, {} as Record<string, UnlockedPdfDoc[]>);
-    }, [orders, unlockedPdfs]);
     
     const { activeOrders, historicalOrders } = useMemo(() => {
         const active: Order[] = [];
         const historical: Order[] = [];
         orders.forEach(order => {
-            const orderPdfs = orderDownloads[order.id] || [];
-            const isCompletedAndDownloaded = order.status === 'completed' && orderPdfs.length > 0 && orderPdfs.every(pdf => pdf.downloaded);
-            if (isCompletedAndDownloaded) {
+            if (order.status === 'completed' && activeContent.every(pdf => pdf.orderId !== order.id)) {
                 historical.push(order);
             } else {
                 active.push(order);
             }
         });
         return { activeOrders: active, historicalOrders: historical };
-    }, [orders, orderDownloads]);
+    }, [orders, activeContent]);
 
 
   return (
@@ -301,51 +270,38 @@ function UserDashboard() {
                         <Loader2 className="w-8 h-8 animate-spin text-primary" />
                         <p className="ml-3 text-muted-foreground">Loading your content...</p>
                     </div>
-                ) : Object.keys(groupedContent).length > 0 ? (
+                ) : activeContent.length > 0 ? (
                     <Card>
                         <CardContent className="p-0">
                            <div className="divide-y divide-border">
-                            {Object.entries(groupedContent).map(([key, parts]) => {
-                                const firstPart = parts[0];
-                                const partEN = parts.find(p => p.language === 'EN');
-                                const partSI = parts.find(p => p.language === 'SI');
-
-                                return (
-                                <div key={key} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 gap-4">
+                            {activeContent.map((part) => (
+                                <div key={part.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 gap-4">
                                     <div className="flex items-center gap-4">
                                         <FileText className="w-6 h-6 text-primary flex-shrink-0 mt-1 sm:mt-0"/>
                                         <div>
-                                            <p className="font-semibold">{firstPart.unitNameEN} - <span className="capitalize">{firstPart.type}</span></p>
+                                            <p className="font-semibold">{part.unitNameEN} - <span className="capitalize">{part.type} ({part.language})</span></p>
                                             <div className="text-xs text-muted-foreground mt-1">
-                                                Unlocked: {firstPart.unlockedAt.toDate().toLocaleString()}
+                                                Unlocked: {part.unlockedAt.toDate().toLocaleString()}
                                             </div>
                                         </div>
                                     </div>
-                                    <div className="flex-shrink-0 grid grid-cols-2 gap-2 w-full sm:w-auto">
-                                        {partEN && (
-                                            <Button size="sm" variant="outline" className="rounded-full" onClick={() => confirmDownload(partEN)} disabled={partEN.downloaded || downloading[partEN.id]}>
-                                                {downloading[partEN.id] ? <Loader2 className="w-4 h-4 animate-spin"/> : partEN.downloaded ? <CheckCircle className="w-4 h-4"/> : <Download className="w-4 h-4"/>}
-                                                <span className="ml-2">English</span>
-                                            </Button>
-                                        )}
-                                        {partSI && (
-                                            <Button size="sm" variant="outline" className="rounded-full" onClick={() => confirmDownload(partSI)} disabled={partSI.downloaded || downloading[partSI.id]}>
-                                                {downloading[partSI.id] ? <Loader2 className="w-4 h-4 animate-spin"/> : partSI.downloaded ? <CheckCircle className="w-4 h-4"/> : <Download className="w-4 h-4"/>}
-                                                <span className="ml-2">Sinhala</span>
-                                            </Button>
-                                        )}
+                                    <div className="flex-shrink-0 w-full sm:w-auto">
+                                        <Button size="sm" variant="outline" className="rounded-full w-full" onClick={() => confirmDownload(part)} disabled={part.downloaded || downloading[part.id]}>
+                                            {downloading[part.id] ? <Loader2 className="w-4 h-4 animate-spin"/> : <Download className="w-4 h-4"/>}
+                                            <span className="ml-2">Download</span>
+                                        </Button>
                                     </div>
                                 </div>
-                            )})}
+                            ))}
                            </div>
                         </CardContent>
                     </Card>
                 ) : (
                     <Card className="flex flex-col items-center justify-center p-8 text-center border-dashed">
                         <CardHeader>
-                            <CardTitle>No Unlocked Content Yet</CardTitle>
+                            <CardTitle>No Active Content</CardTitle>
                             <CardDescription>
-                                Your unlocked PDFs will appear here after your order is completed.
+                                Your available downloads will appear here. Previously downloaded items are in your history.
                             </CardDescription>
                         </CardHeader>
                     </Card>
@@ -394,44 +350,70 @@ function UserDashboard() {
                     </Card>
                 )}
             </div>
-             {historicalOrders.length > 0 && (
+             {(historicalOrders.length > 0 || historicalContent.length > 0) && (
                 <Accordion type="single" collapsible>
-                    <AccordionItem value="order-history">
+                    <AccordionItem value="history">
                         <AccordionTrigger>
                             <h2 className="text-xl font-bold font-heading flex items-center gap-2">
                                 <History className="w-5 h-5"/>
-                                Order History
+                                History
                             </h2>
                         </AccordionTrigger>
-                        <AccordionContent>
-                           <Card>
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead>Date</TableHead>
-                                            <TableHead>Items</TableHead>
-                                            <TableHead>Total</TableHead>
-                                            <TableHead>Status</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {historicalOrders.map(order => (
-                                            <TableRow key={order.id}>
-                                                <TableCell>{order.createdAt.toDate().toLocaleDateString()}</TableCell>
-                                                <TableCell>
-                                                    <ul className="text-xs list-disc pl-4">
-                                                        {order.items.map(item => <li key={item.id}>{item.unitName} ({item.language} {item.type})</li>)}
-                                                    </ul>
-                                                </TableCell>
-                                                <TableCell>LKR {order.totalPrice.toFixed(2)}</TableCell>
-                                                <TableCell>
-                                                    <Badge variant="secondary" className={getStatusColor(order.status)}>Completed & Downloaded</Badge>
-                                                </TableCell>
+                        <AccordionContent className="space-y-6">
+                            {historicalOrders.length > 0 && (
+                               <div>
+                                 <h3 className="font-semibold mb-2">Completed Orders</h3>
+                                 <Card>
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHead>Date</TableHead>
+                                                <TableHead>Items</TableHead>
+                                                <TableHead>Total</TableHead>
                                             </TableRow>
-                                        ))}
-                                    </TableBody>
-                                </Table>
-                           </Card>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {historicalOrders.map(order => (
+                                                <TableRow key={order.id}>
+                                                    <TableCell>{order.createdAt.toDate().toLocaleDateString()}</TableCell>
+                                                    <TableCell>
+                                                        <ul className="text-xs list-disc pl-4">
+                                                            {order.items.map(item => <li key={item.id}>{item.unitName} ({item.language} {item.type})</li>)}
+                                                        </ul>
+                                                    </TableCell>
+                                                    <TableCell>LKR {order.totalPrice.toFixed(2)}</TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                </Card>
+                               </div>
+                            )}
+                             {historicalContent.length > 0 && (
+                                <div>
+                                 <h3 className="font-semibold mb-2 mt-6">Downloaded Content</h3>
+                                  <Card>
+                                      <CardContent className="p-0">
+                                         <div className="divide-y divide-border">
+                                          {historicalContent.map((part) => (
+                                              <div key={part.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 gap-4">
+                                                  <div className="flex items-center gap-4">
+                                                      <CheckCircle className="w-6 h-6 text-green-500 flex-shrink-0 mt-1 sm:mt-0"/>
+                                                      <div>
+                                                          <p className="font-semibold">{part.unitNameEN} - <span className="capitalize">{part.type} ({part.language})</span></p>
+                                                          <div className="text-xs text-muted-foreground mt-1">
+                                                              Downloaded: {part.downloadedAt ? part.downloadedAt.toDate().toLocaleString() : 'N/A'}
+                                                          </div>
+                                                      </div>
+                                                  </div>
+                                                  <Badge variant="secondary" className="bg-green-100 text-green-800">Downloaded</Badge>
+                                              </div>
+                                          ))}
+                                         </div>
+                                      </CardContent>
+                                  </Card>
+                                </div>
+                             )}
                         </AccordionContent>
                     </AccordionItem>
                 </Accordion>
@@ -469,6 +451,8 @@ export default function DashboardPage() {
         <UserDashboard />
     )
 }
+
+    
 
     
 
