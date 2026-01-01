@@ -14,6 +14,7 @@ import ScrollToTop from "@/components/ov/ScrollToTop";
 import AuthForm from "@/components/AuthForm";
 import Pricing from "@/components/ov/Pricing";
 import NotesList from "@/components/ov/NotesList";
+import { CartProvider } from "@/context/CartContext";
 
 
 const Home = () => {

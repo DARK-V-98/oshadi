@@ -1,6 +1,7 @@
+
 'use client';
 import Link from 'next/link';
-import { Key, ExternalLink, MessageSquare, Tags, Users, FolderTree } from "lucide-react";
+import { Key, ExternalLink, MessageSquare, Tags, Users, FolderTree, ShoppingBag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const AdminDashboard = () => {
@@ -18,6 +19,17 @@ const AdminDashboard = () => {
           </div>
 
           <div className="grid md:grid-cols-2 gap-8">
+            <div className="group relative p-6 rounded-2xl bg-card border border-border shadow-card hover:shadow-soft transition-shadow duration-300">
+              <h2 className="font-heading text-2xl font-bold text-foreground">Manage Orders</h2>
+              <p className="text-muted-foreground mt-2 mb-4">View and process customer orders.</p>
+              <Button asChild>
+                <Link href="/admin/orders">
+                    <ShoppingBag className="w-4 h-4 mr-2" />
+                    Manage Orders
+                </Link>
+              </Button>
+            </div>
+
             <div className="group relative p-6 rounded-2xl bg-card border border-border shadow-card hover:shadow-soft transition-shadow duration-300">
               <h2 className="font-heading text-2xl font-bold text-foreground">Manage Categories</h2>
               <p className="text-muted-foreground mt-2 mb-4">Add or remove course categories (e.g. New/Old Syllabus).</p>

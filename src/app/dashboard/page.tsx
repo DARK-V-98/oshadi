@@ -2,11 +2,11 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useUser, useFirestore, useStorage } from '@/firebase';
-import { collection, query, where, doc, onSnapshot, getDoc, updateDoc } from 'firebase/firestore';
+import { collection, query, where, doc, onSnapshot, getDoc, updateDoc, orderBy } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
-import { Download, FileText, HelpCircle, Loader2, CheckCircle, AlertTriangle, Languages } from 'lucide-react';
+import { Download, FileText, HelpCircle, Loader2, CheckCircle, AlertTriangle, Languages, ShoppingBag, Clock } from 'lucide-react';
 import {
   Accordion,
   AccordionContent,
@@ -23,11 +23,20 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
 import { ref, getBytes } from 'firebase/storage';
 import { Badge } from '@/components/ui/badge';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import UnlockKeyForm from '@/components/dashboard/UnlockKeyForm';
 import TestimonialForm from '@/components/dashboard/TestimonialForm';
+import { CartItem } from '@/context/CartContext';
 
 
 interface UnlockedPdfDoc {
@@ -49,6 +58,14 @@ interface UnlockedUnitInfo {
     parts: UnlockedPdfDoc[];
 }
 
+interface Order {
+    id: string;
+    items: CartItem[];
+    totalPrice: number;
+    status: 'pending' | 'processing' | 'completed';
+    createdAt: { toDate: () => Date };
+}
+
 function UserDashboard() {
   const { user } = useUser();
   const firestore = useFirestore();
@@ -56,7 +73,9 @@ function UserDashboard() {
   const { toast } = useToast();
 
   const [unlockedUnits, setUnlockedUnits] = useState<UnlockedUnitInfo[]>([]);
-  const [loadingPdfs, setLoadingPdfs] = useState(true);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [loadingContent, setLoadingContent] = useState(true);
+  const [loadingOrders, setLoadingOrders] = useState(true);
   const [downloading, setDownloading] = useState<Record<string, boolean>>({});
   
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
@@ -66,11 +85,11 @@ function UserDashboard() {
   useEffect(() => {
     if (!user || !firestore) return;
   
-    setLoadingPdfs(true);
+    setLoadingContent(true);
     const unlockedRef = collection(firestore, 'userUnlockedPdfs');
     const q = query(unlockedRef, where('userId', '==', user.uid));
   
-    const unsubscribe = onSnapshot(q, async (querySnapshot) => {
+    const unsubscribeUnlocked = onSnapshot(q, async (querySnapshot) => {
       const unlockedData: UnlockedPdfDoc[] = querySnapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data()
@@ -103,15 +122,32 @@ function UserDashboard() {
       }
   
       setUnlockedUnits(Object.values(unitsMap));
-      setLoadingPdfs(false);
+      setLoadingContent(false);
   
     }, (error) => {
       console.error("Error fetching unlocked PDFs: ", error);
       toast({ title: 'Error', description: 'Could not load your unlocked PDFs.', variant: 'destructive' });
-      setLoadingPdfs(false);
+      setLoadingContent(false);
+    });
+
+    setLoadingOrders(true);
+    const ordersRef = collection(firestore, 'orders');
+    const qOrders = query(ordersRef, where('userId', '==', user.uid), orderBy('createdAt', 'desc'));
+
+    const unsubscribeOrders = onSnapshot(qOrders, (snapshot) => {
+        const fetchedOrders = snapshot.docs.map(doc => ({id: doc.id, ...doc.data() } as Order));
+        setOrders(fetchedOrders);
+        setLoadingOrders(false);
+    }, (error) => {
+        console.error("Error fetching orders: ", error);
+        toast({ title: 'Error', description: 'Could not load your order history.', variant: 'destructive' });
+        setLoadingOrders(false);
     });
   
-    return () => unsubscribe();
+    return () => {
+        unsubscribeUnlocked();
+        unsubscribeOrders();
+    };
   }, [user, firestore, toast]);
 
   
@@ -193,6 +229,15 @@ function UserDashboard() {
     }
   }
 
+  const getStatusColor = (status: Order['status']) => {
+    switch (status) {
+        case 'pending': return 'bg-yellow-100 text-yellow-800';
+        case 'processing': return 'bg-blue-100 text-blue-800';
+        case 'completed': return 'bg-green-100 text-green-800';
+        default: return 'bg-gray-100 text-gray-800';
+    }
+}
+
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="grid lg:grid-cols-3 gap-8">
@@ -206,82 +251,121 @@ function UserDashboard() {
                 <AccordionItem value="item-1">
                     <AccordionTrigger>How to Download Notes</AccordionTrigger>
                     <AccordionContent className="space-y-2 text-muted-foreground">
-                        <p>1. Purchase content to receive a one-time key.</p>
-                        <p>2. Enter the key in the 'Bind Your Key' section below.</p>
-                        <p>3. Once bound, your PDF will appear in 'My Unlocked Content'.</p>
+                        <p>1. Add items to your cart from the homepage and checkout.</p>
+                        <p>2. After we confirm your payment, we will mark the order as "Completed".</p>
+                        <p>3. Once completed, your PDF files will appear in 'My Unlocked Content'.</p>
                         <p>4. Click 'Download' to get your file. <strong className="text-destructive">This is a one-time action.</strong></p>
                     </AccordionContent>
                 </AccordionItem>
                 <AccordionItem value="item-2">
-                    <AccordionTrigger>Where is my key?</AccordionTrigger>
+                    <AccordionTrigger>How does payment work?</AccordionTrigger>
                     <AccordionContent>
-                    Your one-time access key is sent to you via WhatsApp or Email immediately after your purchase is confirmed. If you haven't received it, please check your spam folder or contact support.
+                    After you place an order, we will contact you via WhatsApp or Email with payment instructions (e.g., bank transfer). Once payment is confirmed, we will process your order.
                     </AccordionContent>
                 </AccordionItem>
                 </Accordion>
             </CardContent>
           </Card>
-          <UnlockKeyForm />
           <TestimonialForm />
         </div>
 
-        <div className="lg:col-span-2">
-            <h2 className="text-2xl font-bold font-heading mb-4">My Unlocked Content</h2>
-            {loadingPdfs ? (
-                <div className="flex justify-center items-center py-10">
-                    <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                    <p className="ml-3 text-muted-foreground">Loading your content...</p>
-                </div>
-            ) : unlockedUnits.length > 0 ? (
-                <div className="space-y-6">
-                    {unlockedUnits.map(unit => (
-                        <Card key={unit.unitId}>
-                           <CardHeader>
-                               <CardTitle className="flex items-center gap-3">
-                                   <FileText className="w-6 h-6 text-primary" />
-                                   <div>
-                                       {unit.unitNameEN}
-                                       <p className="text-sm text-muted-foreground font-normal">{unit.unitNameSI}</p>
-                                   </div>
-                               </CardTitle>
-                           </CardHeader>
-                           <CardContent className="space-y-3">
-                               {unit.parts && unit.parts.length > 0 ? (
-                                   unit.parts.map(part => (
-                                      <div key={part.id} className="flex items-center justify-between p-3 bg-secondary/50 rounded-md">
-                                          <div className='flex items-center gap-2'>
-                                             <Badge variant={part.type === 'note' ? 'default' : 'secondary'}>{part.type}</Badge>
-                                             <Badge variant="outline">{part.language}</Badge>
-                                             <span>{part.partName}</span>
+        <div className="lg:col-span-2 space-y-8">
+            <div>
+                <h2 className="text-2xl font-bold font-heading mb-4">My Unlocked Content</h2>
+                {loadingContent ? (
+                    <div className="flex justify-center items-center py-10">
+                        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                        <p className="ml-3 text-muted-foreground">Loading your content...</p>
+                    </div>
+                ) : unlockedUnits.length > 0 ? (
+                    <div className="space-y-6">
+                        {unlockedUnits.map(unit => (
+                            <Card key={unit.unitId}>
+                               <CardHeader>
+                                   <CardTitle className="flex items-center gap-3">
+                                       <FileText className="w-6 h-6 text-primary" />
+                                       <div>
+                                           {unit.unitNameEN}
+                                           <p className="text-sm text-muted-foreground font-normal">{unit.unitNameSI}</p>
+                                       </div>
+                                   </CardTitle>
+                               </CardHeader>
+                               <CardContent className="space-y-3">
+                                   {unit.parts && unit.parts.length > 0 ? (
+                                       unit.parts.map(part => (
+                                          <div key={part.id} className="flex items-center justify-between p-3 bg-secondary/50 rounded-md">
+                                              <div className='flex items-center gap-2'>
+                                                 <Badge variant={part.type === 'note' ? 'default' : 'secondary'}>{part.type}</Badge>
+                                                 <Badge variant="outline">{part.language}</Badge>
+                                                 <span>{part.partName}</span>
+                                              </div>
+                                              <Button size="sm" variant="ghost" onClick={() => confirmDownload(part)} disabled={part.downloaded || downloading[part.id]}>
+                                                  {downloading[part.id] ? <Loader2 className="w-4 h-4 mr-2 animate-spin"/> : part.downloaded ? <CheckCircle className="w-4 h-4 mr-2"/> : <Download className="w-4 h-4 mr-2"/>}
+                                                  {part.downloaded ? 'Downloaded' : 'Download'}
+                                             </Button>
                                           </div>
-                                          <Button size="sm" variant="ghost" onClick={() => confirmDownload(part)} disabled={part.downloaded || downloading[part.id]}>
-                                              {downloading[part.id] ? <Loader2 className="w-4 h-4 mr-2 animate-spin"/> : part.downloaded ? <CheckCircle className="w-4 h-4 mr-2"/> : <Download className="w-4 h-4 mr-2"/>}
-                                              {part.downloaded ? 'Downloaded' : 'Download'}
-                                         </Button>
-                                      </div>
-                                   ))
-                               ) : (
-                                   <p className="text-muted-foreground text-sm">No PDF parts available for this unit yet.</p>
-                               )}
-                           </CardContent>
-                        </Card>
-                    ))}
-                </div>
-            ) : (
-                <Card className="flex flex-col items-center justify-center p-8 text-center border-dashed">
-                    <CardHeader>
-                        <CardTitle>No Unlocked Content Yet</CardTitle>
-                        <CardDescription>
-                            Your unlocked PDFs will appear here once you bind a key.
-                        </CardDescription>
-                    </CardHeader>
-                     <CardContent>
-                        <p className="text-sm text-muted-foreground">
-                            Scroll down or check the guide to learn how to bind a key.
-                        </p>
-                    </CardContent>
-                </Card>
-            )}
+                                       ))
+                                   ) : (
+                                       <p className="text-muted-foreground text-sm">No PDF parts available for this unit yet.</p>
+                                   )}
+                               </CardContent>
+                            </Card>
+                        ))}
+                    </div>
+                ) : (
+                    <Card className="flex flex-col items-center justify-center p-8 text-center border-dashed">
+                        <CardHeader>
+                            <CardTitle>No Unlocked Content Yet</CardTitle>
+                            <CardDescription>
+                                Your unlocked PDFs will appear here after your order is completed.
+                            </CardDescription>
+                        </CardHeader>
+                    </Card>
+                )}
+            </div>
+            
+            <div>
+                <h2 className="text-2xl font-bold font-heading mb-4">My Orders</h2>
+                {loadingOrders ? (
+                     <div className="flex justify-center items-center py-10">
+                        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                     </div>
+                ) : orders.length > 0 ? (
+                    <Card>
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Date</TableHead>
+                                    <TableHead>Items</TableHead>
+                                    <TableHead>Total</TableHead>
+                                    <TableHead>Status</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {orders.map(order => (
+                                    <TableRow key={order.id}>
+                                        <TableCell>{order.createdAt.toDate().toLocaleDateString()}</TableCell>
+                                        <TableCell>
+                                            <ul className="text-xs list-disc pl-4">
+                                                {order.items.map(item => <li key={item.id}>{item.unitName} ({item.language} {item.type})</li>)}
+                                            </ul>
+                                        </TableCell>
+                                        <TableCell>LKR {order.totalPrice.toFixed(2)}</TableCell>
+                                        <TableCell>
+                                            <Badge variant="secondary" className={getStatusColor(order.status)}>{order.status}</Badge>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </Card>
+                ) : (
+                    <Card className="flex flex-col items-center justify-center p-8 text-center border-dashed">
+                        <ShoppingBag className="w-12 h-12 text-muted-foreground/50 mb-4"/>
+                        <p className="text-muted-foreground">You haven't placed any orders yet.</p>
+                    </Card>
+                )}
+            </div>
         </div>
       </div>
       

@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { usePathname } from 'next/navigation';
 import Head from 'next/head';
-import { Menu, X, BookOpen, User, LogOut, LayoutDashboard, Shield, Image as ImageIcon } from "lucide-react";
+import { Menu, X, BookOpen, User, LogOut, LayoutDashboard, Shield, Image as ImageIcon, ShoppingCart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth, useUser, useFirestore } from "@/firebase";
 import Link from "next/link";
@@ -22,6 +22,8 @@ import {
   AvatarImage,
 } from "@/components/ui/avatar"
 import { doc, getDoc } from "firebase/firestore";
+import CartDrawer from "@/components/CartDrawer";
+import { useCart } from "@/context/CartContext";
 
 type NavbarProps = {
   onUnlockClick: () => void;
@@ -30,12 +32,17 @@ type NavbarProps = {
 
 const Navbar = ({ onUnlockClick, onLoginClick }: NavbarProps) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [isCartOpen, setIsCartOpen] = useState(false);
   const { user } = useUser();
   const { signOut } = useAuth();
   const firestore = useFirestore();
   const [userRole, setUserRole] = useState<string | null>(null);
   const pathname = usePathname();
   const isHomePage = pathname === '/';
+  const { cart } = useCart();
+
+  const cartItemCount = cart.reduce((count, item) => count + item.quantity, 0);
+
 
   useEffect(() => {
     if (user && firestore) {
@@ -103,12 +110,14 @@ const Navbar = ({ onUnlockClick, onLoginClick }: NavbarProps) => {
                   {link.name}
                 </Link>
               ))}
-              <Button asChild variant="outline" size="sm" className="rounded-full">
-                <Link href="/dashboard">
-                  <BookOpen className="w-4 h-4 mr-2" />
-                  Unlock Notes
-                </Link>
-              </Button>
+                <Button variant="ghost" size="icon" className="relative rounded-full" onClick={() => setIsCartOpen(true)}>
+                    <ShoppingCart className="w-5 h-5"/>
+                    {cartItemCount > 0 && (
+                        <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
+                            {cartItemCount}
+                        </span>
+                    )}
+                </Button>
               {user ? (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -160,6 +169,14 @@ const Navbar = ({ onUnlockClick, onLoginClick }: NavbarProps) => {
 
             {/* Mobile Menu Button */}
             <div className="flex items-center md:hidden">
+                <Button variant="ghost" size="icon" className="relative rounded-full mr-2" onClick={() => setIsCartOpen(true)}>
+                    <ShoppingCart className="w-5 h-5"/>
+                    {cartItemCount > 0 && (
+                        <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
+                            {cartItemCount}
+                        </span>
+                    )}
+                </Button>
               <button
                 onClick={() => setIsOpen(!isOpen)}
                 className="p-2 text-foreground"
@@ -203,12 +220,6 @@ const Navbar = ({ onUnlockClick, onLoginClick }: NavbarProps) => {
                         {userRole === 'admin' && <Link href="/admin" onClick={() => setIsOpen(false)} className="text-muted-foreground hover:text-foreground font-medium transition-colors duration-300 py-2 flex items-center"><Shield className="mr-2 h-4 w-4" />Admin</Link>}
                      </>
                  )}
-                <Button asChild variant="outline" size="sm" className="w-full">
-                  <Link href="/dashboard" onClick={() => setIsOpen(false)}>
-                    <BookOpen className="w-4 h-4 mr-2" />
-                    Unlock Notes
-                  </Link>
-                </Button>
                  {user ? (
                     <Button variant="destructive" size="sm" className="w-full mt-2" onClick={() => { signOut(); setIsOpen(false); }}>
                         <LogOut className="w-4 h-4 mr-2" />
@@ -224,6 +235,7 @@ const Navbar = ({ onUnlockClick, onLoginClick }: NavbarProps) => {
             </div>
           )}
         </div>
+        <CartDrawer open={isCartOpen} onOpenChange={setIsCartOpen} onLoginClick={onLoginClick} />
       </nav>
     </>
   );

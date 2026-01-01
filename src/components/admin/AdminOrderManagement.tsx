@@ -1,0 +1,242 @@
+
+'use client';
+import { useState, useEffect } from 'react';
+import { useFirestore } from '@/firebase';
+import { collection, query, orderBy, onSnapshot, doc, updateDoc, getDoc, writeBatch, addDoc } from 'firebase/firestore';
+import { useToast } from '@/hooks/use-toast';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Loader2, ShoppingBag, ArrowLeft } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import Link from 'next/link';
+import { CartItem } from '@/context/CartContext';
+import { Unit } from '@/lib/data';
+
+interface Order {
+    id: string;
+    userId: string;
+    userName: string;
+    userEmail: string;
+    items: CartItem[];
+    totalPrice: number;
+    status: 'pending' | 'processing' | 'completed';
+    createdAt: { toDate: () => Date };
+}
+
+interface UnitWithPdfs extends Unit {
+    pdfsEN: { partName: string, fileName: string, downloadUrl: string }[];
+    pdfsSI: { partName: string, fileName: string, downloadUrl: string }[];
+}
+
+const AdminOrderManagement = () => {
+    const firestore = useFirestore();
+    const { toast } = useToast();
+    const [orders, setOrders] = useState<Order[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        if (!firestore) return;
+        setLoading(true);
+        const ordersRef = collection(firestore, 'orders');
+        const q = query(ordersRef, orderBy('createdAt', 'desc'));
+
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            const fetchedOrders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Order));
+            setOrders(fetchedOrders);
+            setLoading(false);
+        }, (error) => {
+            console.error("Error fetching orders:", error);
+            toast({ title: "Error", description: "Could not load orders.", variant: "destructive" });
+            setLoading(false);
+        });
+
+        return () => unsubscribe();
+    }, [firestore, toast]);
+    
+    const handleStatusChange = async (orderId: string, newStatus: Order['status'], order: Order) => {
+        if (!firestore) return;
+        
+        const orderDocRef = doc(firestore, 'orders', orderId);
+        
+        try {
+            await updateDoc(orderDocRef, { status: newStatus });
+            
+            if (newStatus === 'completed') {
+                await generateAndAssignKeys(order);
+            }
+            
+            toast({ title: "Status Updated", description: `Order status changed to ${newStatus}.` });
+        } catch (error) {
+            console.error("Error updating status:", error);
+            toast({ title: "Error", description: "Failed to update order status.", variant: "destructive" });
+        }
+    };
+
+    const generateAndAssignKeys = async (order: Order) => {
+        if (!firestore) return;
+    
+        const batch = writeBatch(firestore);
+    
+        for (const item of order.items) {
+            // Check if user already has this item unlocked
+            const unlockedPdfsRef = collection(firestore, 'userUnlockedPdfs');
+            const q = query(unlockedPdfsRef, 
+                where('userId', '==', order.userId),
+                where('unitId', '==', item.unitId),
+                where('type', '==', item.type),
+                where('language', '==', item.language)
+            );
+            
+            const existingUnlock = await getDocs(q);
+            if (!existingUnlock.empty) {
+                toast({ title: "Already Unlocked", description: `${item.unitName} (${item.language} ${item.type}) is already unlocked for this user.`, variant: "default" });
+                continue; // Skip this item
+            }
+
+            const key = `OV-${item.language}-${item.unitId.toUpperCase()}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
+            const keyDocRef = doc(collection(firestore, 'accessKeys'));
+            const keyData = {
+                key,
+                unitId: item.unitId,
+                type: item.type,
+                language: item.language,
+                status: 'bound',
+                createdAt: new Date(),
+                boundTo: order.userId,
+                boundAt: new Date(),
+                orderId: order.id,
+            };
+            batch.set(keyDocRef, keyData);
+
+            const unitDocRef = doc(firestore, 'units', item.unitId);
+            const unitDocSnap = await getDoc(unitDocRef);
+
+            if (unitDocSnap.exists()) {
+                const unitData = unitDocSnap.data() as UnitWithPdfs;
+                const pdfsToUnlock = item.language === 'SI' ? unitData.pdfsSI : unitData.pdfsEN;
+                
+                if (pdfsToUnlock && pdfsToUnlock.length > 0) {
+                    pdfsToUnlock.forEach(part => {
+                        const unlockedPdfRef = doc(collection(firestore, 'userUnlockedPdfs'));
+                        batch.set(unlockedPdfRef, {
+                            userId: order.userId,
+                            unitId: item.unitId,
+                            keyId: keyDocRef.id,
+                            language: item.language,
+                            type: item.type,
+                            unlockedAt: new Date(),
+                            partName: part.partName,
+                            fileName: part.fileName,
+                            downloadUrl: part.downloadUrl,
+                            downloaded: false,
+                            downloadedAt: null,
+                        });
+                    });
+                }
+            }
+        }
+    
+        await batch.commit();
+        toast({ title: "Content Unlocked", description: "Access keys generated and content unlocked for the user." });
+    };
+
+    const getStatusColor = (status: Order['status']) => {
+        switch (status) {
+            case 'pending': return 'bg-yellow-100 text-yellow-800';
+            case 'processing': return 'bg-blue-100 text-blue-800';
+            case 'completed': return 'bg-green-100 text-green-800';
+            default: return 'bg-gray-100 text-gray-800';
+        }
+    }
+
+    return (
+        <div>
+             <div className="flex justify-between items-center mb-8">
+                <div>
+                    <Button asChild variant="outline" size="sm">
+                        <Link href="/admin">
+                            <ArrowLeft className="w-4 h-4 mr-2"/>
+                            Back to Dashboard
+                        </Link>
+                    </Button>
+                    <h1 className="text-3xl font-bold font-heading mt-4">Order Management</h1>
+                    <p className="text-muted-foreground">View and manage all customer orders.</p>
+                </div>
+            </div>
+
+            <div className="bg-card rounded-2xl border border-border shadow-card overflow-hidden">
+                {loading ? (
+                     <div className="space-y-2 p-4">
+                        <Skeleton className="h-12 w-full" />
+                        <Skeleton className="h-12 w-full" />
+                     </div>
+                ) : orders.length > 0 ? (
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Order Info</TableHead>
+                                <TableHead>Customer</TableHead>
+                                <TableHead>Total</TableHead>
+                                <TableHead>Status</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {orders.map((order) => (
+                                <TableRow key={order.id}>
+                                    <TableCell>
+                                        <div className="font-mono text-xs text-muted-foreground">{order.id}</div>
+                                        <div>{order.createdAt.toDate().toLocaleString()}</div>
+                                        <ul className="text-sm list-disc pl-5 mt-2">
+                                            {order.items.map(item => (
+                                                <li key={item.id}>{item.unitName} - {item.language} {item.type}</li>
+                                            ))}
+                                        </ul>
+                                    </TableCell>
+                                    <TableCell>
+                                        <div>{order.userName}</div>
+                                        <div className="text-xs text-muted-foreground">{order.userEmail}</div>
+                                    </TableCell>
+                                    <TableCell>LKR {order.totalPrice.toFixed(2)}</TableCell>
+                                    <TableCell className="w-[180px]">
+                                        <Select value={order.status} onValueChange={(value: Order['status']) => handleStatusChange(order.id, value, order)}>
+                                            <SelectTrigger className={getStatusColor(order.status)}>
+                                                <SelectValue/>
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="pending">Pending</SelectItem>
+                                                <SelectItem value="processing">Processing</SelectItem>
+                                                <SelectItem value="completed">Completed</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                ) : (
+                    <div className="text-center p-8">
+                        <ShoppingBag className="w-16 h-16 mx-auto text-muted-foreground/50 mb-4"/>
+                        <p className="text-muted-foreground">No orders have been placed yet.</p>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}
+
+export default AdminOrderManagement;

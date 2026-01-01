@@ -18,6 +18,7 @@ import {
 import { Search, Unlock, FileText, Loader2, Tag, ShoppingCart, Folder } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Badge } from '../ui/badge';
+import { useCart } from '@/context/CartContext';
 
 interface UnitWithPdfCount extends Unit {
     pdfsENCount: number;
@@ -38,6 +39,7 @@ const NotesList = () => {
   const firestore = useFirestore();
   const { toast } = useToast();
   const router = useRouter();
+  const { addToCart } = useCart();
 
   const [units, setUnits] = useState<UnitWithPdfCount[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -91,7 +93,7 @@ const NotesList = () => {
     };
   }, [firestore]);
   
-  const onSelect = useCallback((api: CarouselApi) => {
+  const onSelect = useCallback(() => {
     if (!api || categories.length === 0) return;
     const selectedIndex = api.selectedScrollSnap();
     setCurrentCategoryLabel(categories[selectedIndex]?.label || '');
@@ -99,7 +101,7 @@ const NotesList = () => {
 
   useEffect(() => {
     if (!api) return;
-    onSelect(api);
+    onSelect();
     api.on('select', onSelect);
     return () => { api.off('select', onSelect) };
   }, [api, onSelect]);
@@ -113,18 +115,30 @@ const NotesList = () => {
     );
   };
 
-  const handleUnlockClick = () => {
-      router.push('/dashboard');
-      toast({
-          title: "Redirecting to Dashboard",
-          description: "Please bind your key in the user dashboard to unlock notes.",
+  const handleAddToCart = (unit: UnitWithPdfCount, type: 'note' | 'assignment', language: 'EN' | 'SI') => {
+      const priceStr = type === 'note' 
+        ? (language === 'EN' ? unit.priceNotesEN : unit.priceNotesSI)
+        : (language === 'EN' ? unit.priceAssignmentsEN : unit.priceAssignmentsSI);
+      
+      if (!priceStr) {
+          toast({title: "Not for sale", description: "This item is not currently available for purchase.", variant: "destructive"});
+          return;
+      }
+      
+      const price = parseFloat(priceStr);
+      if (isNaN(price)) {
+        toast({title: "Price error", description: "Invalid price format for this item.", variant: "destructive"});
+        return;
+      }
+      
+      addToCart({
+          unitId: unit.unitNo,
+          unitName: unit.nameEN,
+          type: type,
+          language: language,
+          price: price,
       });
   }
-
-  const handleBuyClick = (unitName: string, materialType: string, price: string, language: string) => {
-    const message = encodeURIComponent(`Hi! I'm interested in buying the *${unitName} - ${materialType} (${language})* for LKR ${price}. Can you please provide more information?`);
-    window.open(`https://wa.me/94754420805?text=${message}`, '_blank');
-  };
 
   return (
     <section id="notes" className="py-20 md:py-32 bg-background">
@@ -182,38 +196,16 @@ const NotesList = () => {
                                         <div className="md:col-span-4">
                                             <p className="font-medium text-foreground">{unit.nameEN}</p>
                                             <p className="text-sm text-muted-foreground mt-0.5">{unit.nameSI}</p>
-                                            <div className="flex flex-wrap gap-2 mt-2">
-                                                {unit.priceNotesSI && (
-                                                    <div className="text-xs inline-flex items-center gap-1.5 bg-blue-100 text-blue-800 rounded-full px-2 py-0.5">
-                                                        <Tag className="w-3 h-3" /> SI Notes: LKR {unit.priceNotesSI}
-                                                    </div>
-                                                )}
-                                                {unit.priceAssignmentsSI && (
-                                                    <div className="text-xs inline-flex items-center gap-1.5 bg-green-100 text-green-800 rounded-full px-2 py-0.5">
-                                                        <Tag className="w-3 h-3" /> SI Assignments: LKR {unit.priceAssignmentsSI}
-                                                    </div>
-                                                )}
-                                                {unit.priceNotesEN && (
-                                                    <div className="text-xs inline-flex items-center gap-1.5 bg-purple-100 text-purple-800 rounded-full px-2 py-0.5">
-                                                        <Tag className="w-3 h-3" /> EN Notes: LKR {unit.priceNotesEN}
-                                                    </div>
-                                                )}
-                                                {unit.priceAssignmentsEN && (
-                                                    <div className="text-xs inline-flex items-center gap-1.5 bg-orange-100 text-orange-800 rounded-full px-2 py-0.5">
-                                                        <Tag className="w-3 h-3" /> EN Assignments: LKR {unit.priceAssignmentsEN}
-                                                    </div>
-                                                )}
-                                            </div>
                                         </div>
                                         <div className="md:col-span-2 text-center flex flex-col items-center gap-1">
-                                            {unit.pdfsENCount > 0 && <Badge variant="secondary" title={`${unit.pdfsENCount} English PDF parts available`}>EN: {unit.pdfsENCount}</Badge>}
-                                            {unit.pdfsSICount > 0 && <Badge variant="secondary" title={`${unit.pdfsSICount} Sinhala PDF parts available`}>SI: {unit.pdfsSICount}</Badge>}
+                                            {unit.pdfsENCount > 0 && <Badge variant="secondary" title={`${unit.pdfsENCount} English PDF parts available`}>EN: {unit.pdfsENCount} Parts</Badge>}
+                                            {unit.pdfsSICount > 0 && <Badge variant="secondary" title={`${unit.pdfsSICount} Sinhala PDF parts available`}>SI: {unit.pdfsSICount} Parts</Badge>}
                                         </div>
                                         <div className="md:col-span-4 flex items-center justify-end gap-2 flex-wrap">
-                                            <Button variant="outline" size="sm" onClick={handleUnlockClick}>
-                                                <Unlock className="w-4 h-4 mr-1" />
-                                                Unlock
-                                            </Button>
+                                            {unit.priceNotesSI && <Button size="sm" variant="ghost" onClick={() => handleAddToCart(unit, 'note', 'SI')}>SI Note <ShoppingCart className="w-3 h-3 ml-2"/></Button>}
+                                            {unit.priceAssignmentsSI && <Button size="sm" variant="ghost" onClick={() => handleAddToCart(unit, 'assignment', 'SI')}>SI Asgn <ShoppingCart className="w-3 h-3 ml-2"/></Button>}
+                                            {unit.priceNotesEN && <Button size="sm" variant="ghost" onClick={() => handleAddToCart(unit, 'note', 'EN')}>EN Note <ShoppingCart className="w-3 h-3 ml-2"/></Button>}
+                                            {unit.priceAssignmentsEN && <Button size="sm" variant="ghost" onClick={() => handleAddToCart(unit, 'assignment', 'EN')}>EN Asgn <ShoppingCart className="w-3 h-3 ml-2"/></Button>}
                                         </div>
                                     </div>
                                 )) : (
