@@ -10,7 +10,7 @@ import { Unit } from '@/lib/data';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Upload, FileText, Trash2, PlusCircle, ArrowLeft, Edit, Save, X, Loader2, ChevronsUpDown, Check } from 'lucide-react';
+import { Upload, FileText, Trash2, PlusCircle, ArrowLeft, Edit, Save, X, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import {
   Dialog,
@@ -22,18 +22,12 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import {
-    Command,
-    CommandEmpty,
-    CommandGroup,
-    CommandInput,
-    CommandItem,
-  } from "@/components/ui/command"
-import {
-    Popover,
-    PopoverContent,
-    PopoverTrigger,
-} from "@/components/ui/popover"
-import { cn } from '@/lib/utils';
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+  } from "@/components/ui/select";
 import { Label } from '../ui/label';
 
 interface PdfPart {
@@ -51,77 +45,6 @@ interface Category {
     id: string;
     value: string;
     label: string;
-}
-
-const CategoryCombobox = ({ value, onChange, categories }: { value: string, onChange: (value: string) => void, categories: Category[] }) => {
-    const [open, setOpen] = useState(false);
-    const [newCategory, setNewCategory] = useState('');
-    const firestore = useFirestore();
-
-    const handleAddCategory = async () => {
-        if (!firestore || !newCategory.trim()) return;
-        const formattedValue = newCategory.toLowerCase().replace(/\s+/g, '-');
-        
-        await addDoc(collection(firestore, 'categories'), {
-            label: newCategory,
-            value: formattedValue
-        });
-
-        onChange(formattedValue);
-        setNewCategory('');
-        setOpen(false);
-    }
-
-    return (
-        <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger asChild>
-          <Button
-            variant="outline"
-            role="combobox"
-            aria-expanded={open}
-            className="w-full justify-between"
-          >
-            {value
-              ? categories.find((category) => category.value === value)?.label
-              : "Select category..."}
-            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-          <Command>
-            <CommandInput 
-                placeholder="Search or add category..."
-                value={newCategory}
-                onValueChange={setNewCategory}
-            />
-            <CommandEmpty>
-                <Button className="w-full" onClick={handleAddCategory}>Add "{newCategory}"</Button>
-            </CommandEmpty>
-            <CommandGroup>
-              {categories.map((category) => (
-                <CommandItem
-                  key={category.value}
-                  value={category.value}
-                  onSelect={(currentValue) => {
-                    onChange(currentValue === value ? "" : currentValue);
-                    setOpen(false);
-                    setNewCategory('');
-                  }}
-                >
-                  <Check
-                    className={cn(
-                      "mr-2 h-4 w-4",
-                      value === category.value ? "opacity-100" : "opacity-0"
-                    )}
-                  />
-                  {category.label}
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          </Command>
-        </PopoverContent>
-      </Popover>
-    )
 }
 
 const AdminUnitManagement = () => {
@@ -399,11 +322,16 @@ const AdminUnitManagement = () => {
                         <Input placeholder="Model Count" value={newUnit.modelCount} onChange={(e) => setNewUnit({...newUnit, modelCount: e.target.value})}/>
                         <Input placeholder="Price for Notes (LKR)" value={newUnit.priceNotes} onChange={(e) => setNewUnit({...newUnit, priceNotes: e.target.value})}/>
                         <Input placeholder="Price for Assignments (LKR)" value={newUnit.priceAssignments} onChange={(e) => setNewUnit({...newUnit, priceAssignments: e.target.value})}/>
-                        <CategoryCombobox 
-                            value={newUnit.category}
-                            onChange={(value) => setNewUnit({...newUnit, category: value})}
-                            categories={categories}
-                        />
+                        <Select value={newUnit.category} onValueChange={(value) => setNewUnit({...newUnit, category: value})}>
+                            <SelectTrigger>
+                                <SelectValue placeholder="Select a Category" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {categories.map(cat => (
+                                    <SelectItem key={cat.id} value={cat.value}>{cat.label}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
                     </div>
                     <DialogFooter>
                         <Button variant="ghost" onClick={() => setIsAddUnitDialogOpen(false)}>Cancel</Button>
@@ -455,11 +383,16 @@ const AdminUnitManagement = () => {
                         </div>
                         <div className="col-span-2">
                              <Label>Category</Label>
-                            <CategoryCombobox 
-                                value={editableUnitData?.category || ''}
-                                onChange={(value) => handleUnitInputChange('category', value)}
-                                categories={categories}
-                            />
+                            <Select value={editableUnitData?.category} onValueChange={(value) => handleUnitInputChange('category', value)}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select a Category" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {categories.map(cat => (
+                                        <SelectItem key={cat.id} value={cat.value}>{cat.label}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
                         </div>
                         <div>
                             <Label>Notes Price (LKR)</Label>
