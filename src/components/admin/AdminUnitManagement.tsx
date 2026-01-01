@@ -32,7 +32,8 @@ interface PdfPart {
 
 interface UnitWithPdfs extends Unit {
   id: string; // Firestore document ID
-  pdfs: PdfPart[];
+  pdfsEN: PdfPart[];
+  pdfsSI: PdfPart[];
 }
 
 interface Category {
@@ -41,6 +42,131 @@ interface Category {
     value: string;
 }
 
+const PdfLanguageManager = ({ unit, language }: { unit: UnitWithPdfs, language: 'EN' | 'SI' }) => {
+    const firestore = useFirestore();
+    const storage = useStorage();
+    const { toast } = useToast();
+    const [partName, setPartName] = useState('');
+    const [uploading, setUploading] = useState(false);
+    
+    const pdfs = language === 'EN' ? unit.pdfsEN || [] : unit.pdfsSI || [];
+    const pdfsKey = language === 'EN' ? 'pdfsEN' : 'pdfsSI';
+    const languageLabel = language === 'EN' ? 'English' : 'Sinhala';
+
+    const handleFileUpload = async (file: File) => {
+        if (!storage || !firestore || !file) {
+          toast({ title: 'Error', description: 'Services not ready.', variant: 'destructive' });
+          return;
+        }
+        
+        if (!partName.trim()) {
+            toast({ title: 'Part Name Required', description: `Please enter a name for the ${languageLabel} PDF part.`, variant: 'destructive' });
+            return;
+        }
+    
+        setUploading(true);
+        const filePath = `units/${unit.id}/${language}/${file.name}`;
+        const fileRef = ref(storage, filePath);
+    
+        try {
+          await uploadBytes(fileRef, file);
+          
+          const newPdfPart: PdfPart = {
+            partName: partName,
+            fileName: file.name,
+            downloadUrl: filePath,
+          };
+    
+          const unitDocRef = doc(firestore, 'units', unit.id);
+          await updateDoc(unitDocRef, {
+            [pdfsKey]: arrayUnion(newPdfPart)
+          });
+          
+          setPartName('');
+          toast({ title: 'Success', description: `${file.name} uploaded to ${languageLabel} PDFs.` });
+        } catch (error) {
+          console.error("Error uploading file: ", error);
+          toast({ title: 'Upload failed', description: 'Could not upload the file.', variant: 'destructive' });
+        } finally {
+          setUploading(false);
+        }
+    };
+
+    const handleFileDelete = async (pdfPartToDelete: PdfPart) => {
+        if (!firestore || !storage) return;
+    
+        if (!confirm(`Are you sure you want to delete "${pdfPartToDelete.partName}" from ${languageLabel} PDFs? This will also delete the file from storage.`)) {
+          return;
+        }
+    
+        const unitDocRef = doc(firestore, 'units', unit.id);
+        const fileRef = ref(storage, pdfPartToDelete.downloadUrl);
+    
+        try {
+          const batch = writeBatch(firestore);
+    
+          batch.update(unitDocRef, {
+            [pdfsKey]: arrayRemove(pdfPartToDelete)
+          });
+          
+          await deleteObject(fileRef);
+    
+          await batch.commit();
+    
+          toast({ title: 'Success', description: `"${pdfPartToDelete.partName}" has been deleted.` });
+        } catch (error) {
+          console.error("Error deleting PDF: ", error);
+          toast({ title: 'Error', description: 'Could not delete the PDF. It may have already been removed.', variant: 'destructive' });
+        }
+    };
+    
+    return (
+      <div className="space-y-4 p-4 border rounded-lg">
+        <h4 className="font-semibold text-muted-foreground">{languageLabel} PDF Parts</h4>
+        {pdfs.map((pdf) => (
+          <div key={pdf.fileName} className="flex items-center justify-between p-3 bg-secondary/50 rounded-md">
+            <div className="flex items-center gap-3">
+              <FileText className="w-5 h-5 text-primary" />
+              <div>
+                <p className="font-medium">{pdf.partName}</p>
+                <p className="text-xs text-muted-foreground">{pdf.fileName}</p>
+              </div>
+            </div>
+            <Button variant="ghost" size="icon" onClick={() => handleFileDelete(pdf)}>
+              <Trash2 className="w-4 h-4 text-destructive" />
+            </Button>
+          </div>
+        ))}
+        <div className="flex items-center gap-4 pt-4 border-t">
+          <Input
+            type="text"
+            placeholder={`Name for new ${languageLabel} PDF`}
+            value={partName}
+            onChange={(e) => setPartName(e.target.value)}
+            className="flex-grow"
+          />
+          <div className="relative">
+            <Button asChild variant="outline">
+              <label htmlFor={`file-upload-${unit.id}-${language}`} className="cursor-pointer">
+                {uploading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <PlusCircle className="w-4 h-4 mr-2" />}
+                Add PDF
+              </label>
+            </Button>
+            <Input 
+              id={`file-upload-${unit.id}-${language}`}
+              type="file" 
+              accept=".pdf" 
+              className="sr-only"
+              onChange={(e) => e.target.files && handleFileUpload(e.target.files[0])}
+              disabled={uploading}
+            />
+          </div>
+        </div>
+      </div>
+    );
+};
+
+
 const AdminUnitManagement = () => {
   const firestore = useFirestore();
   const { toast } = useToast();
@@ -48,11 +174,9 @@ const AdminUnitManagement = () => {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   
-  // State for editing units
   const [editingUnitId, setEditingUnitId] = useState<string | null>(null);
   const [editableUnitData, setEditableUnitData] = useState<Partial<UnitWithPdfs> | null>(null);
 
-  // State for adding a new unit
   const [isAddUnitDialogOpen, setIsAddUnitDialogOpen] = useState(false);
   const [newUnit, setNewUnit] = useState<Omit<Unit, 'category' | 'modelCount' | 'priceNotes' | 'priceAssignments'> & { category: string; modelCount: string; priceNotes: string; priceAssignments: string }>({
     unitNo: '',
@@ -119,7 +243,7 @@ const AdminUnitManagement = () => {
 
     const unitDocRef = doc(firestore, 'units', editingUnitId);
     try {
-        const { id, pdfs, ...dataToSave } = editableUnitData;
+        const { id, pdfsEN, pdfsSI, ...dataToSave } = editableUnitData;
         await updateDoc(unitDocRef, dataToSave);
         toast({ title: "Unit Updated", description: "Your changes have been saved." });
         cancelEditing();
@@ -146,7 +270,8 @@ const AdminUnitManagement = () => {
 
         await setDoc(newUnitDocRef, {
             ...newUnit,
-            pdfs: [],
+            pdfsEN: [],
+            pdfsSI: [],
         });
 
         toast({ title: "Unit Added", description: `Successfully added ${newUnit.nameEN}.`});
@@ -158,128 +283,6 @@ const AdminUnitManagement = () => {
         toast({ title: "Error", description: "Could not add the new unit.", variant: "destructive" });
     }
   };
-
-  const PdfPartManager = ({ unit }: { unit: UnitWithPdfs }) => {
-    const firestore = useFirestore();
-    const storage = useStorage();
-    const { toast } = useToast();
-    const [partName, setPartName] = useState(''); // Local state for input
-    const [uploading, setUploading] = useState(false);
-    const pdfs = unit.pdfs || [];
-
-    const handleFileUpload = async (unitId: string, file: File) => {
-        if (!storage || !firestore || !file) {
-          toast({ title: 'Error', description: 'Services not ready.', variant: 'destructive' });
-          return;
-        }
-        
-        if (!partName.trim()) {
-            toast({ title: 'Part Name Required', description: 'Please enter a name for the PDF part.', variant: 'destructive' });
-            return;
-        }
-    
-        setUploading(true);
-        const filePath = `units/${unitId}/${file.name}`;
-        const fileRef = ref(storage, filePath);
-    
-        try {
-          await uploadBytes(fileRef, file);
-          
-          const newPdfPart: PdfPart = {
-            partName: partName,
-            fileName: file.name,
-            downloadUrl: filePath,
-          };
-    
-          const unitDocRef = doc(firestore, 'units', unitId);
-          await updateDoc(unitDocRef, {
-            pdfs: arrayUnion(newPdfPart)
-          });
-          
-          setPartName(''); // Clear input after successful upload
-          toast({ title: 'Success', description: `${file.name} uploaded.` });
-        } catch (error) {
-          console.error("Error uploading file: ", error);
-          toast({ title: 'Upload failed', description: 'Could not upload the file.', variant: 'destructive' });
-        } finally {
-          setUploading(false);
-        }
-    };
-
-    const handleFileDelete = async (unitId: string, pdfPartToDelete: PdfPart) => {
-        if (!firestore || !storage) return;
-    
-        if (!confirm(`Are you sure you want to delete "${pdfPartToDelete.partName}"? This will also delete the file from storage.`)) {
-          return;
-        }
-    
-        const unitDocRef = doc(firestore, 'units', unitId);
-        const fileRef = ref(storage, pdfPartToDelete.downloadUrl);
-    
-        try {
-          const batch = writeBatch(firestore);
-    
-          batch.update(unitDocRef, {
-            pdfs: arrayRemove(pdfPartToDelete)
-          });
-          
-          await deleteObject(fileRef);
-    
-          await batch.commit();
-    
-          toast({ title: 'Success', description: `"${pdfPartToDelete.partName}" and its file have been deleted.` });
-        } catch (error) {
-          console.error("Error deleting PDF: ", error);
-          toast({ title: 'Error', description: 'Could not delete the PDF. It may have already been removed.', variant: 'destructive' });
-        }
-    };
-    
-    return (
-      <div className="space-y-4">
-        <h4 className="font-semibold text-muted-foreground">PDF Parts</h4>
-        {pdfs.map((pdf) => (
-          <div key={pdf.fileName} className="flex items-center justify-between p-3 bg-secondary/50 rounded-md">
-            <div className="flex items-center gap-3">
-              <FileText className="w-5 h-5 text-primary" />
-              <div>
-                <p className="font-medium">{pdf.partName}</p>
-                <p className="text-xs text-muted-foreground">{pdf.fileName}</p>
-              </div>
-            </div>
-            <Button variant="ghost" size="icon" onClick={() => handleFileDelete(unit.id, pdf)}>
-              <Trash2 className="w-4 h-4 text-destructive" />
-            </Button>
-          </div>
-        ))}
-        <div className="flex items-center gap-4 pt-4 border-t">
-          <Input
-            type="text"
-            placeholder="Name for new PDF part"
-            value={partName} // Use local state here
-            onChange={(e) => setPartName(e.target.value)} // Update local state
-            className="flex-grow"
-          />
-          <div className="relative">
-            <Button asChild variant="outline">
-              <label htmlFor={`file-upload-${unit.id}`} className="cursor-pointer">
-                {uploading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <PlusCircle className="w-4 h-4 mr-2" />}
-                Add PDF
-              </label>
-            </Button>
-            <Input 
-              id={`file-upload-${unit.id}`}
-              type="file" 
-              accept=".pdf" 
-              className="sr-only"
-              onChange={(e) => e.target.files && handleFileUpload(unit.id, e.target.files[0])}
-              disabled={uploading}
-            />
-          </div>
-        </div>
-      </div>
-    );
-  };
-
 
   return (
     <div>
@@ -398,7 +401,10 @@ const AdminUnitManagement = () => {
                         </div>
                     </div>
                 )}
-                <PdfPartManager unit={unit} />
+                <div className="grid md:grid-cols-2 gap-4">
+                    <PdfLanguageManager unit={unit} language="EN" />
+                    <PdfLanguageManager unit={unit} language="SI" />
+                </div>
               </CardContent>
             </Card>
           ))}

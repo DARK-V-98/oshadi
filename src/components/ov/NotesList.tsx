@@ -20,7 +20,8 @@ import { useRouter } from 'next/navigation';
 import { Badge } from '../ui/badge';
 
 interface UnitWithPdfCount extends Unit {
-    pdfCount: number;
+    pdfsENCount: number;
+    pdfsSICount: number;
 }
 
 interface Category {
@@ -56,7 +57,8 @@ const NotesList = () => {
             category: doc.data().category,
             priceNotes: doc.data().priceNotes,
             priceAssignments: doc.data().priceAssignments,
-            pdfCount: (doc.data().pdfs || []).length
+            pdfsENCount: (doc.data().pdfsEN || []).length,
+            pdfsSICount: (doc.data().pdfsSI || []).length,
         }));
         setUnits(fetchedUnits);
     });
@@ -108,8 +110,8 @@ const NotesList = () => {
       });
   }
 
-  const handleBuyClick = (unitName: string, materialType: 'Notes' | 'Assignments', price: string) => {
-    const message = encodeURIComponent(`Hi! I'm interested in buying the *${unitName} - ${materialType}* for LKR ${price}. Can you please provide more information?`);
+  const handleBuyClick = (unitName: string, materialType: string, price: string, language: string) => {
+    const message = encodeURIComponent(`Hi! I'm interested in buying the *${unitName} - ${materialType} (${language})* for LKR ${price}. Can you please provide more information?`);
     window.open(`https://wa.me/94754420805?text=${message}`, '_blank');
   };
 
@@ -182,22 +184,11 @@ const NotesList = () => {
                                                 )}
                                             </div>
                                         </div>
-                                        <div className="md:col-span-2 text-center">
-                                            <span className="inline-flex items-center justify-center w-12 h-8 rounded-full bg-gold/10 text-gold font-semibold text-sm" title={`${unit.pdfCount} PDF parts available`}>
-                                                {unit.pdfCount}
-                                            </span>
+                                        <div className="md:col-span-2 text-center flex flex-col items-center gap-1">
+                                            {unit.pdfsENCount > 0 && <Badge variant="secondary" title={`${unit.pdfsENCount} English PDF parts available`}>EN: {unit.pdfsENCount}</Badge>}
+                                            {unit.pdfsSICount > 0 && <Badge variant="secondary" title={`${unit.pdfsSICount} Sinhala PDF parts available`}>SI: {unit.pdfsSICount}</Badge>}
                                         </div>
                                         <div className="md:col-span-4 flex items-center justify-end gap-2 flex-wrap">
-                                            {unit.priceNotes && (
-                                                <Button variant="hero" size="sm" onClick={() => handleBuyClick(unit.nameEN, 'Notes', unit.priceNotes!)}>
-                                                    <ShoppingCart className="w-4 h-4 mr-1.5" /> Buy Notes
-                                                </Button>
-                                            )}
-                                            {unit.priceAssignments && (
-                                                <Button variant="elegant" size="sm" onClick={() => handleBuyClick(unit.nameEN, 'Assignments', unit.priceAssignments!)}>
-                                                    <ShoppingCart className="w-4 h-4 mr-1.5" /> Buy Assignments
-                                                </Button>
-                                            )}
                                             <Button variant="outline" size="sm" onClick={handleUnlockClick}>
                                                 <Unlock className="w-4 h-4 mr-1" />
                                                 Unlock

@@ -31,7 +31,7 @@ import {
 } from "@/components/ui/select";
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '../ui/skeleton';
-import { User, Key, PlusCircle, Copy, CheckCircle, Hourglass } from 'lucide-react';
+import { User, Key, PlusCircle, Copy, CheckCircle, Hourglass, Languages } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 
@@ -40,6 +40,7 @@ interface AccessKey {
   key: string;
   unitId: string;
   type: 'note' | 'assignment';
+  language: 'EN' | 'SI';
   status: 'available' | 'bound';
   createdAt: Timestamp;
   boundTo?: string;
@@ -66,6 +67,7 @@ const KeyManagementList = () => {
   const [units, setUnits] = useState<Unit[]>([]);
   const [selectedUnit, setSelectedUnit] = useState('');
   const [selectedKeyType, setSelectedKeyType] = useState<'note' | 'assignment' | ''>('');
+  const [selectedLanguage, setSelectedLanguage] = useState<'EN' | 'SI' | ''>('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedKey, setGeneratedKey] = useState<string | null>(null);
 
@@ -137,19 +139,20 @@ const KeyManagementList = () => {
   }
 
   const generateKey = async () => {
-    if (!firestore || !selectedUnit || !selectedKeyType) {
-        toast({ title: 'Error', description: 'Please select a unit and a key type.', variant: 'destructive'});
+    if (!firestore || !selectedUnit || !selectedKeyType || !selectedLanguage) {
+        toast({ title: 'Error', description: 'Please select a unit, a key type, and a language.', variant: 'destructive'});
         return;
     }
     setIsGenerating(true);
 
     try {
-        const key = `OV-${selectedUnit.toUpperCase()}-${Math.random().toString(36).substr(2, 8).toUpperCase()}`;
+        const key = `OV-${selectedLanguage}-${selectedUnit.toUpperCase()}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
         
         await addDoc(collection(firestore, 'accessKeys'), {
             key,
             unitId: selectedUnit,
             type: selectedKeyType,
+            language: selectedLanguage,
             status: 'available',
             createdAt: new Date(),
         });
@@ -165,6 +168,7 @@ const KeyManagementList = () => {
         setIsGenerating(false);
         setSelectedUnit('');
         setSelectedKeyType('');
+        setSelectedLanguage('');
     }
   }
 
@@ -195,6 +199,7 @@ const KeyManagementList = () => {
               <TableHead>Key</TableHead>
               <TableHead>Unit</TableHead>
               <TableHead>Type</TableHead>
+              <TableHead>Language</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Bound To</TableHead>
               <TableHead>Download Status</TableHead>
@@ -211,6 +216,9 @@ const KeyManagementList = () => {
                   <TableCell>{getUnitName(k.unitId)}</TableCell>
                   <TableCell>
                     <Badge variant={k.type === 'note' ? 'default' : 'secondary'}>{k.type}</Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="outline">{k.language}</Badge>
                   </TableCell>
                   <TableCell>
                     <Badge variant={k.status === 'bound' ? 'destructive' : 'outline'}>
@@ -276,7 +284,7 @@ const KeyManagementList = () => {
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>Generate Access Key</DialogTitle>
-                        <DialogDescription>Select a unit and a type to generate a new one-time access key.</DialogDescription>
+                        <DialogDescription>Select a unit, type, and language to generate a new one-time access key.</DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4 py-4">
                         <Select value={selectedUnit} onValueChange={setSelectedUnit}>
@@ -296,6 +304,15 @@ const KeyManagementList = () => {
                             <SelectContent>
                                 <SelectItem value="note">Note (Watermarked PDF)</SelectItem>
                                 <SelectItem value="assignment">Assignment (Original PDF)</SelectItem>
+                            </SelectContent>
+                        </Select>
+                         <Select value={selectedLanguage} onValueChange={(v) => setSelectedLanguage(v as 'EN' | 'SI')}>
+                            <SelectTrigger>
+                                <SelectValue placeholder="Select Language" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="EN">English</SelectItem>
+                                <SelectItem value="SI">Sinhala</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>
@@ -338,5 +355,3 @@ const KeyManagementList = () => {
 };
 
 export default KeyManagementList;
-
-    

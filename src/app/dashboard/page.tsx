@@ -6,7 +6,7 @@ import { collection, query, where, doc, onSnapshot, getDoc, updateDoc } from 'fi
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
-import { Download, FileText, HelpCircle, Loader2, CheckCircle, AlertTriangle } from 'lucide-react';
+import { Download, FileText, HelpCircle, Loader2, CheckCircle, AlertTriangle, Languages } from 'lucide-react';
 import {
   Accordion,
   AccordionContent,
@@ -30,12 +30,6 @@ import UnlockKeyForm from '@/components/dashboard/UnlockKeyForm';
 import TestimonialForm from '@/components/dashboard/TestimonialForm';
 
 
-interface PdfPart {
-    partName: string;
-    fileName: string;
-    downloadUrl: string;
-}
-
 interface UnlockedPdfDoc {
     id: string; // firestore doc id
     unitId: string;
@@ -43,6 +37,7 @@ interface UnlockedPdfDoc {
     fileName: string;
     downloadUrl: string;
     type: 'note' | 'assignment';
+    language: 'EN' | 'SI';
     downloaded: boolean;
     downloadedAt?: Date;
 }
@@ -97,13 +92,11 @@ function UserDashboard() {
                   };
               }
           }
-           // Add the part to the correct unit, preventing duplicates on re-renders
            if (unitsMap[pdfDoc.unitId]) {
             const existingPartIndex = unitsMap[pdfDoc.unitId].parts.findIndex(p => p.id === pdfDoc.id);
             if (existingPartIndex === -1) {
                 unitsMap[pdfDoc.unitId].parts.push(pdfDoc);
             } else {
-                // Update existing part in case its data changed (e.g., downloaded status)
                 unitsMap[pdfDoc.unitId].parts[existingPartIndex] = pdfDoc;
             }
           }
@@ -121,9 +114,6 @@ function UserDashboard() {
     return () => unsubscribe();
   }, [user, firestore, toast]);
 
-  interface UnitWithPdfs {
-    pdfs: PdfPart[];
-  }
   
   const confirmDownload = (part: UnlockedPdfDoc) => {
     if (part.downloaded) {
@@ -183,7 +173,6 @@ function UserDashboard() {
         document.body.appendChild(a);
         a.click();
         
-        // Mark as downloaded in Firestore
         const partDocRef = doc(firestore, 'userUnlockedPdfs', part.id);
         await updateDoc(partDocRef, {
             downloaded: true,
@@ -262,6 +251,7 @@ function UserDashboard() {
                                       <div key={part.id} className="flex items-center justify-between p-3 bg-secondary/50 rounded-md">
                                           <div className='flex items-center gap-2'>
                                              <Badge variant={part.type === 'note' ? 'default' : 'secondary'}>{part.type}</Badge>
+                                             <Badge variant="outline">{part.language}</Badge>
                                              <span>{part.partName}</span>
                                           </div>
                                           <Button size="sm" variant="ghost" onClick={() => confirmDownload(part)} disabled={part.downloaded || downloading[part.id]}>

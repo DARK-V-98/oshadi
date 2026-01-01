@@ -17,7 +17,8 @@ interface PdfPart {
 }
 
 interface UnitWithPdfs extends Unit {
-    pdfs: PdfPart[];
+    pdfsEN: PdfPart[];
+    pdfsSI: PdfPart[];
 }
 
 const UnlockKeyForm = () => {
@@ -34,7 +35,7 @@ const UnlockKeyForm = () => {
             return;
         }
         if (!firestore || !user) {
-            toast({ title: 'Error', description: 'Could not connect to service.', variant: 'destructive' });
+            toast({ title: 'Error', description: 'Could not connect to service. Please log in.', variant: 'destructive' });
             return;
         }
 
@@ -55,6 +56,7 @@ const UnlockKeyForm = () => {
             const keyDoc = querySnapshot.docs[0];
             const keyData = keyDoc.data();
             const unitId = keyData.unitId;
+            const language = keyData.language || 'EN'; // Default to English if language not set on key
 
             const unitDocRef = doc(firestore, 'units', unitId);
             const unitDocSnap = await getDoc(unitDocRef);
@@ -66,6 +68,13 @@ const UnlockKeyForm = () => {
             }
 
             const unitData = unitDocSnap.data() as UnitWithPdfs;
+            const pdfsToUnlock = language === 'SI' ? unitData.pdfsSI : unitData.pdfsEN;
+
+            if (!pdfsToUnlock || pdfsToUnlock.length === 0) {
+                toast({ title: 'Content Not Ready', description: `The ${language === 'SI' ? 'Sinhala' : 'English'} content for this unit is not available yet.`, variant: 'destructive'});
+                setIsBinding(false);
+                return;
+            }
 
             const batch = writeBatch(firestore);
 
@@ -76,12 +85,13 @@ const UnlockKeyForm = () => {
                 boundAt: new Date(),
             });
 
-            (unitData.pdfs || []).forEach(part => {
+            pdfsToUnlock.forEach(part => {
                 const unlockedPdfRef = doc(collection(firestore, 'userUnlockedPdfs'));
                 batch.set(unlockedPdfRef, {
                     userId: user.uid,
                     unitId: unitId,
                     keyId: keyDoc.id,
+                    language: language,
                     type: keyData.type,
                     unlockedAt: new Date(),
                     partName: part.partName,
@@ -94,7 +104,7 @@ const UnlockKeyForm = () => {
 
             await batch.commit();
 
-            toast({ title: 'Success!', description: `You have unlocked "${unitData?.nameEN}" (${keyData.type}).` });
+            toast({ title: 'Success!', description: `You have unlocked "${unitData?.nameEN}" (${keyData.type} - ${language === 'SI' ? 'Sinhala' : 'English'}).` });
             setAccessKey('');
 
         } catch (error) {
@@ -129,5 +139,3 @@ const UnlockKeyForm = () => {
 }
 
 export default UnlockKeyForm;
-
-    
