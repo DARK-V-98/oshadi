@@ -1,12 +1,12 @@
 
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useUser, useFirestore, useStorage } from '@/firebase';
 import { collection, query, where, doc, onSnapshot, getDoc, updateDoc, orderBy } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
-import { Download, FileText, HelpCircle, Loader2, CheckCircle, AlertTriangle, ShoppingBag } from 'lucide-react';
+import { Download, FileText, HelpCircle, Loader2, CheckCircle, AlertTriangle, ShoppingBag, History } from 'lucide-react';
 import {
   Accordion,
   AccordionContent,
@@ -40,6 +40,7 @@ import { CartItem } from '@/context/CartContext';
 
 interface UnlockedPdfDoc {
     id: string; // firestore doc id
+    orderId: string;
     unitId: string;
     partName: string;
     fileName: string;
@@ -49,8 +50,12 @@ interface UnlockedPdfDoc {
     downloaded: boolean;
     downloadedAt?: { toDate: () => Date };
     unlockedAt: { toDate: () => Date };
-    unitNameEN: string; // Add this
-    unitNameSI: string; // Add this
+    unitNameEN: string;
+    unitNameSI: string;
+}
+
+interface GroupedContent {
+    [key: string]: UnlockedPdfDoc[];
 }
 
 interface Order {
@@ -75,7 +80,6 @@ function UserDashboard() {
   
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [selectedPartForDownload, setSelectedPartForDownload] = useState<UnlockedPdfDoc | null>(null);
-
 
   useEffect(() => {
     if (!user || !firestore) return;
@@ -108,7 +112,6 @@ function UserDashboard() {
 
         const unlockedData = await Promise.all(unlockedPromises);
         
-        // Sort the data on the client-side
         unlockedData.sort((a, b) => b.unlockedAt.toDate().getTime() - a.unlockedAt.toDate().getTime());
 
         setUnlockedPdfs(unlockedData);
@@ -220,15 +223,49 @@ function UserDashboard() {
   }
 
 
-  const getStatusColor = (status: Order['status']) => {
-    switch (status) {
-        case 'pending': return 'bg-gray-100 text-gray-800';
-        case 'pending payment': return 'bg-yellow-100 text-yellow-800';
-        case 'processing': return 'bg-blue-100 text-blue-800';
-        case 'completed': return 'bg-green-100 text-green-800';
-        default: return 'bg-gray-100 text-gray-800';
+    const getStatusColor = (status: Order['status']) => {
+        switch (status) {
+            case 'pending': return 'bg-gray-100 text-gray-800';
+            case 'pending payment': return 'bg-yellow-100 text-yellow-800';
+            case 'processing': return 'bg-blue-100 text-blue-800';
+            case 'completed': return 'bg-green-100 text-green-800';
+            default: return 'bg-gray-100 text-gray-800';
+        }
     }
-}
+
+    const groupedContent = useMemo(() => {
+        return unlockedPdfs.reduce((acc, pdf) => {
+            const key = `${pdf.orderId}-${pdf.unitId}-${pdf.type}`;
+            if (!acc[key]) {
+                acc[key] = [];
+            }
+            acc[key].push(pdf);
+            return acc;
+        }, {} as GroupedContent);
+    }, [unlockedPdfs]);
+
+    const orderDownloads = useMemo(() => {
+        return orders.reduce((acc, order) => {
+          acc[order.id] = unlockedPdfs.filter(pdf => pdf.orderId === order.id);
+          return acc;
+        }, {} as Record<string, UnlockedPdfDoc[]>);
+    }, [orders, unlockedPdfs]);
+    
+    const { activeOrders, historicalOrders } = useMemo(() => {
+        const active: Order[] = [];
+        const historical: Order[] = [];
+        orders.forEach(order => {
+            const orderPdfs = orderDownloads[order.id] || [];
+            const isCompletedAndDownloaded = order.status === 'completed' && orderPdfs.length > 0 && orderPdfs.every(pdf => pdf.downloaded);
+            if (isCompletedAndDownloaded) {
+                historical.push(order);
+            } else {
+                active.push(order);
+            }
+        });
+        return { activeOrders: active, historicalOrders: historical };
+    }, [orders, orderDownloads]);
+
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -264,29 +301,42 @@ function UserDashboard() {
                         <Loader2 className="w-8 h-8 animate-spin text-primary" />
                         <p className="ml-3 text-muted-foreground">Loading your content...</p>
                     </div>
-                ) : unlockedPdfs.length > 0 ? (
+                ) : Object.keys(groupedContent).length > 0 ? (
                     <Card>
                         <CardContent className="p-0">
                            <div className="divide-y divide-border">
-                            {unlockedPdfs.map(part => (
-                                <div key={part.id} className="flex items-center justify-between p-4">
-                                   <div className="flex items-center gap-4">
-                                        <FileText className="w-6 h-6 text-primary flex-shrink-0"/>
+                            {Object.entries(groupedContent).map(([key, parts]) => {
+                                const firstPart = parts[0];
+                                const partEN = parts.find(p => p.language === 'EN');
+                                const partSI = parts.find(p => p.language === 'SI');
+
+                                return (
+                                <div key={key} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 gap-4">
+                                    <div className="flex items-center gap-4">
+                                        <FileText className="w-6 h-6 text-primary flex-shrink-0 mt-1 sm:mt-0"/>
                                         <div>
-                                            <p className="font-semibold">{part.unitNameEN} - {part.partName}</p>
-                                            <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
-                                                <Badge variant={part.type === 'note' ? 'default' : 'secondary'}>{part.type}</Badge>
-                                                <Badge variant="outline">{part.language}</Badge>
-                                                <span>Unlocked: {part.unlockedAt.toDate().toLocaleDateString()}</span>
+                                            <p className="font-semibold">{firstPart.unitNameEN} - <span className="capitalize">{firstPart.type}</span></p>
+                                            <div className="text-xs text-muted-foreground mt-1">
+                                                Unlocked: {firstPart.unlockedAt.toDate().toLocaleString()}
                                             </div>
                                         </div>
-                                   </div>
-                                    <Button size="sm" variant="ghost" className="rounded-full" onClick={() => confirmDownload(part)} disabled={part.downloaded || downloading[part.id]}>
-                                        {downloading[part.id] ? <Loader2 className="w-4 h-4 mr-2 animate-spin"/> : part.downloaded ? <CheckCircle className="w-4 h-4 mr-2"/> : <Download className="w-4 h-4 mr-2"/>}
-                                        {part.downloaded ? 'Downloaded' : 'Download'}
-                                    </Button>
+                                    </div>
+                                    <div className="flex-shrink-0 grid grid-cols-2 gap-2 w-full sm:w-auto">
+                                        {partEN && (
+                                            <Button size="sm" variant="outline" className="rounded-full" onClick={() => confirmDownload(partEN)} disabled={partEN.downloaded || downloading[partEN.id]}>
+                                                {downloading[partEN.id] ? <Loader2 className="w-4 h-4 animate-spin"/> : partEN.downloaded ? <CheckCircle className="w-4 h-4"/> : <Download className="w-4 h-4"/>}
+                                                <span className="ml-2">English</span>
+                                            </Button>
+                                        )}
+                                        {partSI && (
+                                            <Button size="sm" variant="outline" className="rounded-full" onClick={() => confirmDownload(partSI)} disabled={partSI.downloaded || downloading[partSI.id]}>
+                                                {downloading[partSI.id] ? <Loader2 className="w-4 h-4 animate-spin"/> : partSI.downloaded ? <CheckCircle className="w-4 h-4"/> : <Download className="w-4 h-4"/>}
+                                                <span className="ml-2">Sinhala</span>
+                                            </Button>
+                                        )}
+                                    </div>
                                 </div>
-                            ))}
+                            )})}
                            </div>
                         </CardContent>
                     </Card>
@@ -308,7 +358,7 @@ function UserDashboard() {
                      <div className="flex justify-center items-center py-10">
                         <Loader2 className="w-8 h-8 animate-spin text-primary" />
                      </div>
-                ) : orders.length > 0 ? (
+                ) : activeOrders.length > 0 ? (
                     <Card>
                         <Table>
                             <TableHeader>
@@ -320,7 +370,7 @@ function UserDashboard() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {orders.map(order => (
+                                {activeOrders.map(order => (
                                     <TableRow key={order.id}>
                                         <TableCell>{order.createdAt.toDate().toLocaleDateString()}</TableCell>
                                         <TableCell>
@@ -340,10 +390,53 @@ function UserDashboard() {
                 ) : (
                     <Card className="flex flex-col items-center justify-center p-8 text-center border-dashed">
                         <ShoppingBag className="w-12 h-12 text-muted-foreground/50 mb-4"/>
-                        <p className="text-muted-foreground">You haven't placed any orders yet.</p>
+                        <p className="text-muted-foreground">You have no active orders.</p>
                     </Card>
                 )}
             </div>
+             {historicalOrders.length > 0 && (
+                <Accordion type="single" collapsible>
+                    <AccordionItem value="order-history">
+                        <AccordionTrigger>
+                            <h2 className="text-xl font-bold font-heading flex items-center gap-2">
+                                <History className="w-5 h-5"/>
+                                Order History
+                            </h2>
+                        </AccordionTrigger>
+                        <AccordionContent>
+                           <Card>
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Date</TableHead>
+                                            <TableHead>Items</TableHead>
+                                            <TableHead>Total</TableHead>
+                                            <TableHead>Status</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {historicalOrders.map(order => (
+                                            <TableRow key={order.id}>
+                                                <TableCell>{order.createdAt.toDate().toLocaleDateString()}</TableCell>
+                                                <TableCell>
+                                                    <ul className="text-xs list-disc pl-4">
+                                                        {order.items.map(item => <li key={item.id}>{item.unitName} ({item.language} {item.type})</li>)}
+                                                    </ul>
+                                                </TableCell>
+                                                <TableCell>LKR {order.totalPrice.toFixed(2)}</TableCell>
+                                                <TableCell>
+                                                    <Badge variant="secondary" className={getStatusColor(order.status)}>Completed & Downloaded</Badge>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                           </Card>
+                        </AccordionContent>
+                    </AccordionItem>
+                </Accordion>
+             )}
+
         </div>
       </div>
       
@@ -355,7 +448,7 @@ function UserDashboard() {
                         Confirm One-Time Download
                     </AlertDialogTitle>
                     <AlertDialogDescription>
-                        This is a <strong className="text-destructive">one-time only</strong> download. You will not be able to download this file again after this. Please ensure you are on a stable connection and save the file securely.
+                        This is a <strong className="text-destructive">one-time only</strong> download for this specific purchase. You will not be able to download this file again. Please ensure you are on a stable connection and save the file securely.
                         <br/><br/>
                         Do you want to proceed with the download now?
                     </AlertDialogDescription>
@@ -376,5 +469,7 @@ export default function DashboardPage() {
         <UserDashboard />
     )
 }
+
+    
 
     
