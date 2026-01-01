@@ -82,7 +82,7 @@ function UserDashboard() {
   
     setLoadingContent(true);
     const unlockedRef = collection(firestore, 'userUnlockedPdfs');
-    const q = query(unlockedRef, where('userId', '==', user.uid), orderBy('unlockedAt', 'desc'));
+    const q = query(unlockedRef, where('userId', '==', user.uid));
   
     const unsubscribeUnlocked = onSnapshot(q, async (querySnapshot) => {
         const unlockedPromises = querySnapshot.docs.map(async (pdfDoc) => {
@@ -107,6 +107,10 @@ function UserDashboard() {
         });
 
         const unlockedData = await Promise.all(unlockedPromises);
+        
+        // Sort the data on the client-side
+        unlockedData.sort((a, b) => b.unlockedAt.toDate().getTime() - a.unlockedAt.toDate().getTime());
+
         setUnlockedPdfs(unlockedData);
         setLoadingContent(false);
   
