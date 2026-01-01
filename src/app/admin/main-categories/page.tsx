@@ -1,16 +1,2 @@
-'use client';
-import MainCategoryManagement from '@/components/admin/MainCategoryManagement';
-
-function MainCategoriesPage() {
-  return (
-    <div className="container mx-auto px-4 py-8">
-      <MainCategoryManagement />
-    </div>
-  );
-}
-
-export default function AdminMainCategoriesPage() {
-    return (
-        <MainCategoriesPage />
-    )
-}
+// This file is no longer needed and will be removed.
+// The new structure uses a fixed set of categories.

@@ -13,8 +13,7 @@ import FloatingWhatsApp from "@/components/ov/FloatingWhatsApp";
 import ScrollToTop from "@/components/ov/ScrollToTop";
 import AuthForm from "@/components/AuthForm";
 import Pricing from "@/components/ov/Pricing";
-import NotesList from "@/components/ov/NotesList";
-import { CartProvider } from "@/context/CartContext";
+import CourseCategories from "@/components/ov/CourseCategories";
 
 
 const Home = () => {
@@ -34,8 +33,8 @@ const Home = () => {
       <main>
         <Hero onUnlockClick={() => setIsAuthModalOpen(true)} />
         <About />
+        <CourseCategories />
         <Pricing />
-        <NotesList />
         <Testimonials />
         <Contact />
       </main>

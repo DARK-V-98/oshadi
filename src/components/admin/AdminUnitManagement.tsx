@@ -23,6 +23,12 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from '../ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 
 interface PdfPart {
   partName: string;
@@ -32,7 +38,6 @@ interface PdfPart {
 
 interface UnitWithPdfs extends Unit {
   id: string; // Firestore document ID
-  pdfs?: PdfPart[]; // Support old structure for migration
   pdfsEN: PdfPart[];
   pdfsSI: PdfPart[];
   priceNotesEN?: string;
@@ -41,11 +46,12 @@ interface UnitWithPdfs extends Unit {
   priceAssignmentsSI?: string;
 }
 
-interface Category {
-    id: string;
-    label: string;
-    value: string;
-}
+const fixedCategories = [
+    { label: 'Bridal Dresser', value: 'bridal-dresser' },
+    { label: 'Beauty', value: 'beauty' },
+    { label: 'Hair', value: 'hair' },
+    { label: 'Extra Notes', value: 'extra-notes' },
+];
 
 const PdfLanguageManager = ({ unit, language }: { unit: UnitWithPdfs, language: 'EN' | 'SI' }) => {
     const firestore = useFirestore();
@@ -54,11 +60,7 @@ const PdfLanguageManager = ({ unit, language }: { unit: UnitWithPdfs, language: 
     const [partName, setPartName] = useState('');
     const [uploading, setUploading] = useState(false);
     
-    // Check for old data structure and merge into Sinhala PDFs if necessary.
-    let pdfs = language === 'EN' ? unit.pdfsEN || [] : unit.pdfsSI || [];
-    if (language === 'SI' && unit.pdfs && unit.pdfs.length > 0) {
-        pdfs = [...pdfs, ...unit.pdfs];
-    }
+    const pdfs = language === 'EN' ? unit.pdfsEN || [] : unit.pdfsSI || [];
     const pdfsKey = language === 'EN' ? 'pdfsEN' : 'pdfsSI';
     const languageLabel = language === 'EN' ? 'English' : 'Sinhala';
 
@@ -88,15 +90,7 @@ const PdfLanguageManager = ({ unit, language }: { unit: UnitWithPdfs, language: 
     
           const unitDocRef = doc(firestore, 'units', unit.id);
           
-          // If we are migrating old data, we should also clear the old field
-          const updateData: { [key: string]: any } = {
-            [pdfsKey]: arrayUnion(newPdfPart)
-          };
-          if (language === 'SI' && unit.pdfs) {
-            updateData.pdfs = []; // Clear old field after migration
-          }
-
-          await updateDoc(unitDocRef, updateData);
+          await updateDoc(unitDocRef, { [pdfsKey]: arrayUnion(newPdfPart) });
           
           setPartName('');
           toast({ title: 'Success', description: `${file.name} uploaded to ${languageLabel} PDFs.` });
@@ -119,26 +113,8 @@ const PdfLanguageManager = ({ unit, language }: { unit: UnitWithPdfs, language: 
         const fileRef = ref(storage, pdfPartToDelete.downloadUrl);
     
         try {
-          const batch = writeBatch(firestore);
-    
-          // Check if the file to delete is in the new or old structure
-          const inPdfsEN = (unit.pdfsEN || []).some(p => p.downloadUrl === pdfPartToDelete.downloadUrl);
-          const inPdfsSI = (unit.pdfsSI || []).some(p => p.downloadUrl === pdfPartToDelete.downloadUrl);
-          const inOldPdfs = (unit.pdfs || []).some(p => p.downloadUrl === pdfPartToDelete.downloadUrl);
-
-          if (inPdfsEN) {
-             batch.update(unitDocRef, { pdfsEN: arrayRemove(pdfPartToDelete) });
-          }
-          if (inPdfsSI) {
-             batch.update(unitDocRef, { pdfsSI: arrayRemove(pdfPartToDelete) });
-          }
-          if (inOldPdfs) {
-             batch.update(unitDocRef, { pdfs: arrayRemove(pdfPartToDelete) });
-          }
-          
+          await updateDoc(unitDocRef, { [pdfsKey]: arrayRemove(pdfPartToDelete) });
           await deleteObject(fileRef).catch(e => console.warn("Could not delete from storage, it might be already gone:", e));
-    
-          await batch.commit();
     
           toast({ title: 'Success', description: `"${pdfPartToDelete.partName}" has been deleted.` });
         } catch (error) {
@@ -198,7 +174,6 @@ const AdminUnitManagement = () => {
   const firestore = useFirestore();
   const { toast } = useToast();
   const [units, setUnits] = useState<UnitWithPdfs[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   
   const [editingUnitId, setEditingUnitId] = useState<string | null>(null);
@@ -224,19 +199,11 @@ const AdminUnitManagement = () => {
     const unitsRef = collection(firestore, 'units');
     const qUnits = query(unitsRef, orderBy('unitNo'));
 
-    const categoriesRef = collection(firestore, 'categories');
-    const qCategories = query(categoriesRef, orderBy('label'));
-
     const unsubscribeUnits = onSnapshot(qUnits, (querySnapshot) => {
-      const fetchedUnits: UnitWithPdfs[] = querySnapshot.docs.map(doc => {
-        const data = doc.data();
-        return {
-          id: doc.id,
-          priceNotesSI: data.priceNotesSI ?? data.priceNotes ?? '', // Migration from old field
-          priceAssignmentsSI: data.priceAssignmentsSI ?? data.priceAssignments ?? '', // Migration from old field
-          ...data,
-        } as UnitWithPdfs;
-      });
+      const fetchedUnits: UnitWithPdfs[] = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+      } as UnitWithPdfs));
       setUnits(fetchedUnits);
       setLoading(false);
     }, (error) => {
@@ -245,24 +212,15 @@ const AdminUnitManagement = () => {
       setLoading(false);
     });
 
-    const unsubscribeCategories = onSnapshot(qCategories, (snapshot) => {
-        setCategories(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Category)));
-    });
-
 
     return () => {
         unsubscribeUnits();
-        unsubscribeCategories();
     };
   }, [firestore, toast]);
 
   const startEditing = (unit: UnitWithPdfs) => {
     setEditingUnitId(unit.id);
-    setEditableUnitData({
-        ...unit,
-        priceNotesSI: unit.priceNotesSI ?? unit.priceNotes, // handle migration
-        priceAssignmentsSI: unit.priceAssignmentsSI ?? unit.priceAssignments, // handle migration
-    });
+    setEditableUnitData(unit);
   };
 
   const cancelEditing = () => {
@@ -281,7 +239,7 @@ const AdminUnitManagement = () => {
 
     const unitDocRef = doc(firestore, 'units', editingUnitId);
     try {
-        const { id, pdfs, pdfsEN, pdfsSI, priceNotes, priceAssignments, ...dataToSave } = editableUnitData as any;
+        const { id, pdfsEN, pdfsSI, ...dataToSave } = editableUnitData as any;
         await updateDoc(unitDocRef, dataToSave);
         toast({ title: "Unit Updated", description: "Your changes have been saved." });
         cancelEditing();
@@ -322,6 +280,11 @@ const AdminUnitManagement = () => {
     }
   };
 
+  const unitsByCategory = fixedCategories.map(category => ({
+      ...category,
+      units: units.filter(unit => unit.category === category.value)
+  }));
+
   return (
     <div>
         <div className="flex justify-between items-center mb-8">
@@ -359,8 +322,8 @@ const AdminUnitManagement = () => {
                                     <SelectValue placeholder="Select a category" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {categories.map((cat) => (
-                                        <SelectItem key={cat.id} value={cat.value}>{cat.label}</SelectItem>
+                                    {fixedCategories.map((cat) => (
+                                        <SelectItem key={cat.value} value={cat.value}>{cat.label}</SelectItem>
                                     ))}
                                 </SelectContent>
                             </Select>
@@ -384,84 +347,95 @@ const AdminUnitManagement = () => {
             <p className="ml-3 text-muted-foreground">Loading units...</p>
         </div>
       ) : (
-        <div className="space-y-6">
-          {units.map((unit) => (
-            <Card key={unit.id}>
-              <CardHeader className="flex flex-row justify-between items-start">
-                <div>
-                  {editingUnitId === unit.id ? (
-                    <Input value={editableUnitData?.nameEN} onChange={(e) => handleUnitInputChange('nameEN', e.target.value)} className="text-xl font-bold" />
-                  ) : (
-                    <CardTitle>{unit.nameEN} ({unit.id})</CardTitle>
-                  )}
-                  {editingUnitId === unit.id ? (
-                    <Input value={editableUnitData?.nameSI} onChange={(e) => handleUnitInputChange('nameSI', e.target.value)} className="mt-2" />
-                  ) : (
-                    <CardDescription>{unit.nameSI}</CardDescription>
-                  )}
-                </div>
-                <div>
-                    {editingUnitId === unit.id ? (
-                        <div className="flex gap-2">
-                            <Button size="sm" onClick={handleSaveUnit}><Save className="w-4 h-4 mr-2"/>Save</Button>
-                            <Button size="sm" variant="ghost" onClick={cancelEditing}><X className="w-4 h-4 mr-2"/>Cancel</Button>
+        <Accordion type="multiple" defaultValue={fixedCategories.map(c => c.value)} className="w-full space-y-4">
+            {unitsByCategory.map(category => (
+                <AccordionItem value={category.value} key={category.value} className="border-none">
+                     <AccordionTrigger className="bg-secondary/50 border rounded-lg px-4 py-3 text-lg font-semibold font-heading hover:no-underline">
+                        {category.label} ({category.units.length})
+                     </AccordionTrigger>
+                     <AccordionContent className="pt-4">
+                        <div className="space-y-6">
+                            {category.units.length > 0 ? category.units.map(unit => (
+                                <Card key={unit.id}>
+                                <CardHeader className="flex flex-row justify-between items-start">
+                                    <div>
+                                    {editingUnitId === unit.id ? (
+                                        <Input value={editableUnitData?.nameEN} onChange={(e) => handleUnitInputChange('nameEN', e.target.value)} className="text-xl font-bold" />
+                                    ) : (
+                                        <CardTitle>{unit.nameEN} ({unit.id})</CardTitle>
+                                    )}
+                                    {editingUnitId === unit.id ? (
+                                        <Input value={editableUnitData?.nameSI} onChange={(e) => handleUnitInputChange('nameSI', e.target.value)} className="mt-2" />
+                                    ) : (
+                                        <CardDescription>{unit.nameSI}</CardDescription>
+                                    )}
+                                    </div>
+                                    <div>
+                                        {editingUnitId === unit.id ? (
+                                            <div className="flex gap-2">
+                                                <Button size="sm" onClick={handleSaveUnit}><Save className="w-4 h-4 mr-2"/>Save</Button>
+                                                <Button size="sm" variant="ghost" onClick={cancelEditing}><X className="w-4 h-4 mr-2"/>Cancel</Button>
+                                            </div>
+                                        ) : (
+                                            <Button size="sm" variant="outline" onClick={() => startEditing(unit)}><Edit className="w-4 h-4 mr-2"/>Edit Unit</Button>
+                                        )}
+                                    </div>
+                                </CardHeader>
+                                <CardContent>
+                                    {editingUnitId === unit.id && (
+                                        <div className="grid grid-cols-2 gap-4 mb-4">
+                                            <div>
+                                                <Label>Model Count</Label>
+                                                <Input value={editableUnitData?.modelCount} onChange={(e) => handleUnitInputChange('modelCount', e.target.value)} />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label>Category</Label>
+                                                <Select value={editableUnitData?.category} onValueChange={(value) => handleUnitInputChange('category', value)}>
+                                                    <SelectTrigger>
+                                                        <SelectValue placeholder="Select a category" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        {fixedCategories.map((cat) => (
+                                                            <SelectItem key={cat.value} value={cat.value}>{cat.label}</SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                            <div>
+                                                <Label>Sinhala Notes Price (LKR)</Label>
+                                                <Input value={editableUnitData?.priceNotesSI || ''} onChange={(e) => handleUnitInputChange('priceNotesSI', e.target.value)} />
+                                            </div>
+                                            <div>
+                                                <Label>Sinhala Assignments Price (LKR)</Label>
+                                                <Input value={editableUnitData?.priceAssignmentsSI || ''} onChange={(e) => handleUnitInputChange('priceAssignmentsSI', e.target.value)} />
+                                            </div>
+                                            <div>
+                                                <Label>English Notes Price (LKR)</Label>
+                                                <Input value={editableUnitData?.priceNotesEN || ''} onChange={(e) => handleUnitInputChange('priceNotesEN', e.target.value)} />
+                                            </div>
+                                            <div>
+                                                <Label>English Assignments Price (LKR)</Label>
+                                                <Input value={editableUnitData?.priceAssignmentsEN || ''} onChange={(e) => handleUnitInputChange('priceAssignmentsEN', e.target.value)} />
+                                            </div>
+                                        </div>
+                                    )}
+                                    <div className="grid md:grid-cols-2 gap-4">
+                                        <PdfLanguageManager unit={unit} language="EN" />
+                                        <PdfLanguageManager unit={unit} language="SI" />
+                                    </div>
+                                </CardContent>
+                                </Card>
+                            )) : (
+                                <p className="text-center text-muted-foreground py-4">No units in this category yet.</p>
+                            )}
                         </div>
-                    ) : (
-                        <Button size="sm" variant="outline" onClick={() => startEditing(unit)}><Edit className="w-4 h-4 mr-2"/>Edit Unit</Button>
-                    )}
-                </div>
-              </CardHeader>
-              <CardContent>
-                {editingUnitId === unit.id && (
-                     <div className="grid grid-cols-2 gap-4 mb-4">
-                        <div>
-                            <Label>Model Count</Label>
-                            <Input value={editableUnitData?.modelCount} onChange={(e) => handleUnitInputChange('modelCount', e.target.value)} />
-                        </div>
-                        <div className="space-y-2">
-                            <Label>Category</Label>
-                             <Select value={editableUnitData?.category} onValueChange={(value) => handleUnitInputChange('category', value)}>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Select a category" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {categories.map((cat) => (
-                                        <SelectItem key={cat.id} value={cat.value}>{cat.label}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div>
-                            <Label>Sinhala Notes Price (LKR)</Label>
-                            <Input value={editableUnitData?.priceNotesSI || ''} onChange={(e) => handleUnitInputChange('priceNotesSI', e.target.value)} />
-                        </div>
-                        <div>
-                            <Label>Sinhala Assignments Price (LKR)</Label>
-                            <Input value={editableUnitData?.priceAssignmentsSI || ''} onChange={(e) => handleUnitInputChange('priceAssignmentsSI', e.target.value)} />
-                        </div>
-                         <div>
-                            <Label>English Notes Price (LKR)</Label>
-                            <Input value={editableUnitData?.priceNotesEN || ''} onChange={(e) => handleUnitInputChange('priceNotesEN', e.target.value)} />
-                        </div>
-                        <div>
-                            <Label>English Assignments Price (LKR)</Label>
-                            <Input value={editableUnitData?.priceAssignmentsEN || ''} onChange={(e) => handleUnitInputChange('priceAssignmentsEN', e.target.value)} />
-                        </div>
-                    </div>
-                )}
-                <div className="grid md:grid-cols-2 gap-4">
-                    <PdfLanguageManager unit={unit} language="EN" />
-                    <PdfLanguageManager unit={unit} language="SI" />
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+                     </AccordionContent>
+                </AccordionItem>
+            ))}
+        </Accordion>
       )}
     </div>
   );
 };
 
 export default AdminUnitManagement;
-
-    

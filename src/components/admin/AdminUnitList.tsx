@@ -29,36 +29,14 @@ const AdminDashboard = () => {
                 </Link>
               </Button>
             </div>
-
-            <div className="group relative p-6 rounded-2xl bg-card border border-border shadow-card hover:shadow-soft transition-shadow duration-300">
-              <h2 className="font-heading text-2xl font-bold text-foreground">Manage Categories</h2>
-              <p className="text-muted-foreground mt-2 mb-4">Add or remove course categories (e.g. New/Old Syllabus).</p>
-              <Button asChild>
-                <Link href="/admin/categories">
-                    <FolderTree className="w-4 h-4 mr-2" />
-                    Manage Categories
-                </Link>
-              </Button>
-            </div>
             
             <div className="group relative p-6 rounded-2xl bg-card border border-border shadow-card hover:shadow-soft transition-shadow duration-300">
               <h2 className="font-heading text-2xl font-bold text-foreground">Manage Units & PDFs</h2>
-              <p className="text-muted-foreground mt-2 mb-4">Upload and manage PDF files for each unit.</p>
+              <p className="text-muted-foreground mt-2 mb-4">Upload and manage PDF files for each unit across all categories.</p>
               <Button asChild>
                 <Link href="/admin/units">
-                    <ExternalLink className="w-4 h-4 ml-2" />
+                    <ExternalLink className="w-4 h-4 mr-2" />
                     Manage Units
-                </Link>
-              </Button>
-            </div>
-            
-            <div className="group relative p-6 rounded-2xl bg-card border border-border shadow-card hover:shadow-soft transition-shadow duration-300">
-              <h2 className="font-heading text-2xl font-bold text-foreground">Manage Access Keys</h2>
-              <p className="text-muted-foreground mt-2 mb-4">Generate and view one-time access keys for units.</p>
-              <Button asChild>
-                <Link href="/admin/keys">
-                    <Key className="w-4 h-4 mr-2" />
-                    Manage Keys
                 </Link>
               </Button>
             </div>

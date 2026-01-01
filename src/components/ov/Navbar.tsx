@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { usePathname } from 'next/navigation';
 import Head from 'next/head';
-import { Menu, X, BookOpen, User, LogOut, LayoutDashboard, Shield, Image as ImageIcon, ShoppingCart } from "lucide-react";
+import { Menu, X, BookOpen, User, LogOut, LayoutDashboard, Shield, Image as ImageIcon, ShoppingCart, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth, useUser, useFirestore } from "@/firebase";
 import Link from "next/link";
@@ -15,6 +15,10 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
+  DropdownMenuPortal,
 } from "@/components/ui/dropdown-menu"
 import {
   Avatar,
@@ -29,6 +33,13 @@ type NavbarProps = {
   onUnlockClick: () => void;
   onLoginClick: () => void;
 };
+
+const courseCategories = [
+    { name: "Bridal Dresser", href: "/bridal-dresser" },
+    { name: "Beauty", href: "/beauty" },
+    { name: "Hair", href: "/hair" },
+    { name: "Extra Notes", href: "/extra-notes" },
+];
 
 const Navbar = ({ onUnlockClick, onLoginClick }: NavbarProps) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -61,17 +72,17 @@ const Navbar = ({ onUnlockClick, onLoginClick }: NavbarProps) => {
     { name: "Home", href: "/" },
     ...(isHomePage ? [
       { name: "About", href: "#about" },
+      { name: "Courses", href: "#courses"},
       { name: "Pricing", href: "#pricing" },
-      { name: "Notes", href: "#notes" },
       { name: "Testimonials", href: "#testimonials" },
       { name: "Contact", href: "#contact" },
     ] : [
-      { name: "Notes", href: "/#notes" }
+      { name: "About", href: "/#about" },
+      { name: "Courses", href: "/#courses"},
     ]),
   ];
 
   const getHref = (link: {name: string, href: string}) => {
-    // If on a different page and the link is a hash, prepend with '/'
     if (!isHomePage && link.href.startsWith('#')) {
       return `/${link.href}`;
     }
@@ -101,7 +112,7 @@ const Navbar = ({ onUnlockClick, onLoginClick }: NavbarProps) => {
 
             {/* Desktop Navigation */}
             <div className="hidden md:flex items-center gap-2">
-              {navLinks.map((link) => (
+              {navLinks.filter(l => l.name !== 'Courses').map((link) => (
                 <Link
                   key={link.name}
                   href={getHref(link)}
@@ -110,6 +121,21 @@ const Navbar = ({ onUnlockClick, onLoginClick }: NavbarProps) => {
                   {link.name}
                 </Link>
               ))}
+               <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" className="px-3 py-2 rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground font-medium transition-colors duration-300">
+                        Courses <ChevronDown className="w-4 h-4 ml-1" />
+                    </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                    {courseCategories.map(cat => (
+                        <DropdownMenuItem key={cat.href} asChild>
+                            <Link href={cat.href}>{cat.name}</Link>
+                        </DropdownMenuItem>
+                    ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+
                 <Button variant="ghost" size="icon" className="relative rounded-full" onClick={() => setIsCartOpen(true)}>
                     <ShoppingCart className="w-5 h-5"/>
                     {cartItemCount > 0 && (
