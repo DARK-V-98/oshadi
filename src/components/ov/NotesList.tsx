@@ -15,7 +15,7 @@ import {
   CarouselPrevious,
   type CarouselApi,
 } from "@/components/ui/carousel";
-import { Search, Unlock, FileText, Loader2, Tag, ShoppingCart, Folder } from 'lucide-react';
+import { Search, Unlock, FileText, Loader2, Tag, ShoppingCart, Folder, Languages, Book, FileArchive } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Badge } from '../ui/badge';
 import { useCart } from '@/context/CartContext';
@@ -140,6 +140,35 @@ const NotesList = () => {
       });
   }
 
+  const renderPurchaseOptions = (unit: UnitWithPdfCount, language: 'SI' | 'EN') => {
+    const notePrice = language === 'SI' ? unit.priceNotesSI : unit.priceNotesEN;
+    const assignmentPrice = language === 'SI' ? unit.priceAssignmentsSI : unit.priceAssignmentsEN;
+
+    if (!notePrice && !assignmentPrice) {
+      return null;
+    }
+
+    return (
+      <div className="p-3 bg-secondary/30 rounded-md">
+        <h4 className="font-semibold text-sm mb-2 flex items-center gap-2"><Languages className="w-4 h-4"/> {language === 'SI' ? 'Sinhala' : 'English'} Medium</h4>
+        <div className="flex gap-2 flex-wrap">
+          {notePrice && (
+            <Button size="sm" variant="outline" className="flex-1" onClick={() => handleAddToCart(unit, 'note', language)}>
+              <Book className="w-4 h-4 mr-2" />
+              Notes (LKR {notePrice})
+            </Button>
+          )}
+          {assignmentPrice && (
+            <Button size="sm" variant="outline" className="flex-1" onClick={() => handleAddToCart(unit, 'assignment', language)}>
+              <FileArchive className="w-4 h-4 mr-2" />
+              Assignments (LKR {assignmentPrice})
+            </Button>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <section id="notes" className="py-20 md:py-32 bg-background">
       <div className="container mx-auto px-4">
@@ -150,7 +179,7 @@ const NotesList = () => {
               {currentCategoryLabel || 'Course Notes'}
             </h2>
             <p className="text-muted-foreground max-w-2xl mx-auto">
-              Browse our complete collection of NVQ Level 4 notes. Purchase a key to unlock and download.
+              Browse our complete collection of NVQ Level 4 notes. Add items to your cart to begin your purchase.
             </p>
           </div>
 
@@ -188,24 +217,18 @@ const NotesList = () => {
                                 {categoryUnits.length > 0 ? categoryUnits.map((unit, index) => (
                                     <div
                                         key={index}
-                                        className="grid grid-cols-1 md:grid-cols-12 gap-4 p-4 md:p-5 items-center hover:bg-secondary/30 transition-colors duration-300"
+                                        className="p-4 md:p-5 hover:bg-secondary/30 transition-colors duration-300"
                                     >
-                                        <div className="md:col-span-2">
-                                            <Badge variant="outline">{unit.unitNo}</Badge>
-                                        </div>
-                                        <div className="md:col-span-4">
-                                            <p className="font-medium text-foreground">{unit.nameEN}</p>
-                                            <p className="text-sm text-muted-foreground mt-0.5">{unit.nameSI}</p>
-                                        </div>
-                                        <div className="md:col-span-2 text-center flex flex-col items-center gap-1">
-                                            {unit.pdfsENCount > 0 && <Badge variant="secondary" title={`${unit.pdfsENCount} English PDF parts available`}>EN: {unit.pdfsENCount} Parts</Badge>}
-                                            {unit.pdfsSICount > 0 && <Badge variant="secondary" title={`${unit.pdfsSICount} Sinhala PDF parts available`}>SI: {unit.pdfsSICount} Parts</Badge>}
-                                        </div>
-                                        <div className="md:col-span-4 flex items-center justify-end gap-2 flex-wrap">
-                                            {unit.priceNotesSI && <Button size="sm" variant="ghost" onClick={() => handleAddToCart(unit, 'note', 'SI')}>SI Note <ShoppingCart className="w-3 h-3 ml-2"/></Button>}
-                                            {unit.priceAssignmentsSI && <Button size="sm" variant="ghost" onClick={() => handleAddToCart(unit, 'assignment', 'SI')}>SI Asgn <ShoppingCart className="w-3 h-3 ml-2"/></Button>}
-                                            {unit.priceNotesEN && <Button size="sm" variant="ghost" onClick={() => handleAddToCart(unit, 'note', 'EN')}>EN Note <ShoppingCart className="w-3 h-3 ml-2"/></Button>}
-                                            {unit.priceAssignmentsEN && <Button size="sm" variant="ghost" onClick={() => handleAddToCart(unit, 'assignment', 'EN')}>EN Asgn <ShoppingCart className="w-3 h-3 ml-2"/></Button>}
+                                        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                                            <div className="md:col-span-2">
+                                                <Badge variant="outline">{unit.unitNo}</Badge>
+                                                <p className="font-medium text-foreground mt-2">{unit.nameEN}</p>
+                                                <p className="text-sm text-muted-foreground mt-0.5">{unit.nameSI}</p>
+                                            </div>
+                                            <div className="md:col-span-3 space-y-3">
+                                                {renderPurchaseOptions(unit, 'SI')}
+                                                {renderPurchaseOptions(unit, 'EN')}
+                                            </div>
                                         </div>
                                     </div>
                                 )) : (
