@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useFirestore } from '@/firebase';
 import { useStorage } from '@/firebase/provider';
-import { collection, doc, getDoc, setDoc, updateDoc, arrayUnion, onSnapshot, query, orderBy, writeBatch, arrayRemove, addDoc } from 'firebase/firestore';
+import { collection, doc, getDoc, setDoc, updateDoc, arrayUnion, onSnapshot, query, orderBy, writeBatch, arrayRemove, addDoc, getDocs } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { useToast } from '@/hooks/use-toast';
 import { Unit } from '@/lib/data';
@@ -22,6 +22,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Label } from '../ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 
 interface PdfPart {
   partName: string;
@@ -34,10 +35,17 @@ interface UnitWithPdfs extends Unit {
   pdfs: PdfPart[];
 }
 
+interface Category {
+    id: string;
+    label: string;
+    value: string;
+}
+
 const AdminUnitManagement = () => {
   const firestore = useFirestore();
   const { toast } = useToast();
   const [units, setUnits] = useState<UnitWithPdfs[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   
   // State for editing units
@@ -63,6 +71,9 @@ const AdminUnitManagement = () => {
     const unitsRef = collection(firestore, 'units');
     const qUnits = query(unitsRef, orderBy('unitNo'));
 
+    const categoriesRef = collection(firestore, 'categories');
+    const qCategories = query(categoriesRef, orderBy('label'));
+
     const unsubscribeUnits = onSnapshot(qUnits, (querySnapshot) => {
       const fetchedUnits: UnitWithPdfs[] = querySnapshot.docs.map(doc => ({
         id: doc.id,
@@ -76,8 +87,14 @@ const AdminUnitManagement = () => {
       setLoading(false);
     });
 
+    const unsubscribeCategories = onSnapshot(qCategories, (snapshot) => {
+        setCategories(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Category)));
+    });
+
+
     return () => {
         unsubscribeUnits();
+        unsubscribeCategories();
     };
   }, [firestore, toast]);
 
@@ -294,7 +311,19 @@ const AdminUnitManagement = () => {
                         <Input placeholder="Unit Name (English)" value={newUnit.nameEN} onChange={(e) => setNewUnit({...newUnit, nameEN: e.target.value})}/>
                         <Input placeholder="Unit Name (Sinhala)" value={newUnit.nameSI} onChange={(e) => setNewUnit({...newUnit, nameSI: e.target.value})}/>
                         <Input placeholder="Model Count" value={newUnit.modelCount} onChange={(e) => setNewUnit({...newUnit, modelCount: e.target.value})}/>
-                        <Input placeholder="Category (e.g., New Syllabus)" value={newUnit.category} onChange={(e) => setNewUnit({...newUnit, category: e.target.value})}/>
+                         <div className="space-y-2">
+                            <Label>Category</Label>
+                            <Select value={newUnit.category} onValueChange={(value) => setNewUnit({...newUnit, category: value})}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select a category" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {categories.map((cat) => (
+                                        <SelectItem key={cat.id} value={cat.value}>{cat.label}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                         </div>
                         <Input placeholder="Price for Notes (LKR)" value={newUnit.priceNotes} onChange={(e) => setNewUnit({...newUnit, priceNotes: e.target.value})}/>
                         <Input placeholder="Price for Assignments (LKR)" value={newUnit.priceAssignments} onChange={(e) => setNewUnit({...newUnit, priceAssignments: e.target.value})}/>
                     </div>
@@ -346,9 +375,18 @@ const AdminUnitManagement = () => {
                             <Label>Model Count</Label>
                             <Input value={editableUnitData?.modelCount} onChange={(e) => handleUnitInputChange('modelCount', e.target.value)} />
                         </div>
-                        <div>
+                        <div className="space-y-2">
                             <Label>Category</Label>
-                            <Input value={editableUnitData?.category} onChange={(e) => handleUnitInputChange('category', e.target.value)} />
+                             <Select value={editableUnitData?.category} onValueChange={(value) => handleUnitInputChange('category', value)}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select a category" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {categories.map((cat) => (
+                                        <SelectItem key={cat.id} value={cat.value}>{cat.label}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
                         </div>
                         <div>
                             <Label>Notes Price (LKR)</Label>
