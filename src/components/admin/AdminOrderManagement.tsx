@@ -1,3 +1,4 @@
+
 'use client';
 import { useState, useEffect } from 'react';
 import { useFirestore } from '@/firebase';
@@ -116,22 +117,6 @@ const AdminOrderManagement = () => {
         const batch = writeBatch(firestore);
     
         for (const item of order.items) {
-            const unlockedPdfsRef = collection(firestore, 'userUnlockedPdfs');
-            
-            // Check if this specific item type (note/assignment) for this language is already unlocked
-            const q = query(unlockedPdfsRef, 
-                where('userId', '==', order.userId),
-                where('unitId', '==', item.unitId),
-                where('type', '==', item.type),
-                where('language', '==', item.language)
-            );
-            
-            const existingUnlockSnapshot = await getDocs(q);
-            if (!existingUnlockSnapshot.empty) {
-                toast({ title: "Already Unlocked", description: `${item.unitName} (${item.language} ${item.type}) is already unlocked for this user.`, variant: "default" });
-                continue; // Skip to the next item
-            }
-
             const unitDocRef = doc(firestore, 'units', item.unitId);
             const unitDocSnap = await getDoc(unitDocRef);
 
@@ -144,9 +129,6 @@ const AdminOrderManagement = () => {
                 } else { // 'EN'
                     pdfsToUnlock = unitData.pdfsEN || [];
                 }
-
-                // Filter for the correct type ('note' or 'assignment') if your file structure supports it.
-                // Assuming the type is implicitly handled by what's in the cart for now.
                 
                 if (pdfsToUnlock && pdfsToUnlock.length > 0) {
                     pdfsToUnlock.forEach(part => {

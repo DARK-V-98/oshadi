@@ -51,37 +51,57 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   const firestore = useFirestore();
   const { toast } = useToast();
   const [cart, setCart] = useState<CartItem[]>([]);
+  const [unlockedItems, setUnlockedItems] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [orderConfirmation, setOrderConfirmation] = useState<OrderConfirmation | null>(null);
 
-  const fetchCart = useCallback(() => {
+  const fetchCartAndUnlockedItems = useCallback(() => {
     if (!user || !firestore) {
       setCart([]);
+      setUnlockedItems([]);
       setLoading(false);
       return () => {};
     }
 
     setLoading(true);
     const cartRef = collection(firestore, 'users', user.uid, 'cart');
-    const unsubscribe = onSnapshot(cartRef, (snapshot) => {
+    const unsubCart = onSnapshot(cartRef, (snapshot) => {
       const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as CartItem));
       setCart(items);
-      setLoading(false);
     }, (error) => {
         console.error("Error fetching cart: ", error);
         toast({ title: "Error", description: "Could not load your shopping cart.", variant: "destructive" });
+    });
+
+    const unlockedRef = collection(firestore, 'userUnlockedPdfs');
+    const qUnlocked = query(unlockedRef, where('userId', '==', user.uid));
+    const unsubUnlocked = onSnapshot(qUnlocked, (snapshot) => {
+        const unlocked = snapshot.docs.map(doc => {
+            const data = doc.data();
+            return `${data.unitId}-${data.type}-${data.language}`;
+        });
+        setUnlockedItems(unlocked);
+    }, (error) => {
+        console.error("Error fetching unlocked items: ", error);
+    });
+    
+    // Combine loading states
+    Promise.all([new Promise(res => onSnapshot(cartRef, res)), new Promise(res => onSnapshot(qUnlocked, res))]).then(() => {
         setLoading(false);
     });
 
-    return unsubscribe;
+    return () => {
+        unsubCart();
+        unsubUnlocked();
+    };
   }, [user, firestore, toast]);
 
   useEffect(() => {
-    const unsubscribe = fetchCart();
+    const unsubscribe = fetchCartAndUnlockedItems();
     return () => {
         if(unsubscribe) unsubscribe();
     };
-  }, [fetchCart]);
+  }, [fetchCartAndUnlockedItems]);
 
   const addToCart = async (item: Omit<CartItem, 'id' | 'quantity'>) => {
     if (!user || !firestore) {
@@ -90,17 +110,24 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     }
 
     const cartRef = collection(firestore, 'users', user.uid, 'cart');
+    const itemIdentifier = `${item.unitId}-${item.type}-${item.language}`;
     
-    // Check if item already exists
-    const existingItem = cart.find(cartItem => 
+    // Check if item already exists in cart
+    const existingItemInCart = cart.find(cartItem => 
         cartItem.unitId === item.unitId &&
         cartItem.type === item.type &&
         cartItem.language === item.language
     );
 
-    if (existingItem) {
+    if (existingItemInCart) {
         toast({ title: 'Already in Cart', description: 'This item is already in your shopping cart.'});
         return;
+    }
+
+    // Check if user has already unlocked this item
+    if (unlockedItems.includes(itemIdentifier)) {
+        toast({ title: 'Already Owned', description: 'You have already purchased and unlocked this item.'});
+        // We still allow them to add to cart, in case they want to buy it again.
     }
 
     try {
