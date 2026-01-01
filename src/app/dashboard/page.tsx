@@ -33,7 +33,6 @@ import {
 } from "@/components/ui/table"
 import { ref, getBytes } from 'firebase/storage';
 import { Badge } from '@/components/ui/badge';
-import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import TestimonialForm from '@/components/dashboard/TestimonialForm';
 import { CartItem } from '@/context/CartContext';
 
@@ -172,38 +171,14 @@ function UserDashboard() {
     try {
         const fileRef = ref(storage, part.downloadUrl);
         const originalBytes = await getBytes(fileRef);
-        let blob: Blob;
-
-        if (part.type === 'note') {
-            const pdfDoc = await PDFDocument.load(originalBytes);
-            const helveticaFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
-            const watermarkText = `${user.displayName} (${user.email})`.toLowerCase();
-            
-            for (const page of pdfDoc.getPages()) {
-                const { width, height } = page.getSize();
-                page.drawText(watermarkText, {
-                    x: width / 2 - 150,
-                    y: height / 2,
-                    size: 40,
-                    font: helveticaFont,
-                    color: rgb(0.95, 0.1, 0.1),
-                    opacity: 0.15,
-                    rotate: { type: 'degrees', angle: -45 },
-                });
-            }
-
-            const watermarkedBytes = await pdfDoc.save();
-            blob = new Blob([watermarkedBytes], { type: 'application/pdf' });
-        } else { // For assignments, no watermark is applied
-            blob = new Blob([originalBytes], { type: 'application/pdf' });
-        }
+        const blob = new Blob([originalBytes], { type: 'application/pdf' });
         
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
         a.download = part.fileName || `${part.unitId}-${part.partName}.pdf`;
         document.body.appendChild(a);
-a.click();
+        a.click();
         
         const partDocRef = doc(firestore, 'userUnlockedPdfs', part.id);
         await updateDoc(partDocRef, {
@@ -393,5 +368,3 @@ export default function DashboardPage() {
         <UserDashboard />
     )
 }
-
-    
