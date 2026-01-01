@@ -32,6 +32,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { ref, getBytes } from 'firebase/storage';
+import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import { Badge } from '@/components/ui/badge';
 import TestimonialForm from '@/components/dashboard/TestimonialForm';
 import { CartItem } from '@/context/CartContext';
@@ -158,7 +159,7 @@ function UserDashboard() {
     setShowConfirmDialog(true);
   };
 
-  const handleDownload = async () => {
+ const handleDownload = async () => {
     if (!storage || !firestore || !user || !selectedPartForDownload) return;
 
     const part = selectedPartForDownload;
@@ -171,7 +172,31 @@ function UserDashboard() {
     try {
         const fileRef = ref(storage, part.downloadUrl);
         const originalBytes = await getBytes(fileRef);
-        const blob = new Blob([originalBytes], { type: 'application/pdf' });
+        let pdfBytes = originalBytes;
+
+        if (part.type === 'note') {
+            const pdfDoc = await PDFDocument.load(originalBytes);
+            const helveticaFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
+            const pages = pdfDoc.getPages();
+            
+            const watermarkText = 'Oshadi Vidarshana | esystemlk.xyz';
+
+            for (const page of pages) {
+                const { width, height } = page.getSize();
+                page.drawText(watermarkText, {
+                    x: width / 2 - 150,
+                    y: height / 2,
+                    size: 50,
+                    font: helveticaFont,
+                    color: rgb(0.9, 0.9, 0.9),
+                    opacity: 0.3,
+                    rotate: { type: 'degrees', angle: 45 },
+                });
+            }
+            pdfBytes = await pdfDoc.save();
+        }
+        
+        const blob = new Blob([pdfBytes], { type: 'application/pdf' });
         
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -202,6 +227,7 @@ function UserDashboard() {
         setSelectedPartForDownload(null);
     }
   }
+
 
   const getStatusColor = (status: Order['status']) => {
     switch (status) {
