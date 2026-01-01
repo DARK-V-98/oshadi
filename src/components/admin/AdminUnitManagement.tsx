@@ -32,6 +32,7 @@ interface PdfPart {
 
 interface UnitWithPdfs extends Unit {
   id: string; // Firestore document ID
+  pdfs?: PdfPart[]; // Support old structure for migration
   pdfsEN: PdfPart[];
   pdfsSI: PdfPart[];
 }
@@ -49,7 +50,11 @@ const PdfLanguageManager = ({ unit, language }: { unit: UnitWithPdfs, language: 
     const [partName, setPartName] = useState('');
     const [uploading, setUploading] = useState(false);
     
-    const pdfs = language === 'EN' ? unit.pdfsEN || [] : unit.pdfsSI || [];
+    // Check for old data structure and merge into Sinhala PDFs if necessary.
+    let pdfs = language === 'EN' ? unit.pdfsEN || [] : unit.pdfsSI || [];
+    if (language === 'SI' && unit.pdfs && unit.pdfs.length > 0) {
+        pdfs = [...pdfs, ...unit.pdfs];
+    }
     const pdfsKey = language === 'EN' ? 'pdfsEN' : 'pdfsSI';
     const languageLabel = language === 'EN' ? 'English' : 'Sinhala';
 
@@ -78,9 +83,16 @@ const PdfLanguageManager = ({ unit, language }: { unit: UnitWithPdfs, language: 
           };
     
           const unitDocRef = doc(firestore, 'units', unit.id);
-          await updateDoc(unitDocRef, {
+          
+          // If we are migrating old data, we should also clear the old field
+          const updateData: { [key: string]: any } = {
             [pdfsKey]: arrayUnion(newPdfPart)
-          });
+          };
+          if (language === 'SI' && unit.pdfs) {
+            updateData.pdfs = []; // Clear old field after migration
+          }
+
+          await updateDoc(unitDocRef, updateData);
           
           setPartName('');
           toast({ title: 'Success', description: `${file.name} uploaded to ${languageLabel} PDFs.` });
@@ -105,11 +117,22 @@ const PdfLanguageManager = ({ unit, language }: { unit: UnitWithPdfs, language: 
         try {
           const batch = writeBatch(firestore);
     
-          batch.update(unitDocRef, {
-            [pdfsKey]: arrayRemove(pdfPartToDelete)
-          });
+          // Check if the file to delete is in the new or old structure
+          const inPdfsEN = (unit.pdfsEN || []).some(p => p.downloadUrl === pdfPartToDelete.downloadUrl);
+          const inPdfsSI = (unit.pdfsSI || []).some(p => p.downloadUrl === pdfPartToDelete.downloadUrl);
+          const inOldPdfs = (unit.pdfs || []).some(p => p.downloadUrl === pdfPartToDelete.downloadUrl);
+
+          if (inPdfsEN) {
+             batch.update(unitDocRef, { pdfsEN: arrayRemove(pdfPartToDelete) });
+          }
+          if (inPdfsSI) {
+             batch.update(unitDocRef, { pdfsSI: arrayRemove(pdfPartToDelete) });
+          }
+          if (inOldPdfs) {
+             batch.update(unitDocRef, { pdfs: arrayRemove(pdfPartToDelete) });
+          }
           
-          await deleteObject(fileRef);
+          await deleteObject(fileRef).catch(e => console.warn("Could not delete from storage, it might be already gone:", e));
     
           await batch.commit();
     
@@ -124,7 +147,7 @@ const PdfLanguageManager = ({ unit, language }: { unit: UnitWithPdfs, language: 
       <div className="space-y-4 p-4 border rounded-lg">
         <h4 className="font-semibold text-muted-foreground">{languageLabel} PDF Parts</h4>
         {pdfs.map((pdf) => (
-          <div key={pdf.fileName} className="flex items-center justify-between p-3 bg-secondary/50 rounded-md">
+          <div key={pdf.downloadUrl} className="flex items-center justify-between p-3 bg-secondary/50 rounded-md">
             <div className="flex items-center gap-3">
               <FileText className="w-5 h-5 text-primary" />
               <div>
@@ -243,7 +266,7 @@ const AdminUnitManagement = () => {
 
     const unitDocRef = doc(firestore, 'units', editingUnitId);
     try {
-        const { id, pdfsEN, pdfsSI, ...dataToSave } = editableUnitData;
+        const { id, pdfs, pdfsEN, pdfsSI, ...dataToSave } = editableUnitData;
         await updateDoc(unitDocRef, dataToSave);
         toast({ title: "Unit Updated", description: "Your changes have been saved." });
         cancelEditing();
