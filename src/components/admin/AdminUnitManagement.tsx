@@ -21,13 +21,6 @@ import {
   DialogFooter,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-  } from "@/components/ui/select";
 import { Label } from '../ui/label';
 
 interface PdfPart {
@@ -41,18 +34,10 @@ interface UnitWithPdfs extends Unit {
   pdfs: PdfPart[];
 }
 
-interface SubCategory {
-    id: string;
-    value: string;
-    label: string;
-    mainCategory: string;
-}
-
 const AdminUnitManagement = () => {
   const firestore = useFirestore();
   const { toast } = useToast();
   const [units, setUnits] = useState<UnitWithPdfs[]>([]);
-  const [subCategories, setSubCategories] = useState<SubCategory[]>([]);
   const [loading, setLoading] = useState(true);
   
   // State for editing units
@@ -66,7 +51,7 @@ const AdminUnitManagement = () => {
     nameEN: '',
     nameSI: '',
     modelCount: '',
-    category: '', // This will now store subCategory value
+    category: '',
     priceNotes: '',
     priceAssignments: '',
   });
@@ -77,9 +62,6 @@ const AdminUnitManagement = () => {
     
     const unitsRef = collection(firestore, 'units');
     const qUnits = query(unitsRef, orderBy('unitNo'));
-
-    const categoriesRef = collection(firestore, 'subCategories');
-    const qCategories = query(categoriesRef, orderBy('label'));
 
     const unsubscribeUnits = onSnapshot(qUnits, (querySnapshot) => {
       const fetchedUnits: UnitWithPdfs[] = querySnapshot.docs.map(doc => ({
@@ -94,17 +76,8 @@ const AdminUnitManagement = () => {
       setLoading(false);
     });
 
-    const unsubscribeCategories = onSnapshot(qCategories, (querySnapshot) => {
-        const fetchedCategories: SubCategory[] = querySnapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data(),
-        } as SubCategory));
-        setSubCategories(fetchedCategories);
-    });
-
     return () => {
         unsubscribeUnits();
-        unsubscribeCategories();
     };
   }, [firestore, toast]);
 
@@ -142,7 +115,7 @@ const AdminUnitManagement = () => {
   const handleAddNewUnit = async () => {
     if (!firestore) return;
     if (!newUnit.unitNo || !newUnit.nameEN || !newUnit.category) {
-        toast({title: "Missing Fields", description: "Unit No, Name, and Sub-Category are required.", variant: "destructive"});
+        toast({title: "Missing Fields", description: "Unit No, Name, and Category are required.", variant: "destructive"});
         return;
     }
 
@@ -321,18 +294,9 @@ const AdminUnitManagement = () => {
                         <Input placeholder="Unit Name (English)" value={newUnit.nameEN} onChange={(e) => setNewUnit({...newUnit, nameEN: e.target.value})}/>
                         <Input placeholder="Unit Name (Sinhala)" value={newUnit.nameSI} onChange={(e) => setNewUnit({...newUnit, nameSI: e.target.value})}/>
                         <Input placeholder="Model Count" value={newUnit.modelCount} onChange={(e) => setNewUnit({...newUnit, modelCount: e.target.value})}/>
+                        <Input placeholder="Category (e.g., New Syllabus)" value={newUnit.category} onChange={(e) => setNewUnit({...newUnit, category: e.target.value})}/>
                         <Input placeholder="Price for Notes (LKR)" value={newUnit.priceNotes} onChange={(e) => setNewUnit({...newUnit, priceNotes: e.target.value})}/>
                         <Input placeholder="Price for Assignments (LKR)" value={newUnit.priceAssignments} onChange={(e) => setNewUnit({...newUnit, priceAssignments: e.target.value})}/>
-                        <Select value={newUnit.category} onValueChange={(value) => setNewUnit({...newUnit, category: value})}>
-                            <SelectTrigger>
-                                <SelectValue placeholder="Select a Sub-Category" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {subCategories.map(cat => (
-                                    <SelectItem key={cat.id} value={cat.value}>{cat.label}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
                     </div>
                     <DialogFooter>
                         <Button variant="ghost" onClick={() => setIsAddUnitDialogOpen(false)}>Cancel</Button>
@@ -382,18 +346,9 @@ const AdminUnitManagement = () => {
                             <Label>Model Count</Label>
                             <Input value={editableUnitData?.modelCount} onChange={(e) => handleUnitInputChange('modelCount', e.target.value)} />
                         </div>
-                        <div className="col-span-2">
-                             <Label>Sub-Category</Label>
-                            <Select value={editableUnitData?.category} onValueChange={(value) => handleUnitInputChange('category', value)}>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Select a Sub-Category" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {subCategories.map(cat => (
-                                        <SelectItem key={cat.id} value={cat.value}>{cat.label}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                        <div>
+                            <Label>Category</Label>
+                            <Input value={editableUnitData?.category} onChange={(e) => handleUnitInputChange('category', e.target.value)} />
                         </div>
                         <div>
                             <Label>Notes Price (LKR)</Label>
