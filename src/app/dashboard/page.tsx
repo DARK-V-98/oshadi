@@ -34,7 +34,6 @@ import {
 import { ref, getBytes } from 'firebase/storage';
 import { Badge } from '@/components/ui/badge';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
-import UnlockKeyForm from '@/components/dashboard/UnlockKeyForm';
 import TestimonialForm from '@/components/dashboard/TestimonialForm';
 import { CartItem } from '@/context/CartContext';
 
@@ -62,7 +61,7 @@ interface Order {
     id: string;
     items: CartItem[];
     totalPrice: number;
-    status: 'pending' | 'processing' | 'completed';
+    status: 'pending' | 'processing' | 'completed' | 'pending payment';
     createdAt: { toDate: () => Date };
 }
 
@@ -231,7 +230,8 @@ function UserDashboard() {
 
   const getStatusColor = (status: Order['status']) => {
     switch (status) {
-        case 'pending': return 'bg-yellow-100 text-yellow-800';
+        case 'pending': return 'bg-gray-100 text-gray-800';
+        case 'pending payment': return 'bg-yellow-100 text-yellow-800';
         case 'processing': return 'bg-blue-100 text-blue-800';
         case 'completed': return 'bg-green-100 text-green-800';
         default: return 'bg-gray-100 text-gray-800';
@@ -260,7 +260,7 @@ function UserDashboard() {
                 <AccordionItem value="item-2">
                     <AccordionTrigger>How does payment work?</AccordionTrigger>
                     <AccordionContent>
-                    After you place an order, we will contact you via WhatsApp or Email with payment instructions (e.g., bank transfer). Once payment is confirmed, we will process your order.
+                    After you place an order, you will be prompted to contact us on WhatsApp with your Order ID. We will provide payment instructions (e.g., bank transfer). Once payment is confirmed, we will process your order.
                     </AccordionContent>
                 </AccordionItem>
                 </Accordion>

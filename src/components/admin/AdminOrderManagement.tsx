@@ -2,7 +2,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useFirestore } from '@/firebase';
-import { collection, query, orderBy, onSnapshot, doc, updateDoc, getDoc, writeBatch, addDoc } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, doc, updateDoc, getDoc, writeBatch, addDoc, getDocs, where, deleteDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import {
   Table,
@@ -19,9 +19,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Loader2, ShoppingBag, ArrowLeft } from 'lucide-react';
+import { Loader2, ShoppingBag, ArrowLeft, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { CartItem } from '@/context/CartContext';
@@ -34,7 +45,7 @@ interface Order {
     userEmail: string;
     items: CartItem[];
     totalPrice: number;
-    status: 'pending' | 'processing' | 'completed';
+    status: 'pending' | 'processing' | 'completed' | 'pending payment';
     createdAt: { toDate: () => Date };
 }
 
@@ -87,13 +98,25 @@ const AdminOrderManagement = () => {
         }
     };
 
+    const handleDeleteOrder = async (orderId: string) => {
+        if (!firestore) return;
+        
+        const orderDocRef = doc(firestore, 'orders', orderId);
+        try {
+            await deleteDoc(orderDocRef);
+            toast({ title: "Order Deleted", description: "The order has been successfully deleted." });
+        } catch (error) {
+            console.error("Error deleting order:", error);
+            toast({ title: "Error", description: "Failed to delete the order.", variant: "destructive" });
+        }
+    };
+
     const generateAndAssignKeys = async (order: Order) => {
         if (!firestore) return;
     
         const batch = writeBatch(firestore);
     
         for (const item of order.items) {
-            // Check if user already has this item unlocked
             const unlockedPdfsRef = collection(firestore, 'userUnlockedPdfs');
             const q = query(unlockedPdfsRef, 
                 where('userId', '==', order.userId),
@@ -105,7 +128,7 @@ const AdminOrderManagement = () => {
             const existingUnlock = await getDocs(q);
             if (!existingUnlock.empty) {
                 toast({ title: "Already Unlocked", description: `${item.unitName} (${item.language} ${item.type}) is already unlocked for this user.`, variant: "default" });
-                continue; // Skip this item
+                continue;
             }
 
             const key = `OV-${item.language}-${item.unitId.toUpperCase()}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
@@ -157,7 +180,8 @@ const AdminOrderManagement = () => {
 
     const getStatusColor = (status: Order['status']) => {
         switch (status) {
-            case 'pending': return 'bg-yellow-100 text-yellow-800';
+            case 'pending': return 'bg-gray-100 text-gray-800';
+            case 'pending payment': return 'bg-yellow-100 text-yellow-800';
             case 'processing': return 'bg-blue-100 text-blue-800';
             case 'completed': return 'bg-green-100 text-green-800';
             default: return 'bg-gray-100 text-gray-800';
@@ -193,6 +217,7 @@ const AdminOrderManagement = () => {
                                 <TableHead>Customer</TableHead>
                                 <TableHead>Total</TableHead>
                                 <TableHead>Status</TableHead>
+                                <TableHead className="text-right">Actions</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -219,10 +244,34 @@ const AdminOrderManagement = () => {
                                             </SelectTrigger>
                                             <SelectContent>
                                                 <SelectItem value="pending">Pending</SelectItem>
+                                                <SelectItem value="pending payment">Pending Payment</SelectItem>
                                                 <SelectItem value="processing">Processing</SelectItem>
                                                 <SelectItem value="completed">Completed</SelectItem>
                                             </SelectContent>
                                         </Select>
+                                    </TableCell>
+                                    <TableCell className="text-right">
+                                        <AlertDialog>
+                                            <AlertDialogTrigger asChild>
+                                                <Button variant="ghost" size="icon">
+                                                    <Trash2 className="w-4 h-4 text-destructive" />
+                                                </Button>
+                                            </AlertDialogTrigger>
+                                            <AlertDialogContent>
+                                                <AlertDialogHeader>
+                                                    <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                                    <AlertDialogDescription>
+                                                        This action cannot be undone. This will permanently delete the order.
+                                                    </AlertDialogDescription>
+                                                </AlertDialogHeader>
+                                                <AlertDialogFooter>
+                                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                    <AlertDialogAction onClick={() => handleDeleteOrder(order.id)}>
+                                                        Delete
+                                                    </AlertDialogAction>
+                                                </AlertDialogFooter>
+                                            </AlertDialogContent>
+                                        </AlertDialog>
                                     </TableCell>
                                 </TableRow>
                             ))}

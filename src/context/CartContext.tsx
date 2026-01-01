@@ -2,8 +2,20 @@
 'use client';
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { useUser, useFirestore } from '@/firebase';
-import { collection, doc, onSnapshot, writeBatch, query, where, getDocs, addDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, doc, onSnapshot, writeBatch, query, where, getDocs, addDoc, deleteDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Button } from '@/components/ui/button';
+import { CheckCircle, MessageCircle } from 'lucide-react';
+
 
 export interface CartItem {
   id: string; // Firestore document ID
@@ -13,6 +25,12 @@ export interface CartItem {
   language: 'EN' | 'SI';
   price: number;
   quantity: number;
+}
+
+interface OrderConfirmation {
+    orderId: string;
+    totalPrice: number;
+    itemsSummary: string;
 }
 
 interface CartContextType {
@@ -34,6 +52,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   const { toast } = useToast();
   const [cart, setCart] = useState<CartItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [orderConfirmation, setOrderConfirmation] = useState<OrderConfirmation | null>(null);
 
   const fetchCart = useCallback(() => {
     if (!user || !firestore) {
@@ -120,7 +139,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     if (!user || !firestore || cart.length === 0) return;
     
     const ordersRef = collection(firestore, 'orders');
-    const newOrder = {
+    const newOrderData = {
         userId: user.uid,
         userName: user.displayName,
         userEmail: user.email,
@@ -131,14 +150,32 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     };
 
     try {
-        await addDoc(ordersRef, newOrder);
+        const orderDocRef = await addDoc(ordersRef, newOrderData);
+        await updateDoc(orderDocRef, { status: 'pending payment' });
+        
+        const itemsSummary = cart.map(item => `- ${item.unitName} (${item.language} ${item.type})`).join('\n');
+        setOrderConfirmation({
+            orderId: orderDocRef.id,
+            totalPrice: newOrderData.totalPrice,
+            itemsSummary: itemsSummary
+        });
+        
         await clearCart();
-        toast({ title: 'Order Placed!', description: 'Your order has been received. You will be contacted for payment.'});
+        toast({ title: 'Order Placed!', description: 'Please complete the payment step.'});
     } catch (error) {
         console.error('Error placing order: ', error);
         toast({ title: 'Error', description: 'Could not place your order.', variant: 'destructive'});
     }
   };
+
+  const handleWhatsAppContact = () => {
+      if (!orderConfirmation) return;
+      const { orderId, totalPrice, itemsSummary } = orderConfirmation;
+      const message = `Hi Oshadi, I've placed an order.\n\nOrder ID: ${orderId}\n\nItems:\n${itemsSummary}\n\nTotal: LKR ${totalPrice.toFixed(2)}\n\nPlease provide payment details.`;
+      const whatsappUrl = `https://wa.me/94754420805?text=${encodeURIComponent(message)}`;
+      window.open(whatsappUrl, '_blank');
+      setOrderConfirmation(null);
+  }
 
   const itemCount = cart.reduce((count, item) => count + item.quantity, 0);
   const totalPrice = cart.reduce((total, item) => total + item.price * item.quantity, 0);
@@ -146,6 +183,25 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   return (
     <CartContext.Provider value={{ cart, addToCart, removeFromCart, clearCart, checkout, loading, itemCount, totalPrice }}>
       {children}
+      {orderConfirmation && (
+        <AlertDialog open={!!orderConfirmation} onOpenChange={() => setOrderConfirmation(null)}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle className="flex items-center gap-2"><CheckCircle className="w-6 h-6 text-green-500" />Order Placed Successfully!</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        Your Order ID is <strong className="font-mono text-primary">{orderConfirmation.orderId}</strong>. To complete your purchase, please contact us on WhatsApp with your order details to arrange payment.
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <Button variant="outline" onClick={() => setOrderConfirmation(null)}>Close</Button>
+                    <Button onClick={handleWhatsAppContact}>
+                        <MessageCircle className="w-4 h-4 mr-2"/>
+                        Contact on WhatsApp to Pay
+                    </Button>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
+      )}
     </CartContext.Provider>
   );
 };
