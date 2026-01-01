@@ -34,7 +34,7 @@ interface UnitWithPdfs extends Unit {
   id: string; // Firestore document ID
   pdfs?: PdfPart[]; // Support old structure for migration
   pdfsEN: PdfPart[];
-  pdfsSI: Pdf-Jotain
+  pdfsSI: PdfPart[];
   priceNotesEN?: string;
   priceAssignmentsEN?: string;
   priceNotesSI?: string;
@@ -463,3 +463,5 @@ const AdminUnitManagement = () => {
 };
 
 export default AdminUnitManagement;
+
+    
