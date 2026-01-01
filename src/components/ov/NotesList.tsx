@@ -23,17 +23,23 @@ interface UnitWithPdfCount extends Unit {
     pdfCount: number;
 }
 
+interface Category {
+    id: string;
+    label: string;
+    value: string;
+}
+
 const NotesList = () => {
   const firestore = useFirestore();
   const { toast } = useToast();
   const router = useRouter();
 
   const [units, setUnits] = useState<UnitWithPdfCount[]>([]);
-  const [categories, setCategories] = useState<string[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [api, setApi] = useState<CarouselApi>()
-  const [currentCategory, setCurrentCategory] = useState('');
+  const [currentCategoryLabel, setCurrentCategoryLabel] = useState('');
 
   useEffect(() => {
     if (!firestore) return;
@@ -53,23 +59,29 @@ const NotesList = () => {
             pdfCount: (doc.data().pdfs || []).length
         }));
         setUnits(fetchedUnits);
-        
-        const uniqueCategories = [...new Set(fetchedUnits.map(u => u.category).filter(Boolean))];
-        setCategories(uniqueCategories);
-        if (uniqueCategories.length > 0) {
-          setCurrentCategory(uniqueCategories[0]);
+    });
+
+    const categoriesRef = collection(firestore, 'categories');
+    const qCategories = query(categoriesRef, orderBy('label'));
+    const unsubCategories = onSnapshot(qCategories, (snapshot) => {
+        const fetchedCategories = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Category));
+        setCategories(fetchedCategories);
+        if (fetchedCategories.length > 0) {
+            setCurrentCategoryLabel(fetchedCategories[0].label);
         }
         setLoading(false);
     });
 
     return () => {
       unsubUnits();
+      unsubCategories();
     };
-  }, [firestore, toast]);
+  }, [firestore]);
   
   const onSelect = useCallback((api: CarouselApi) => {
     if (!api || categories.length === 0) return;
-    setCurrentCategory(categories[api.selectedScrollSnap()]);
+    const selectedIndex = api.selectedScrollSnap();
+    setCurrentCategoryLabel(categories[selectedIndex]?.label || '');
   }, [api, categories]);
 
   useEffect(() => {
@@ -79,9 +91,9 @@ const NotesList = () => {
     return () => { api.off('select', onSelect) };
   }, [api, onSelect]);
   
-  const getUnitsForCategory = (category: string) => {
+  const getUnitsForCategory = (categoryValue: string) => {
     return units.filter((unit) =>
-      unit.category === category &&
+      unit.category === categoryValue &&
       (unit.nameEN.toLowerCase().includes(searchQuery.toLowerCase()) ||
         (unit.nameSI && unit.nameSI.includes(searchQuery)) ||
         unit.unitNo.toLowerCase().includes(searchQuery.toLowerCase()))
@@ -108,7 +120,7 @@ const NotesList = () => {
           <div className="text-center mb-12 animate-fade-in">
             <span className="text-sm font-medium text-primary uppercase tracking-wider">Course Materials</span>
             <h2 className="font-heading text-3xl md:text-4xl lg:text-5xl font-bold text-foreground mt-3 mb-4">
-              {currentCategory || 'Course Notes'}
+              {currentCategoryLabel || 'Course Notes'}
             </h2>
             <p className="text-muted-foreground max-w-2xl mx-auto">
               Browse our complete collection of NVQ Level 4 notes. Purchase a key to unlock and download.
@@ -131,14 +143,18 @@ const NotesList = () => {
                 <Loader2 className="w-8 h-8 animate-spin text-primary" />
                 <p className="ml-4 text-muted-foreground">Loading notes...</p>
             </div>
+          ) : categories.length === 0 ? (
+            <div className="text-center text-muted-foreground p-8 border-2 border-dashed rounded-lg">
+                No categories have been created yet. Please add categories in the admin panel.
+            </div>
           ) : (
             <Carousel setApi={setApi} className="w-full">
               <CarouselContent>
                 {categories.map((category) => {
-                    const categoryUnits = getUnitsForCategory(category);
+                    const categoryUnits = getUnitsForCategory(category.value);
                     if (searchQuery && categoryUnits.length === 0) return null;
                     return (
-                        <CarouselItem key={category}>
+                        <CarouselItem key={category.id}>
                             <div className="p-1">
                                 <div className="bg-card rounded-2xl border border-border shadow-card overflow-hidden animate-fade-in-up">
                                 <div className="divide-y divide-border">
