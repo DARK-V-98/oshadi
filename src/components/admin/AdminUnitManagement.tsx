@@ -41,17 +41,18 @@ interface UnitWithPdfs extends Unit {
   pdfs: PdfPart[];
 }
 
-interface Category {
+interface SubCategory {
     id: string;
     value: string;
     label: string;
+    mainCategory: string;
 }
 
 const AdminUnitManagement = () => {
   const firestore = useFirestore();
   const { toast } = useToast();
   const [units, setUnits] = useState<UnitWithPdfs[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
+  const [subCategories, setSubCategories] = useState<SubCategory[]>([]);
   const [loading, setLoading] = useState(true);
   
   // State for editing units
@@ -65,7 +66,7 @@ const AdminUnitManagement = () => {
     nameEN: '',
     nameSI: '',
     modelCount: '',
-    category: '',
+    category: '', // This will now store subCategory value
     priceNotes: '',
     priceAssignments: '',
   });
@@ -77,7 +78,7 @@ const AdminUnitManagement = () => {
     const unitsRef = collection(firestore, 'units');
     const qUnits = query(unitsRef, orderBy('unitNo'));
 
-    const categoriesRef = collection(firestore, 'categories');
+    const categoriesRef = collection(firestore, 'subCategories');
     const qCategories = query(categoriesRef, orderBy('label'));
 
     const unsubscribeUnits = onSnapshot(qUnits, (querySnapshot) => {
@@ -94,11 +95,11 @@ const AdminUnitManagement = () => {
     });
 
     const unsubscribeCategories = onSnapshot(qCategories, (querySnapshot) => {
-        const fetchedCategories: Category[] = querySnapshot.docs.map(doc => ({
+        const fetchedCategories: SubCategory[] = querySnapshot.docs.map(doc => ({
             id: doc.id,
             ...doc.data(),
-        } as Category));
-        setCategories(fetchedCategories);
+        } as SubCategory));
+        setSubCategories(fetchedCategories);
     });
 
     return () => {
@@ -141,7 +142,7 @@ const AdminUnitManagement = () => {
   const handleAddNewUnit = async () => {
     if (!firestore) return;
     if (!newUnit.unitNo || !newUnit.nameEN || !newUnit.category) {
-        toast({title: "Missing Fields", description: "Unit No, Name, and Category are required.", variant: "destructive"});
+        toast({title: "Missing Fields", description: "Unit No, Name, and Sub-Category are required.", variant: "destructive"});
         return;
     }
 
@@ -324,10 +325,10 @@ const AdminUnitManagement = () => {
                         <Input placeholder="Price for Assignments (LKR)" value={newUnit.priceAssignments} onChange={(e) => setNewUnit({...newUnit, priceAssignments: e.target.value})}/>
                         <Select value={newUnit.category} onValueChange={(value) => setNewUnit({...newUnit, category: value})}>
                             <SelectTrigger>
-                                <SelectValue placeholder="Select a Category" />
+                                <SelectValue placeholder="Select a Sub-Category" />
                             </SelectTrigger>
                             <SelectContent>
-                                {categories.map(cat => (
+                                {subCategories.map(cat => (
                                     <SelectItem key={cat.id} value={cat.value}>{cat.label}</SelectItem>
                                 ))}
                             </SelectContent>
@@ -382,13 +383,13 @@ const AdminUnitManagement = () => {
                             <Input value={editableUnitData?.modelCount} onChange={(e) => handleUnitInputChange('modelCount', e.target.value)} />
                         </div>
                         <div className="col-span-2">
-                             <Label>Category</Label>
+                             <Label>Sub-Category</Label>
                             <Select value={editableUnitData?.category} onValueChange={(value) => handleUnitInputChange('category', value)}>
                                 <SelectTrigger>
-                                    <SelectValue placeholder="Select a Category" />
+                                    <SelectValue placeholder="Select a Sub-Category" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {categories.map(cat => (
+                                    {subCategories.map(cat => (
                                         <SelectItem key={cat.id} value={cat.value}>{cat.label}</SelectItem>
                                     ))}
                                 </SelectContent>

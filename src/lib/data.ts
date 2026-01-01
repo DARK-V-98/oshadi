@@ -3,11 +3,13 @@ export type Unit = {
   nameEN: string;
   nameSI: string;
   modelCount: string;
-  category: string;
+  category: string; // This is the sub-category
   priceNotes?: string;
   priceAssignments?: string;
 };
 
+// This data is now managed in Firestore and this static list is no longer used by the application,
+// but is kept for reference or as a fallback if needed.
 export const units: Unit[] = [
   { unitNo: "Health-Safety", nameEN: "Health & Safety", nameSI: "සෞඛ්‍ය සුරක්ෂිතභාවය", modelCount: "1", category: "foundation" },
   { unitNo: "Unit-01", nameEN: "Client Consultation", nameSI: "ගනුදෙනුකරු සමඟ සාකච්ඡා", modelCount: "1–2", category: "consultation" },

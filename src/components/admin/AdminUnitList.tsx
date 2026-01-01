@@ -1,6 +1,6 @@
 'use client';
 import Link from 'next/link';
-import { Key, ExternalLink, MessageSquare, Tags, Users } from "lucide-react";
+import { Key, ExternalLink, MessageSquare, Tags, Users, Folder, FolderTree } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const AdminDashboard = () => {
@@ -28,14 +28,25 @@ const AdminDashboard = () => {
                 </Link>
               </Button>
             </div>
-
+            
             <div className="group relative p-6 rounded-2xl bg-card border border-border shadow-card hover:shadow-soft transition-shadow duration-300">
-              <h2 className="font-heading text-2xl font-bold text-foreground">Manage Categories</h2>
+              <h2 className="font-heading text-2xl font-bold text-foreground">Manage Main Categories</h2>
               <p className="text-muted-foreground mt-2 mb-4">Add, edit, or remove main module categories.</p>
               <Button asChild>
+                <Link href="/admin/main-categories">
+                    <FolderTree className="w-4 h-4 mr-2" />
+                    Manage Main Categories
+                </Link>
+              </Button>
+            </div>
+            
+            <div className="group relative p-6 rounded-2xl bg-card border border-border shadow-card hover:shadow-soft transition-shadow duration-300">
+              <h2 className="font-heading text-2xl font-bold text-foreground">Manage Sub-Categories</h2>
+              <p className="text-muted-foreground mt-2 mb-4">Manage the sub-categories within main categories.</p>
+              <Button asChild>
                 <Link href="/admin/categories">
-                    <Tags className="w-4 h-4 mr-2" />
-                    Manage Categories
+                    <Folder className="w-4 h-4 mr-2" />
+                    Manage Sub-Categories
                 </Link>
               </Button>
             </div>
@@ -47,7 +58,6 @@ const AdminDashboard = () => {
                 <Link href="/admin/keys">
                     <Key className="w-4 h-4 mr-2" />
                     Manage Keys
-                    <ExternalLink className="w-4 h-4 ml-2" />
                 </Link>
               </Button>
             </div>
@@ -59,18 +69,17 @@ const AdminDashboard = () => {
                 <Link href="/admin/testimonials">
                     <MessageSquare className="w-4 h-4 mr-2" />
                     Manage Testimonials
-                    <ExternalLink className="w-4 h-4 ml-2" />
                 </Link>
               </Button>
             </div>
-             <div className="group relative p-6 rounded-2xl bg-card border border-border shadow-card hover:shadow-soft transition-shadow duration-300 md:col-span-2">
+
+            <div className="group relative p-6 rounded-2xl bg-card border border-border shadow-card hover:shadow-soft transition-shadow duration-300">
               <h2 className="font-heading text-2xl font-bold text-foreground">Manage Users</h2>
               <p className="text-muted-foreground mt-2 mb-4">View and manage user roles (admin/user).</p>
               <Button asChild>
                 <Link href="/admin/users">
                     <Users className="w-4 h-4 mr-2" />
                     Manage Users
-                    <ExternalLink className="w-4 h-4 ml-2" />
                 </Link>
               </Button>
             </div>
