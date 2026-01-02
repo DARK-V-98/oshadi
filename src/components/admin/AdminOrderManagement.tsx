@@ -2,7 +2,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useFirestore } from '@/firebase';
-import { collection, query, orderBy, onSnapshot, doc, updateDoc, getDoc, writeBatch, deleteDoc } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, doc, updateDoc, getDoc, writeBatch, deleteDoc, getDocs, where } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import {
   Table,
@@ -110,10 +110,10 @@ const AdminOrderManagement = () => {
         if (!firestore) return;
     
         const batch = writeBatch(firestore);
+        const unitsRef = collection(firestore, 'units');
     
         for (const item of order.items) {
-            const unitsRef = collection(firestore, 'units');
-            // We need to query to find the unit document based on its unitId which is the 'unitNo' field
+            // Find the unit document to get its actual Firestore ID and category
             const q = query(unitsRef, where('unitNo', '==', item.unitId));
             const unitSnapshot = await getDocs(q);
 
@@ -122,18 +122,19 @@ const AdminOrderManagement = () => {
                 toast({ title: "Unlock Error", description: `Could not find unit data for ${item.unitName}.`, variant: "destructive"});
                 continue;
             }
-            // Assuming unitNo is unique, so we take the first result
+            
             const unitDoc = unitSnapshot.docs[0];
             const unitData = unitDoc.data() as Unit;
 
             const unlockedPdfRef = doc(collection(firestore, 'userUnlockedPdfs'));
             batch.set(unlockedPdfRef, {
                 userId: order.userId,
-                unitId: item.unitId, // This is the 'unitNo'
+                unitId: unitDoc.id, // **** Save the actual Firestore document ID ****
                 orderId: order.id,
                 language: item.language,
                 type: item.type,
-                category: unitData.category, // Storing the category
+                category: unitData.category,
+                unitNameEN: item.unitName,
                 unlockedAt: new Date(),
                 downloaded: false,
                 downloadedAt: null,

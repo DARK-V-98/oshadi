@@ -1,9 +1,9 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuth } from 'firebase-admin/auth';
-import { getFirestore, query, collection, where, getDocs, doc, writeBatch, getDoc } from 'firebase-admin/firestore';
+import { getFirestore, doc, writeBatch, getDoc } from 'firebase-admin/firestore';
 import { getStorage } from 'firebase-admin/storage';
-import { initializeApp, getApps, App } from 'firebase-admin/app';
+import { initializeApp, getApps, App, AppOptions } from 'firebase-admin/app';
 import { Unit } from '@/lib/data';
 
 // Helper to initialize Firebase Admin SDK only once
@@ -33,30 +33,27 @@ export async function POST(req: NextRequest) {
 
         // 1. Verify the user owns the unlocked PDF record
         const unlockedPdfRef = doc(db, 'userUnlockedPdfs', unlockedPdfId);
-        const unlockedPdfDoc = await unlockedPdfRef.get();
+        const unlockedPdfDoc = await getDoc(unlockedPdfRef);
 
         if (!unlockedPdfDoc.exists() || unlockedPdfDoc.data()?.userId !== userId) {
             return NextResponse.json({ error: 'Unauthorized or PDF record not found' }, { status: 403 });
         }
 
         const unlockedPdfData = unlockedPdfDoc.data();
-        const { unitId, type, language, downloaded, category } = unlockedPdfData;
+        const { unitId, type, language, downloaded } = unlockedPdfData;
         
-        // Prevent re-download if it's the first time and not a redownload request
         if (downloaded && !req.nextUrl.searchParams.get('redownload')) {
              return NextResponse.json({ error: 'This file has already been downloaded.' }, { status: 403 });
         }
         
-        // 2. Find the unit document to get the source PDF URL
-        const unitsRef = collection(db, 'units');
-        const unitQuery = query(unitsRef, where('unitNo', '==', unitId), where('category', '==', category));
-        const unitQuerySnapshot = await getDocs(unitQuery);
+        // 2. Get the unit document using the correct document ID
+        const unitDocRef = doc(db, 'units', unitId);
+        const unitDoc = await getDoc(unitDocRef);
 
-        if (unitQuerySnapshot.empty) {
-            return NextResponse.json({ error: `Unit data not found for unitNo: ${unitId} in category: ${category}` }, { status: 404 });
+        if (!unitDoc.exists()) {
+            return NextResponse.json({ error: `Unit data not found for ID: ${unitId}` }, { status: 404 });
         }
         
-        const unitDoc = unitQuerySnapshot.docs[0];
         const unitData = unitDoc.data() as Unit;
         
         // 3. Determine which PDF URL to use based on language and type
@@ -72,7 +69,7 @@ export async function POST(req: NextRequest) {
         }
 
         if (!sourcePdfUrl) {
-            return NextResponse.json({ error: `Source PDF not found for this unit/language/type` }, { status: 404 });
+            return NextResponse.json({ error: `Source PDF not found for this unit/language/type combination.` }, { status: 404 });
         }
 
         // 4. Generate a signed URL for the direct file
@@ -82,7 +79,7 @@ export async function POST(req: NextRequest) {
         const [signedUrl] = await file.getSignedUrl({
             action: 'read',
             expires: Date.now() + 5 * 60 * 1000, // 5 minutes
-            responseDisposition: `attachment; filename="${pdfFileName || `${unitData.nameEN} - ${language} ${type}.pdf`}"`
+            responseDisposition: `attachment; filename="${pdfFileName || `download.pdf`}"`
         });
 
         // 5. Update the download status in Firestore if it's the first download

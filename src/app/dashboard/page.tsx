@@ -2,7 +2,7 @@
 'use client';
 import { useState, useEffect, useMemo } from 'react';
 import { useUser, useFirestore } from '@/firebase';
-import { collection, query, where, doc, onSnapshot, getDocs, getDoc, orderBy } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, getDocs, orderBy } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
@@ -46,7 +46,6 @@ interface UnlockedPdfDoc {
     downloadedAt?: { toDate: () => Date };
     unlockedAt: { toDate: () => Date };
     unitNameEN: string;
-    unitNameSI: string;
     category: string;
 }
 
@@ -77,37 +76,10 @@ function UserDashboard() {
   
     setLoadingContent(true);
     const unlockedRef = collection(firestore, 'userUnlockedPdfs');
-    const q = query(unlockedRef, where('userId', '==', user.uid));
+    const q = query(unlockedRef, where('userId', '==', user.uid), orderBy('unlockedAt', 'desc'));
   
     const unsubscribeUnlocked = onSnapshot(q, async (querySnapshot) => {
-        const unlockedPromises = querySnapshot.docs.map(async (pdfDoc) => {
-            const pdfData = pdfDoc.data();
-            
-            const unitsRef = collection(firestore, 'units');
-            const unitQuery = query(unitsRef, where('unitNo', '==', pdfData.unitId), where('category', '==', pdfData.category));
-            const unitQuerySnapshot = await getDocs(unitQuery);
-
-            let unitNameEN = 'Unknown Unit';
-            let unitNameSI = 'Unknown Unit';
-
-            if (!unitQuerySnapshot.empty) {
-                const unitData = unitQuerySnapshot.docs[0].data();
-                unitNameEN = unitData.nameEN;
-                unitNameSI = unitData.nameSI;
-            }
-
-            return {
-                id: pdfDoc.id,
-                ...pdfData,
-                unitNameEN,
-                unitNameSI,
-            } as UnlockedPdfDoc;
-        });
-
-        const unlockedData = await Promise.all(unlockedPromises);
-        
-        unlockedData.sort((a, b) => b.unlockedAt.toDate().getTime() - a.unlockedAt.toDate().getTime());
-
+        const unlockedData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as UnlockedPdfDoc));
         setUnlockedPdfs(unlockedData);
         setLoadingContent(false);
   
