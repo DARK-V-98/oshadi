@@ -39,17 +39,14 @@ const PdfUploadRow = ({ unit, language, pdfUrl, pdfFileName, fieldName, fileFiel
     
         setIsUploading(true);
         setUploadProgress(0);
-        // Use a generic path, not tied to note/assignment
         const filePath = `units/${unit.id}/${language}/${file.name}`;
         const storageRef = ref(storage, filePath);
         
-        // If a file already exists, delete it first.
         if (pdfUrl) {
             try {
                 const oldFileRef = ref(storage, pdfUrl);
                 await deleteObject(oldFileRef);
             } catch (error: any) {
-                // Ignore if object not found, it's being replaced anyway
                 if (error.code !== 'storage/object-not-found') {
                     console.error("Old file deletion failed:", error);
                 }
@@ -86,7 +83,6 @@ const PdfUploadRow = ({ unit, language, pdfUrl, pdfFileName, fieldName, fileFiel
               setIsUploading(false);
               setUploadProgress(null);
               setFile(null);
-              // The parent component will re-render due to Firestore listener, updating the UI.
             }
           }
         );
@@ -192,7 +188,7 @@ export default function PdfManager({ unit }: PdfManagerProps) {
             />
         </div>
         <div className="p-4 border rounded-lg space-y-4">
-            <h3 className="font-semibold text-lg">English PDFs</h3>
+            <h3 className="font-semibold text-lg">English PDF</h3>
              <PdfUploadRow 
                 unit={unit} 
                 language="EN" 
