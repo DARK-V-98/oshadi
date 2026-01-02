@@ -1,11 +1,8 @@
 
 'use server';
 
-import { getFirestore, doc, getDoc, updateDoc } from 'firebase-admin/firestore';
-import { getStorage } from 'firebase-admin/storage';
-import { adminApp } from '@/firebase/admin';
+import { getAdminFirestore, getAdminStorage, getAdminAuth } from '@/firebase/admin';
 import { cookies } from 'next/headers';
-import { getAuth } from 'firebase-admin/auth';
 import { Unit } from '@/lib/data';
 
 export async function getDownloadUrlForPdf(unlockedPdfId: string): Promise<{ downloadUrl?: string; error?: string }> {
@@ -17,10 +14,10 @@ export async function getDownloadUrlForPdf(unlockedPdfId: string): Promise<{ dow
             return { error: 'User is not authenticated.' };
         }
 
-        const decodedToken = await getAuth(adminApp).verifyIdToken(token);
+        const decodedToken = await getAdminAuth().verifyIdToken(token);
         const userId = decodedToken.uid;
-        const db = getFirestore(adminApp);
-        const storage = getStorage(adminApp);
+        const db = getAdminFirestore();
+        const storage = getAdminStorage();
 
         // 1. Verify the user owns the unlocked PDF record
         const unlockedPdfRef = doc(db, 'userUnlockedPdfs', unlockedPdfId);

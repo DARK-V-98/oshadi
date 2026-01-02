@@ -1,12 +1,11 @@
 
 'use server';
 
-import { getFirestore, doc, getDoc, updateDoc, writeBatch, collection, serverTimestamp } from 'firebase-admin/firestore';
-import { adminApp } from '@/firebase/admin';
+import { getAdminFirestore, getAdminAuth } from '@/firebase/admin';
 import { cookies } from 'next/headers';
-import { getAuth } from 'firebase-admin/auth';
 import { Unit } from '@/lib/data';
 import { CartItem } from '@/context/CartContext';
+import { doc, getDoc, updateDoc, writeBatch, collection, serverTimestamp } from 'firebase/firestore';
 
 
 export async function unlockContentForOrder(orderId: string): Promise<{ success: boolean; error?: string, message?: string }> {
@@ -18,9 +17,9 @@ export async function unlockContentForOrder(orderId: string): Promise<{ success:
             return { success: false, error: 'User is not authenticated.' };
         }
 
-        const decodedToken = await getAuth(adminApp).verifyIdToken(token);
+        const decodedToken = await getAdminAuth().verifyIdToken(token);
         const userId = decodedToken.uid;
-        const db = getFirestore(adminApp);
+        const db = getAdminFirestore();
 
         // 1. Verify the user owns the order and it's 'completed' but not yet unlocked
         const orderDocRef = doc(db, 'orders', orderId);
