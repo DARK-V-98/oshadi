@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
         }
         const unitData = unitDoc.data()!;
         
-        const sourcePdfUrl = unlockedPdfData.language === 'SI' ? unitData.pdfSI : unitData.pdfEN;
+        const sourcePdfUrl = unlockedPdfData.language === 'SI' ? unitData.pdfUrlSI : unitData.pdfUrlEN;
 
         if (!sourcePdfUrl) {
             return NextResponse.json({ error: 'Source PDF not found for this unit/language' }, { status: 404 });
@@ -65,11 +65,20 @@ export async function POST(req: NextRequest) {
         let filePath: string;
         if (sourcePdfUrl.startsWith('gs://')) {
           filePath = sourcePdfUrl.substring(`gs://${firebaseConfig.storageBucket}/`.length);
+        } else if (sourcePdfUrl.startsWith('https://firebasestorage.googleapis.com')) {
+          const path = new URL(sourcePdfUrl).pathname;
+          // Path is like /v0/b/bucket-name/o/path%2Fto%2Ffile.pdf
+          const prefix = `/v0/b/${firebaseConfig.storageBucket}/o/`;
+          filePath = decodeURIComponent(path.substring(prefix.length).split('?')[0]);
         } else {
-          filePath = new URL(sourcePdfUrl).pathname.split('/').slice(2).join('/');
+            return NextResponse.json({ error: 'Invalid PDF source URL format.' }, { status: 500 });
         }
         
         const file = bucket.file(filePath);
+        const [exists] = await file.exists();
+        if (!exists) {
+             return NextResponse.json({ error: 'File does not exist in storage.' }, { status: 404 });
+        }
 
         const [pdfBytes] = await file.download();
 
