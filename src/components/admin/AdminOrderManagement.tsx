@@ -119,15 +119,18 @@ const AdminOrderManagement = () => {
         for (const item of order.items) {
             const unitDocRef = doc(firestore, 'units', item.unitId);
             const unitDocSnap = await getDoc(unitDocRef);
-
+    
             if (unitDocSnap.exists()) {
                 const unitData = unitDocSnap.data() as UnitWithPdfs;
                 let pdfsToUnlock: { partName: string, fileName: string, downloadUrl: string }[] = [];
+                
+                const pdfsForLanguage = item.language === 'SI' ? unitData.pdfsSI : unitData.pdfsEN;
 
-                if (item.language === 'SI') {
-                    pdfsToUnlock = unitData.pdfsSI || [];
-                } else { // 'EN'
-                    pdfsToUnlock = unitData.pdfsEN || [];
+                if (Array.isArray(pdfsForLanguage)) {
+                   const relevantPdf = pdfsForLanguage.find(p => p.partName === item.type);
+                   if (relevantPdf) {
+                       pdfsToUnlock.push(relevantPdf);
+                   }
                 }
                 
                 if (pdfsToUnlock && pdfsToUnlock.length > 0) {

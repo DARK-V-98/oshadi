@@ -1,4 +1,5 @@
 
+
 export type Unit = {
   id: string; // Firestore document ID
   unitNo: string;
@@ -14,6 +15,8 @@ export type Unit = {
   assignmentsSIEnabled: boolean;
   notesENEnabled: boolean;
   assignmentsENEnabled: boolean;
+  pdfsSI?: { partName: 'note' | 'assignment', fileName: string, downloadUrl: string }[];
+  pdfsEN?: { partName: 'note' | 'assignment', fileName: string, downloadUrl: string }[];
 };
 
 
