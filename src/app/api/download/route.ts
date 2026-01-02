@@ -3,17 +3,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore, doc, getDoc, updateDoc } from 'firebase-admin/firestore';
 import { getStorage } from 'firebase-admin/storage';
-import { initializeApp, getApps, App } from 'firebase-admin/app';
-import { firebaseConfig } from '@/firebase/config';
+import { initializeApp, getApps, App, AppOptions, credential } from 'firebase-admin/app';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 
-// Initialize Firebase Admin SDK
-function getFirebaseAdminApp(): App {
-    if (getApps().length > 0) {
-        return getApps()[0] as App;
-    }
-    return initializeApp({
-        storageBucket: firebaseConfig.storageBucket,
+// Initialize Firebase Admin SDK only once
+if (!getApps().length) {
+    initializeApp({
+        storageBucket: "esystemlkapp.appspot.com",
     });
 }
 
@@ -25,7 +21,6 @@ export async function POST(req: NextRequest) {
     }
 
     try {
-        getFirebaseAdminApp();
         const decodedToken = await getAuth().verifyIdToken(token);
         const userId = decodedToken.uid;
 
@@ -95,7 +90,7 @@ export async function POST(req: NextRequest) {
             await updateDoc(unlockedPdfRef, { downloaded: true, downloadedAt: new Date() });
         }
         
-        const tempFileName = `temp/${userId}/${Date.now()}-${finalFileName}`;
+        const tempFileName = `temp/${userId}/${Date.now()}-${finalFileName.replace(/[^a-zA-Z0-9._-]/g, '')}`;
         const tempFile = bucket.file(tempFileName);
         await tempFile.save(Buffer.from(finalPdfBytes), { contentType: 'application/pdf' });
         
@@ -118,5 +113,4 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'An internal server error occurred.' }, { status: 500 });
     }
 }
-
     
