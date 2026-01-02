@@ -32,10 +32,11 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ShoppingBag, ArrowLeft, Trash2 } from 'lucide-react';
+import { ShoppingBag, ArrowLeft, Trash2, CheckCircle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { CartItem } from '@/context/CartContext';
+import { grantAccessToOrderContent } from '@/app/actions/orderActions';
 
 interface Order {
     id: string;
@@ -54,6 +55,7 @@ const AdminOrderManagement = () => {
     const { toast } = useToast();
     const [orders, setOrders] = useState<Order[]>([]);
     const [loading, setLoading] = useState(true);
+    const [unlockingOrder, setUnlockingOrder] = useState<string | null>(null);
 
     useEffect(() => {
         if (!firestore) return;
@@ -74,18 +76,31 @@ const AdminOrderManagement = () => {
         return () => unsubscribe();
     }, [firestore, toast]);
     
-    const handleStatusChange = async (orderId: string, newStatus: Order['status']) => {
+    const handleStatusChange = async (order: Order, newStatus: Order['status']) => {
         if (!firestore) return;
         
-        const orderDocRef = doc(firestore, 'orders', orderId);
+        const orderDocRef = doc(firestore, 'orders', order.id);
         
         try {
             await updateDoc(orderDocRef, { status: newStatus });
-            
             toast({ title: "Status Updated", description: `Order status changed to ${newStatus}.` });
+
+            // If status is 'completed' and content hasn't been unlocked, unlock it.
+            if (newStatus === 'completed' && !order.contentUnlocked) {
+                setUnlockingOrder(order.id);
+                const result = await grantAccessToOrderContent(order.id);
+                if (result.success) {
+                    toast({ title: "Content Unlocked", description: "User has been granted access to the purchased content." });
+                } else {
+                    throw new Error(result.error || "Failed to unlock content.");
+                }
+            }
+
         } catch (error) {
-            console.error("Error updating status:", error);
-            toast({ title: "Error", description: "Failed to update order status.", variant: "destructive" });
+            console.error("Error updating status or unlocking content:", error);
+            toast({ title: "Error", description: "Failed to update order status or unlock content.", variant: "destructive" });
+        } finally {
+            setUnlockingOrder(null);
         }
     };
 
@@ -155,6 +170,18 @@ const AdminOrderManagement = () => {
                                                 <li key={item.id}>{item.unitName} - {item.language} {item.type}</li>
                                             ))}
                                         </ul>
+                                         {unlockingOrder === order.id && (
+                                            <div className="flex items-center text-sm text-blue-600 mt-2">
+                                                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                                                Unlocking content...
+                                            </div>
+                                        )}
+                                        {order.contentUnlocked && (
+                                            <div className="flex items-center text-sm text-green-600 mt-2">
+                                                <CheckCircle className="w-4 h-4 mr-2" />
+                                                Content Unlocked
+                                            </div>
+                                        )}
                                     </TableCell>
                                     <TableCell>
                                         <div>{order.userName}</div>
@@ -162,7 +189,7 @@ const AdminOrderManagement = () => {
                                     </TableCell>
                                     <TableCell>LKR {order.totalPrice.toFixed(2)}</TableCell>
                                     <TableCell className="w-[180px]">
-                                        <Select value={order.status} onValueChange={(value: Order['status']) => handleStatusChange(order.id, value)}>
+                                        <Select value={order.status} onValueChange={(value: Order['status']) => handleStatusChange(order, value)}>
                                             <SelectTrigger className={getStatusColor(order.status)}>
                                                 <SelectValue/>
                                             </SelectTrigger>

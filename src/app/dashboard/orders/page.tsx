@@ -4,8 +4,8 @@ import { useState, useEffect, useMemo } from 'react';
 import { useUser, useFirestore } from '@/firebase';
 import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Loader2, History, ShoppingBag } from 'lucide-react';
+import { Card } from '@/components/ui/card';
+import { Loader2, History, ShoppingBag, CheckCircle } from 'lucide-react';
 import {
   Accordion,
   AccordionContent,
@@ -141,7 +141,7 @@ function OrdersDashboardPage() {
                 </div>
 
                  {historicalOrders.length > 0 && (
-                    <Accordion type="single" collapsible>
+                    <Accordion type="single" collapsible defaultValue="history">
                         <AccordionItem value="history">
                             <AccordionTrigger>
                                 <h2 className="text-xl font-bold font-heading flex items-center gap-2">
@@ -157,6 +157,7 @@ function OrdersDashboardPage() {
                                                 <TableHead>Date</TableHead>
                                                 <TableHead>Items</TableHead>
                                                 <TableHead>Total</TableHead>
+                                                <TableHead>Content Access</TableHead>
                                             </TableRow>
                                         </TableHeader>
                                         <TableBody>
@@ -169,6 +170,19 @@ function OrdersDashboardPage() {
                                                         </ul>
                                                     </TableCell>
                                                     <TableCell>LKR {order.totalPrice.toFixed(2)}</TableCell>
+                                                    <TableCell>
+                                                        {order.contentUnlocked ? (
+                                                            <div className="flex items-center text-green-600 font-medium">
+                                                                <CheckCircle className="w-4 h-4 mr-2" />
+                                                                Unlocked
+                                                            </div>
+                                                        ) : (
+                                                             <div className="flex items-center text-yellow-600 font-medium">
+                                                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                                                Processing
+                                                            </div>
+                                                        )}
+                                                    </TableCell>
                                                 </TableRow>
                                             ))}
                                         </TableBody>

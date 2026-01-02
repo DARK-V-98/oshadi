@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { usePathname } from 'next/navigation';
 import Head from 'next/head';
-import { Menu, X, BookOpen, User, LogOut, LayoutDashboard, Shield, Image as ImageIcon, ShoppingCart, ChevronDown, BookMarked } from "lucide-react";
+import { Menu, X, User, LogOut, LayoutDashboard, Shield, ShoppingCart, ChevronDown, BookOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth, useUser, useFirestore } from "@/firebase";
 import Link from "next/link";
@@ -166,6 +166,12 @@ const Navbar = ({ onLoginClick }: NavbarProps) => {
                         <span>Dashboard</span>
                       </Link>
                     </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href="/dashboard/my-content">
+                        <BookOpen className="mr-2 h-4 w-4" />
+                        <span>My Content</span>
+                      </Link>
+                    </DropdownMenuItem>
                     {userRole === 'admin' && (
                       <DropdownMenuItem asChild>
                         <Link href="/admin">
@@ -239,6 +245,7 @@ const Navbar = ({ onLoginClick }: NavbarProps) => {
                  {user && (
                      <>
                         <Link href="/dashboard" onClick={() => setIsOpen(false)} className="text-muted-foreground hover:text-foreground font-medium transition-colors duration-300 py-2 flex items-center"><LayoutDashboard className="mr-2 h-4 w-4" />Dashboard</Link>
+                        <Link href="/dashboard/my-content" onClick={() => setIsOpen(false)} className="text-muted-foreground hover:text-foreground font-medium transition-colors duration-300 py-2 flex items-center"><BookOpen className="mr-2 h-4 w-4" />My Content</Link>
                         {userRole === 'admin' && <Link href="/admin" onClick={() => setIsOpen(false)} className="text-muted-foreground hover:text-foreground font-medium transition-colors duration-300 py-2 flex items-center"><Shield className="mr-2 h-4 w-4" />Admin</Link>}
                      </>
                  )}
