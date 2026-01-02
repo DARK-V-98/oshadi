@@ -133,7 +133,7 @@ function UserDashboard() {
     toast({ title: "Preparing Download...", description: "Your secure download will begin shortly."});
 
     try {
-      const token = await user.getIdToken();
+      const token = await user.getIdToken(true); // Force refresh the token
       const response = await fetch('/api/download', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
