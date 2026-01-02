@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
 
         const unlockedPdfData = unlockedPdfDoc.data()!;
         
-        if (unlockedPdfData.downloaded) {
+        if (unlockedPdfData.downloaded && !req.nextUrl.searchParams.get('redownload')) {
              return NextResponse.json({ error: 'This file has already been downloaded.' }, { status: 403 });
         }
 
@@ -55,7 +55,6 @@ export async function POST(req: NextRequest) {
         }
         const unitData = unitDoc.data()!;
         
-        // Corrected logic: Fetch the single source PDF based on language
         const sourcePdfUrl = unlockedPdfData.language === 'SI' ? unitData.pdfSI : unitData.pdfEN;
 
         if (!sourcePdfUrl) {
@@ -63,8 +62,6 @@ export async function POST(req: NextRequest) {
         }
 
         const bucket = getStorage().bucket();
-        // The URL can be in gs://<bucket-name>/<path> format
-        // Or https://storage.googleapis.com/<bucket-name>/<path> format
         let filePath: string;
         if (sourcePdfUrl.startsWith('gs://')) {
           filePath = sourcePdfUrl.substring(`gs://${firebaseConfig.storageBucket}/`.length);
@@ -80,7 +77,6 @@ export async function POST(req: NextRequest) {
         
         const watermarkText = `Purchased by ${decodedToken.email || 'N/A'}`;
 
-        // Dynamically apply watermark for 'note' type
         if (unlockedPdfData.type === 'note') {
             const pdfDoc = await PDFDocument.load(pdfBytes);
             const helveticaFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
@@ -99,15 +95,15 @@ export async function POST(req: NextRequest) {
             }
             finalPdfBytes = await pdfDoc.save();
         } else {
-            // Serve original for 'assignment' type
             finalPdfBytes = pdfBytes;
         }
 
-        // Mark as downloaded
-        await unlockedPdfRef.update({
-            downloaded: true,
-            downloadedAt: new Date(),
-        });
+        if (!unlockedPdfData.downloaded) {
+            await unlockedPdfRef.update({
+                downloaded: true,
+                downloadedAt: new Date(),
+            });
+        }
         
         const fileName = unlockedPdfData.language === 'SI' ? unitData.pdfFileNameSI : unitData.pdfFileNameEN;
 
@@ -124,6 +120,6 @@ export async function POST(req: NextRequest) {
         if (error.code === 'auth/id-token-expired') {
             return NextResponse.json({ error: 'Authentication token expired. Please refresh and try again.' }, { status: 401 });
         }
-        return NextResponse.json({ error: 'An internal error occurred' }, { status: 500 });
+        return NextResponse.json({ error: 'An internal server error occurred.' }, { status: 500 });
     }
 }

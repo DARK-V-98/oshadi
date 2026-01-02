@@ -137,8 +137,7 @@ function UserDashboard() {
   
   const confirmDownload = (part: UnlockedPdfDoc) => {
     if (part.downloaded) {
-        toast({ title: "Already Downloaded", description: "You have already downloaded this file from your history.", variant: "default" });
-        // Allow re-download from history without confirmation
+        toast({ title: "Re-downloading...", description: "You have already downloaded this file. Preparing it again."});
         handleDownload(part, true);
         return;
     }
@@ -160,7 +159,12 @@ function UserDashboard() {
 
     try {
       const token = await user.getIdToken();
-      const response = await fetch('/api/download', {
+      let apiUrl = '/api/download';
+      if (isRedownload) {
+        apiUrl += '?redownload=true';
+      }
+
+      const response = await fetch(apiUrl, {
           method: 'POST',
           headers: {
               'Content-Type': 'application/json',
@@ -169,8 +173,16 @@ function UserDashboard() {
       });
 
       if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || 'Download failed');
+          let errorMessage = 'Download failed due to an unknown error.';
+          try {
+            // Try to parse as JSON, which is the expected error format
+            const errorData = await response.json();
+            errorMessage = errorData.error || errorMessage;
+          } catch (e) {
+            // If JSON parsing fails, the error response is likely text or HTML
+            errorMessage = `An internal error occurred. Please contact support. (Status: ${response.status})`;
+          }
+          throw new Error(errorMessage);
       }
 
       const blob = await response.blob();
@@ -451,5 +463,3 @@ export default function DashboardPage() {
         <UserDashboard />
     )
 }
-
-    
