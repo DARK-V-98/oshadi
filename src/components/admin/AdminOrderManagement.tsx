@@ -2,7 +2,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useFirestore } from '@/firebase';
-import { collection, query, orderBy, onSnapshot, doc, updateDoc, getDoc, writeBatch, deleteDoc, getDocs, where } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, doc, updateDoc, getDoc, writeBatch, deleteDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import {
   Table,
@@ -110,27 +110,23 @@ const AdminOrderManagement = () => {
         if (!firestore) return;
     
         const batch = writeBatch(firestore);
-        const unitsRef = collection(firestore, 'units');
-    
+        
         for (const item of order.items) {
-            // Find the unit document to get its actual Firestore ID and category
-            const q = query(unitsRef, where('unitNo', '==', item.unitId)); // Correctly query by unitNo
-            const unitSnapshot = await getDocs(q);
+            const unitDocRef = doc(firestore, 'units', item.unitId);
+            const unitDoc = await getDoc(unitDocRef);
 
-            if (unitSnapshot.empty) {
-                console.error(`Unit with unitNo ${item.unitId} not found for order ${order.id}`);
+            if (!unitDoc.exists()) {
                 toast({ title: "Unlock Error", description: `Could not find unit data for ${item.unitName}.`, variant: "destructive"});
                 continue; // Skip this item and continue with the rest of the order
             }
             
-            const unitDoc = unitSnapshot.docs[0];
             const unitData = unitDoc.data() as Unit;
 
             const unlockedPdfRef = doc(collection(firestore, 'userUnlockedPdfs'));
             batch.set(unlockedPdfRef, {
                 userId: order.userId,
-                unitId: unitDoc.id, // **** Save the actual Firestore document ID ****
-                unitNo: item.unitId, // Keep unitNo for display if needed
+                unitId: unitDoc.id, // Store the actual Firestore document ID
+                unitNo: unitData.unitNo, // Keep unitNo for display if needed
                 orderId: order.id,
                 language: item.language,
                 type: item.type,
