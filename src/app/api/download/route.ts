@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
              return NextResponse.json({ error: 'This file has already been downloaded.' }, { status: 403 });
         }
 
-        const unitDocRef = db.collection('units').doc(unlockedPdfData.unitId);
+        const unitDocRef = doc(db, 'units', unlockedPdfData.unitId);
         const unitDoc = await unitDocRef.get();
         if (!unitDoc.exists) {
             return NextResponse.json({ error: 'Unit data not found' }, { status: 404 });
@@ -60,75 +60,61 @@ export async function POST(req: NextRequest) {
         if (!sourcePdfUrl) {
             return NextResponse.json({ error: 'Source PDF not found for this unit/language' }, { status: 404 });
         }
-
+        
         const bucket = getStorage().bucket();
-        let filePath: string;
-        
-        // Correctly parse the HTTPS URL from Firebase Storage
-        if (sourcePdfUrl.startsWith('https://firebasestorage.googleapis.com')) {
-          const path = new URL(sourcePdfUrl).pathname;
-          // Path is like /v0/b/bucket-name/o/path%2Fto%2Ffile.pdf
-          const prefix = `/v0/b/${firebaseConfig.storageBucket}/o/`;
-          filePath = decodeURIComponent(path.substring(prefix.length).split('?')[0]);
-        } else if (sourcePdfUrl.startsWith('gs://')) {
-            // Also handle gs:// format for robustness
-            filePath = sourcePdfUrl.substring(`gs://${firebaseConfig.storageBucket}/`.length);
-        } else {
-            return NextResponse.json({ error: 'Invalid PDF source URL format.' }, { status: 500 });
-        }
-        
-        const file = bucket.file(filePath);
-        const [exists] = await file.exists();
+        const filePath = decodeURIComponent(sourcePdfUrl.split('/o/')[1].split('?')[0]);
+        const originalFile = bucket.file(filePath);
+
+        const [exists] = await originalFile.exists();
         if (!exists) {
              return NextResponse.json({ error: 'File does not exist in storage.' }, { status: 404 });
         }
 
-        const [pdfBytes] = await file.download();
+        const [originalPdfBytes] = await originalFile.download();
 
         let finalPdfBytes: Uint8Array;
+        const fileName = unlockedPdfData.language === 'SI' ? unitData.pdfFileNameSI : unitData.pdfFileNameEN;
+        let isTempFile = false;
         
-        const watermarkText = `Purchased by ${decodedToken.email || 'N/A'}`;
-
         if (unlockedPdfData.type === 'note') {
-            const pdfDoc = await PDFDocument.load(pdfBytes);
+            const pdfDoc = await PDFDocument.load(originalPdfBytes);
             const helveticaFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
             const pages = pdfDoc.getPages();
+            const watermarkText = `Purchased by ${decodedToken.email || 'N/A'}`;
             
             for (const page of pages) {
                 const { width, height } = page.getSize();
                 page.drawText(watermarkText, {
-                    x: 20,
-                    y: height - 20,
-                    size: 8,
-                    font: helveticaFont,
-                    color: rgb(0.5, 0.5, 0.5),
-                    opacity: 0.5,
+                    x: 20, y: height - 20, size: 8, font: helveticaFont, color: rgb(0.5, 0.5, 0.5), opacity: 0.5,
                 });
             }
             finalPdfBytes = await pdfDoc.save();
         } else {
-            finalPdfBytes = pdfBytes;
+            finalPdfBytes = originalPdfBytes;
         }
 
         if (!unlockedPdfData.downloaded) {
-            await unlockedPdfRef.update({
-                downloaded: true,
-                downloadedAt: new Date(),
-            });
+            await unlockedPdfRef.update({ downloaded: true, downloadedAt: new Date() });
         }
         
-        const fileName = unlockedPdfData.language === 'SI' ? unitData.pdfFileNameSI : unitData.pdfFileNameEN;
-
-        return new NextResponse(finalPdfBytes, {
-            status: 200,
-            headers: {
-                'Content-Type': 'application/pdf',
-                'Content-Disposition': `attachment; filename="${fileName || 'download.pdf'}"`,
-            },
+        const tempFileName = `temp/${userId}/${Date.now()}-${fileName}`;
+        const tempFile = bucket.file(tempFileName);
+        await tempFile.save(Buffer.from(finalPdfBytes), { contentType: 'application/pdf' });
+        
+        const [signedUrl] = await tempFile.getSignedUrl({
+            action: 'read',
+            expires: Date.now() + 5 * 60 * 1000, // 5 minutes
         });
 
+        // Schedule deletion of the temporary file
+        setTimeout(() => {
+            tempFile.delete().catch(err => console.error(`Failed to delete temp file: ${tempFileName}`, err));
+        }, 10 * 60 * 1000); // 10 minutes delay
+
+        return NextResponse.json({ downloadUrl: signedUrl });
+
     } catch (error: any) {
-        console.error('Download error:', error);
+        console.error('Download API Error:', error);
         if (error.code === 'auth/id-token-expired') {
             return NextResponse.json({ error: 'Authentication token expired. Please refresh and try again.' }, { status: 401 });
         }

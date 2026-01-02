@@ -166,37 +166,29 @@ function UserDashboard() {
 
       const response = await fetch(apiUrl, {
           method: 'POST',
-          headers: {
-              'Content-Type': 'application/json',
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ token, unlockedPdfId: part.id }),
       });
 
       if (!response.ok) {
           let errorMessage = 'Download failed due to an unknown error.';
           try {
-            // Try to parse as JSON, which is the expected error format
             const errorData = await response.json();
             errorMessage = errorData.error || errorMessage;
           } catch (e) {
-            // If JSON parsing fails, the error response is likely text or HTML
             errorMessage = `An internal error occurred. Please contact support. (Status: ${response.status})`;
           }
           throw new Error(errorMessage);
       }
 
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = part.fileName || `${part.unitId}-${part.type}-${part.language}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      
-      a.remove();
-      window.URL.revokeObjectURL(url);
+      const { downloadUrl } = await response.json();
 
-      toast({ title: "Download Started!", description: `Your file is downloading.` });
+      if (downloadUrl) {
+          window.open(downloadUrl, '_blank');
+          toast({ title: "Download Started!", description: `Your file is opening in a new tab.` });
+      } else {
+        throw new Error('No download URL received from server.');
+      }
         
     } catch (error: any) {
         console.error("Error during download process: ", error);
