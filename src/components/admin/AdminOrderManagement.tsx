@@ -112,26 +112,18 @@ const AdminOrderManagement = () => {
         const batch = writeBatch(firestore);
     
         for (const item of order.items) {
-            const unitDocRef = doc(firestore, 'units', item.unitId);
-            const unitDocSnap = await getDoc(unitDocRef);
-    
-            if (unitDocSnap.exists()) {
-                const unitData = unitDocSnap.data() as Unit;
-                
-                const unlockedPdfRef = doc(collection(firestore, 'userUnlockedPdfs'));
-                const fileName = item.language === 'SI' ? unitData.pdfFileNameSI : unitData.pdfFileNameEN;
-                batch.set(unlockedPdfRef, {
-                    userId: order.userId,
-                    unitId: item.unitId,
-                    orderId: order.id,
-                    language: item.language,
-                    type: item.type,
-                    fileName: fileName || `${item.unitId}-${item.type}.${item.language}.pdf`,
-                    unlockedAt: new Date(),
-                    downloaded: false,
-                    downloadedAt: null,
-                });
-            }
+            const unlockedPdfRef = doc(collection(firestore, 'userUnlockedPdfs'));
+            // Store all necessary info for the download API
+            batch.set(unlockedPdfRef, {
+                userId: order.userId,
+                unitId: item.unitId,
+                orderId: order.id,
+                language: item.language,
+                type: item.type,
+                unlockedAt: new Date(),
+                downloaded: false,
+                downloadedAt: null,
+            });
         }
     
         await batch.commit();
@@ -249,4 +241,6 @@ const AdminOrderManagement = () => {
 }
 
 export default AdminOrderManagement;
+    
+
     

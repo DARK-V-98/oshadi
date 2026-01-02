@@ -158,15 +158,10 @@ function UserDashboard() {
 
     try {
       const token = await user.getIdToken();
-      let apiUrl = '/api/download';
-      if (isRedownload) {
-        apiUrl += '?redownload=true';
-      }
-
-      const response = await fetch(apiUrl, {
+      const response = await fetch('/api/download', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ token, unlockedPdfId: part.id, type: part.type, language: part.language }),
+          body: JSON.stringify({ token, unlockedPdfId: part.id }),
       });
 
       if (!response.ok) {
@@ -454,3 +449,5 @@ export default function DashboardPage() {
         <UserDashboard />
     )
 }
+
+    

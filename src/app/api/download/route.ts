@@ -1,7 +1,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuth } from 'firebase-admin/auth';
-import { getFirestore, doc, getDoc } from 'firebase-admin/firestore';
+import { getFirestore, doc, getDoc, updateDoc } from 'firebase-admin/firestore';
 import { getStorage } from 'firebase-admin/storage';
 import { initializeApp, getApps, App } from 'firebase-admin/app';
 import { firebaseConfig } from '@/firebase/config';
@@ -12,17 +12,16 @@ function getFirebaseAdminApp(): App {
     if (getApps().length > 0) {
         return getApps()[0] as App;
     }
-    // In a managed environment like App Hosting, the SDK can discover credentials automatically.
     return initializeApp({
         storageBucket: firebaseConfig.storageBucket,
     });
 }
 
 export async function POST(req: NextRequest) {
-    const { token, unlockedPdfId, type, language } = await req.json();
+    const { token, unlockedPdfId } = await req.json();
 
-    if (!token || !unlockedPdfId || !type || !language) {
-        return NextResponse.json({ error: 'Missing token, unlockedPdfId, type, or language' }, { status: 400 });
+    if (!token || !unlockedPdfId) {
+        return NextResponse.json({ error: 'Missing token or unlockedPdfId' }, { status: 400 });
     }
 
     try {
@@ -39,12 +38,13 @@ export async function POST(req: NextRequest) {
         }
 
         const unlockedPdfData = unlockedPdfDoc.data()!;
+        const { unitId, type, language, downloaded } = unlockedPdfData;
         
-        if (unlockedPdfData.downloaded && !req.nextUrl.searchParams.get('redownload')) {
+        if (downloaded && !req.nextUrl.searchParams.get('redownload')) {
              return NextResponse.json({ error: 'This file has already been downloaded.' }, { status: 403 });
         }
 
-        const unitDocRef = doc(db, 'units', unlockedPdfData.unitId);
+        const unitDocRef = doc(db, 'units', unitId);
         const unitDoc = await unitDocRef.get();
         if (!unitDoc.exists()) {
             return NextResponse.json({ error: 'Unit data not found' }, { status: 404 });
@@ -54,31 +54,29 @@ export async function POST(req: NextRequest) {
         const sourcePdfUrl = language === 'SI' ? unitData.pdfUrlSI : unitData.pdfUrlEN;
 
         if (!sourcePdfUrl) {
-            return NextResponse.json({ error: 'Source PDF not found for this unit/language' }, { status: 404 });
+            return NextResponse.json({ error: `Source PDF not found for this unit/language (${language})` }, { status: 404 });
         }
         
         const bucket = getStorage().bucket();
-        
         const decodedUrl = decodeURIComponent(sourcePdfUrl);
         const filePath = decodedUrl.split('/o/')[1].split('?')[0];
 
         const originalFile = bucket.file(filePath);
-
         const [exists] = await originalFile.exists();
         if (!exists) {
              return NextResponse.json({ error: 'File does not exist in storage.' }, { status: 404 });
         }
 
         const [originalPdfBytes] = await originalFile.download();
-
         let finalPdfBytes: Uint8Array;
-        const fileName = language === 'SI' ? unitData.pdfFileNameSI : unitData.pdfFileNameEN;
-        
+        const baseFileName = language === 'SI' ? unitData.pdfFileNameSI : unitData.pdfFileNameEN;
+        let finalFileName = baseFileName || `${unitId}.pdf`;
+
         if (type === 'note') {
             const pdfDoc = await PDFDocument.load(originalPdfBytes);
             const helveticaFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
             const pages = pdfDoc.getPages();
-            const watermarkText = `Purchased by ${decodedToken.email || 'N/A'}`;
+            const watermarkText = `Purchased by ${decodedToken.email || userId}`;
             
             for (const page of pages) {
                 const { width, height } = page.getSize();
@@ -87,15 +85,17 @@ export async function POST(req: NextRequest) {
                 });
             }
             finalPdfBytes = await pdfDoc.save();
+            finalFileName = `[NOTES] ${finalFileName}`;
         } else {
             finalPdfBytes = originalPdfBytes;
+            finalFileName = `[ASSIGNMENTS] ${finalFileName}`;
         }
 
-        if (!unlockedPdfData.downloaded) {
-            await unlockedPdfRef.update({ downloaded: true, downloadedAt: new Date() });
+        if (!downloaded) {
+            await updateDoc(unlockedPdfRef, { downloaded: true, downloadedAt: new Date() });
         }
         
-        const tempFileName = `temp/${userId}/${Date.now()}-${fileName}`;
+        const tempFileName = `temp/${userId}/${Date.now()}-${finalFileName}`;
         const tempFile = bucket.file(tempFileName);
         await tempFile.save(Buffer.from(finalPdfBytes), { contentType: 'application/pdf' });
         
@@ -104,10 +104,9 @@ export async function POST(req: NextRequest) {
             expires: Date.now() + 5 * 60 * 1000, // 5 minutes
         });
 
-        // Schedule deletion of the temporary file
         setTimeout(() => {
             tempFile.delete().catch(err => console.error(`Failed to delete temp file: ${tempFileName}`, err));
-        }, 10 * 60 * 1000); // 10 minutes delay
+        }, 10 * 60 * 1000);
 
         return NextResponse.json({ downloadUrl: signedUrl });
 
@@ -119,3 +118,5 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'An internal server error occurred.' }, { status: 500 });
     }
 }
+
+    
