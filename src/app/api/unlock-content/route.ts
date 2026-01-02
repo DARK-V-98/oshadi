@@ -17,6 +17,7 @@ function getFirebaseAdminApp(): AdminApp {
 
 export async function POST(req: NextRequest) {
     const authHeader = req.headers.get('authorization');
+    console.log('Unlock API received Authorization header:', authHeader); // Debugging log
 
     try {
         if (!authHeader?.startsWith('Bearer ')) {

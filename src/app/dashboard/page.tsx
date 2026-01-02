@@ -145,18 +145,17 @@ function UserDashboard() {
           body: JSON.stringify({ unlockedPdfId: part.id }),
       });
 
+      const result = await response.json();
+
       if (!response.ok) {
-        let errorMessage = 'Download failed due to an unknown error.';
-        try {
-            const errorData = await response.json();
-            errorMessage = errorData.error || errorMessage;
-        } catch (e) {
+        let errorMessage = result.error || 'Download failed due to an unknown error.';
+        if (response.status >= 500) {
             errorMessage = `An internal server error occurred. Please contact support. (Status: ${response.status})`;
         }
         throw new Error(errorMessage);
     }
 
-      const { downloadUrl } = await response.json();
+      const { downloadUrl } = result;
 
       if (downloadUrl) {
           window.open(downloadUrl, '_blank');
@@ -179,7 +178,7 @@ function UserDashboard() {
       setUnlockingOrder(orderId);
       
       try {
-        const token = await user.getIdToken(true);
+        const token = await user.getIdToken(true); // Force token refresh
         const response = await fetch('/api/unlock-content', {
             method: 'POST',
             headers: {
