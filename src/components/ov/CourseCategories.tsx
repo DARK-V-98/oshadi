@@ -1,7 +1,7 @@
 'use client';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowRight, BookCopy, Brush, Scissors, Star } from "lucide-react";
+import { ArrowRight, BookCopy, Brush, Scissors, Star, BookMarked } from "lucide-react";
 import Link from "next/link";
 
 const categories = [
@@ -69,6 +69,15 @@ const CourseCategories = () => {
                 </Card>
             ))}
           </div>
+
+            <div className="text-center mt-16">
+                <Button asChild size="lg">
+                    <Link href="/syllabus">
+                        <BookMarked className="w-5 h-5 mr-2" />
+                        View Full Syllabus
+                    </Link>
+                </Button>
+            </div>
 
         </div>
       </div>

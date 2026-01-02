@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { usePathname } from 'next/navigation';
 import Head from 'next/head';
-import { Menu, X, BookOpen, User, LogOut, LayoutDashboard, Shield, Image as ImageIcon, ShoppingCart, ChevronDown } from "lucide-react";
+import { Menu, X, BookOpen, User, LogOut, LayoutDashboard, Shield, Image as ImageIcon, ShoppingCart, ChevronDown, BookMarked } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth, useUser, useFirestore } from "@/firebase";
 import Link from "next/link";
@@ -15,10 +15,6 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-  DropdownMenuSub,
-  DropdownMenuSubTrigger,
-  DropdownMenuSubContent,
-  DropdownMenuPortal,
 } from "@/components/ui/dropdown-menu"
 import {
   Avatar,
@@ -80,6 +76,7 @@ const Navbar = ({ onUnlockClick, onLoginClick }: NavbarProps) => {
       { name: "About", href: "/#about" },
       { name: "Courses", href: "/#courses"},
     ]),
+    { name: "Syllabus", href: "/syllabus"},
   ];
 
   const getHref = (link: {name: string, href: string}) => {
