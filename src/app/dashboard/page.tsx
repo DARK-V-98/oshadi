@@ -2,11 +2,11 @@
 'use client';
 import { useState, useEffect, useMemo } from 'react';
 import { useUser, useFirestore } from '@/firebase';
-import { collection, query, where, onSnapshot, getDocs, orderBy, doc, getDoc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, getDocs, orderBy, doc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
-import { Download, FileText, HelpCircle, Loader2, CheckCircle, AlertTriangle, ShoppingBag, History } from 'lucide-react';
+import { Download, FileText, HelpCircle, Loader2, CheckCircle, AlertTriangle, ShoppingBag, History, Lock, Unlock } from 'lucide-react';
 import {
   Accordion,
   AccordionContent,
@@ -56,6 +56,7 @@ interface Order {
     totalPrice: number;
     status: 'pending' | 'processing' | 'completed' | 'pending payment';
     createdAt: { toDate: () => Date };
+    contentUnlocked?: boolean;
 }
 
 function UserDashboard() {
@@ -68,6 +69,7 @@ function UserDashboard() {
   const [loadingContent, setLoadingContent] = useState(true);
   const [loadingOrders, setLoadingOrders] = useState(true);
   const [downloading, setDownloading] = useState<Record<string, boolean>>({});
+  const [unlockingOrder, setUnlockingOrder] = useState<string | null>(null);
   
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [selectedPartForDownload, setSelectedPartForDownload] = useState<UnlockedPdfDoc | null>(null);
@@ -77,13 +79,12 @@ function UserDashboard() {
   
     setLoadingContent(true);
     const unlockedRef = collection(firestore, 'userUnlockedPdfs');
-    const q = query(unlockedRef, where('userId', '==', user.uid), orderBy('unlockedAt', 'desc'));
+    const qUnlocked = query(unlockedRef, where('userId', '==', user.uid), orderBy('unlockedAt', 'desc'));
   
-    const unsubscribeUnlocked = onSnapshot(q, async (querySnapshot) => {
-        const unlockedData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as UnlockedPdfDoc));
+    const unsubscribeUnlocked = onSnapshot(qUnlocked, (snapshot) => {
+        const unlockedData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as UnlockedPdfDoc));
         setUnlockedPdfs(unlockedData);
         setLoadingContent(false);
-  
     }, (error) => {
       console.error("Error fetching unlocked PDFs: ", error);
       toast({ title: 'Error', description: 'Could not load your unlocked PDFs.', variant: 'destructive' });
@@ -134,7 +135,7 @@ function UserDashboard() {
     toast({ title: "Preparing Download...", description: "Your secure download will begin shortly."});
 
     try {
-      const token = await user.getIdToken(true); // Force refresh the token
+      const token = await user.getIdToken(true);
       const response = await fetch('/api/download', {
           method: 'POST',
           headers: { 
@@ -173,6 +174,40 @@ function UserDashboard() {
     }
   }
 
+  const handleUnlockContent = async (orderId: string) => {
+      if(!user) return;
+      setUnlockingOrder(orderId);
+      
+      try {
+        const token = await user.getIdToken(true);
+        const response = await fetch('/api/unlock-content', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ orderId }),
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+            throw new Error(result.error || 'Failed to unlock content.');
+        }
+
+        toast({
+            title: "Content Unlocked!",
+            description: "Your new items are now available in 'My Unlocked Content'.",
+        });
+
+      } catch (error: any) {
+        console.error("Error unlocking content:", error);
+        toast({ title: "Unlock Failed", description: error.message, variant: 'destructive' });
+      } finally {
+        setUnlockingOrder(null);
+      }
+  }
+
 
     const getStatusColor = (status: Order['status']) => {
         switch (status) {
@@ -197,17 +232,20 @@ function UserDashboard() {
         return { activeContent: active, historicalContent: historical };
     }, [unlockedPdfs]);
     
-    const { activeOrders, historicalOrders } = useMemo(() => {
+    const { readyToUnlockOrders, activeOrders, historicalOrders } = useMemo(() => {
+        const ready: Order[] = [];
         const active: Order[] = [];
         const historical: Order[] = [];
         orders.forEach(order => {
-            if (order.status === 'completed') {
-                 historical.push(order);
+            if (order.status === 'completed' && !order.contentUnlocked) {
+                 ready.push(order);
+            } else if (order.status === 'completed' && order.contentUnlocked) {
+                historical.push(order);
             } else {
                 active.push(order);
             }
         });
-        return { activeOrders: active, historicalOrders: historical };
+        return { readyToUnlockOrders: ready, activeOrders: active, historicalOrders: historical };
     }, [orders]);
 
 
@@ -226,9 +264,9 @@ function UserDashboard() {
                     <AccordionContent className="space-y-2 text-muted-foreground">
                         <p>1. Add items to your cart from the homepage and checkout.</p>
                         <p>2. You will be prompted to contact us on WhatsApp to arrange payment.</p>
-                        <p>3. Once your payment is confirmed, we will mark the order as "Completed".</p>
-                        <p>4. Your PDF files will then appear below in 'My Unlocked Content'.</p>
-                        <p>5. Click 'Download' to get your file. <strong className="text-destructive">This is a one-time action per file.</strong></p>
+                        <p>3. Once payment is confirmed, your order will be marked "Completed".</p>
+                        <p>4. Find your completed order in the 'Ready to Unlock' section below.</p>
+                        <p>5. Click 'Unlock My Content' to make your files available for download.</p>
                     </AccordionContent>
                 </AccordionItem>
                 </Accordion>
@@ -238,6 +276,30 @@ function UserDashboard() {
         </div>
 
         <div className="lg:col-span-2 space-y-8">
+            {readyToUnlockOrders.length > 0 && (
+                <div>
+                    <h2 className="text-2xl font-bold font-heading mb-4 text-primary">Ready to Unlock</h2>
+                     {readyToUnlockOrders.map(order => (
+                         <Card key={order.id} className="mb-4 border-primary shadow-soft">
+                             <CardHeader>
+                                 <CardTitle>Order Completed!</CardTitle>
+                                 <CardDescription>Your order from {order.createdAt.toDate().toLocaleDateString()} is ready. Click below to access your content.</CardDescription>
+                             </CardHeader>
+                             <CardContent>
+                                 <ul className="text-sm list-disc pl-5 mb-4 text-muted-foreground">
+                                     {order.items.map(item => <li key={item.id}>{item.unitName} ({item.language} {item.type})</li>)}
+                                 </ul>
+                             </CardContent>
+                             <CardContent>
+                                <Button className="w-full" size="lg" onClick={() => handleUnlockContent(order.id)} disabled={unlockingOrder === order.id}>
+                                    {unlockingOrder === order.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Unlock className="mr-2 h-4 w-4" />}
+                                    {unlockingOrder === order.id ? 'Unlocking...' : 'Unlock My Content'}
+                                </Button>
+                             </CardContent>
+                         </Card>
+                     ))}
+                </div>
+            )}
             <div>
                 <h2 className="text-2xl font-bold font-heading mb-4">My Unlocked Content</h2>
                 {loadingContent ? (
@@ -284,7 +346,7 @@ function UserDashboard() {
             </div>
             
             <div>
-                <h2 className="text-2xl font-bold font-heading mb-4">My Orders</h2>
+                <h2 className="text-2xl font-bold font-heading mb-4">My Active Orders</h2>
                 {loadingOrders ? (
                      <div className="flex justify-center items-center py-10">
                         <Loader2 className="w-8 h-8 animate-spin text-primary" />

@@ -2,7 +2,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useFirestore } from '@/firebase';
-import { collection, query, orderBy, onSnapshot, doc, updateDoc, getDoc, writeBatch, deleteDoc } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, doc, updateDoc, getDoc, writeBatch, deleteDoc, getDocs, where } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import {
   Table,
@@ -47,6 +47,7 @@ interface Order {
     totalPrice: number;
     status: 'pending' | 'processing' | 'completed' | 'pending payment';
     createdAt: { toDate: () => Date };
+    contentUnlocked?: boolean;
 }
 
 const AdminOrderManagement = () => {
@@ -74,19 +75,16 @@ const AdminOrderManagement = () => {
         return () => unsubscribe();
     }, [firestore, toast]);
     
-    const handleStatusChange = async (orderId: string, newStatus: Order['status'], order: Order) => {
+    const handleStatusChange = async (orderId: string, newStatus: Order['status']) => {
         if (!firestore) return;
         
         const orderDocRef = doc(firestore, 'orders', orderId);
         
         try {
+            // Simply update the status. Unlocking is now handled by the user.
             await updateDoc(orderDocRef, { status: newStatus });
             
-            if (newStatus === 'completed') {
-                await unlockContentForOrder(order);
-            }
-            
-            toast({ title: "Status Updated", description: `Order status changed to ${newStatus}.` });
+            toast({ title: "Status Updated", description: `Order status changed to ${newStatus}. The user will be prompted to unlock their content.` });
         } catch (error) {
             console.error("Error updating status:", error);
             toast({ title: "Error", description: "Failed to update order status.", variant: "destructive" });
@@ -104,41 +102,6 @@ const AdminOrderManagement = () => {
             console.error("Error deleting order:", error);
             toast({ title: "Error", description: "Failed to delete the order.", variant: "destructive" });
         }
-    };
-
-    const unlockContentForOrder = async (order: Order) => {
-        if (!firestore) return;
-    
-        const batch = writeBatch(firestore);
-        
-        for (const item of order.items) {
-            const unitDocRef = doc(firestore, 'units', item.unitId);
-            const unitDoc = await getDoc(unitDocRef);
-
-            if (!unitDoc.exists()) {
-                toast({ title: "Unlock Error", description: `Could not find unit data for ${item.unitName}.`, variant: "destructive"});
-                continue; // Skip this item and continue with the rest of the order
-            }
-            
-            const unitData = unitDoc.data() as Unit;
-
-            const unlockedPdfRef = doc(collection(firestore, 'userUnlockedPdfs'));
-            batch.set(unlockedPdfRef, {
-                userId: order.userId,
-                unitId: item.unitId, // This is now the Firestore Document ID
-                unitNo: unitData.unitNo, // Keep unitNo for display if needed
-                orderId: order.id,
-                language: item.language,
-                type: item.type,
-                category: unitData.category,
-                unitNameEN: item.unitName,
-                unlockedAt: new Date(),
-                downloaded: false,
-            });
-        }
-    
-        await batch.commit();
-        toast({ title: "Content Unlocked", description: "The user now has access to the purchased materials." });
     };
 
     const getStatusColor = (status: Order['status']) => {
@@ -201,7 +164,7 @@ const AdminOrderManagement = () => {
                                     </TableCell>
                                     <TableCell>LKR {order.totalPrice.toFixed(2)}</TableCell>
                                     <TableCell className="w-[180px]">
-                                        <Select value={order.status} onValueChange={(value: Order['status']) => handleStatusChange(order.id, value, order)}>
+                                        <Select value={order.status} onValueChange={(value: Order['status']) => handleStatusChange(order.id, value)}>
                                             <SelectTrigger className={getStatusColor(order.status)}>
                                                 <SelectValue/>
                                             </SelectTrigger>
