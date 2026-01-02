@@ -2,17 +2,13 @@
 'use server';
 
 import { getAdminFirestore, getAdminAuth } from '@/firebase/admin';
-import { cookies } from 'next/headers';
 import { Unit } from '@/lib/data';
 import { CartItem } from '@/context/CartContext';
 import { doc, getDoc, updateDoc, writeBatch, collection, serverTimestamp } from 'firebase/firestore';
 
 
-export async function unlockContentForOrder(orderId: string): Promise<{ success: boolean; error?: string, message?: string }> {
+export async function unlockContentForOrder(token: string, orderId: string): Promise<{ success: boolean; error?: string, message?: string }> {
     try {
-        const cookieStore = cookies();
-        const token = cookieStore.get('firebaseIdToken')?.value;
-
         if (!token) {
             return { success: false, error: 'User is not authenticated.' };
         }

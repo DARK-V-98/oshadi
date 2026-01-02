@@ -2,14 +2,12 @@
 'use server';
 
 import { getAdminFirestore, getAdminStorage, getAdminAuth } from '@/firebase/admin';
-import { cookies } from 'next/headers';
+import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { Unit } from '@/lib/data';
 
-export async function getDownloadUrlForPdf(unlockedPdfId: string): Promise<{ downloadUrl?: string; error?: string }> {
-    try {
-        const cookieStore = cookies();
-        const token = cookieStore.get('firebaseIdToken')?.value;
 
+export async function getDownloadUrlForPdf(token: string, unlockedPdfId: string): Promise<{ downloadUrl?: string; error?: string }> {
+    try {
         if (!token) {
             return { error: 'User is not authenticated.' };
         }

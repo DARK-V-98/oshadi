@@ -97,7 +97,8 @@ function UnlockedContentPage() {
     toast({ title: "Preparing Download...", description: "Your secure download will begin shortly."});
 
     try {
-      const result = await getDownloadUrlForPdf(part.id);
+      const token = await user.getIdToken(true);
+      const result = await getDownloadUrlForPdf(token, part.id);
 
       if (result.error) {
         throw new Error(result.error);

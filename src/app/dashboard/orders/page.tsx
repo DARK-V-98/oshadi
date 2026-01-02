@@ -71,7 +71,8 @@ function OrdersDashboardPage() {
       setUnlockingOrder(orderId);
       
       try {
-        const result = await unlockContentForOrder(orderId);
+        const token = await user.getIdToken(true);
+        const result = await unlockContentForOrder(token, orderId);
 
         if (!result.success) {
             throw new Error(result.error || 'Failed to unlock content.');
