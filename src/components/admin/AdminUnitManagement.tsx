@@ -45,10 +45,6 @@ const UnitForm = ({ unit, onSave, onCancel }: { unit?: Unit | null, onSave: () =
         assignmentsSIEnabled: unit?.assignmentsSIEnabled ?? true,
         notesENEnabled: unit?.notesENEnabled ?? true,
         assignmentsENEnabled: unit?.assignmentsENEnabled ?? true,
-        pdfUrlSI: unit?.pdfUrlSI,
-        pdfFileNameSI: unit?.pdfFileNameSI,
-        pdfUrlEN: unit?.pdfUrlEN,
-        pdfFileNameEN: unit?.pdfFileNameEN,
     });
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -357,4 +353,5 @@ const AdminUnitManagement = () => {
 };
 
 export default AdminUnitManagement;
+
 

@@ -21,7 +21,16 @@ type PdfManagerProps = {
   unit: Unit;
 };
 
-const PdfUploadRow = ({ unit, language, pdfUrl, pdfFileName, urlFieldName, fileNameFieldName, label }: { unit: Unit; language: 'SI' | 'EN', pdfUrl?: string, pdfFileName?: string, urlFieldName: 'pdfUrlSI' | 'pdfUrlEN', fileNameFieldName: 'pdfFileNameSI' | 'pdfFileNameEN', label: string }) => {
+const PdfUploadRow = ({ unit, language, type, pdfUrl, pdfFileName, urlFieldName, fileNameFieldName, label }: { 
+    unit: Unit; 
+    language: 'SI' | 'EN';
+    type: 'Notes' | 'Assignments';
+    pdfUrl?: string;
+    pdfFileName?: string;
+    urlFieldName: keyof Unit;
+    fileNameFieldName: keyof Unit;
+    label: string;
+}) => {
     const storage = useStorage();
     const firestore = useFirestore();
     const { toast } = useToast();
@@ -40,7 +49,7 @@ const PdfUploadRow = ({ unit, language, pdfUrl, pdfFileName, urlFieldName, fileN
     
         setIsUploading(true);
         setUploadProgress(0);
-        const filePath = `units/${unit.id}/${language}/${file.name}`;
+        const filePath = `units/${unit.id}/${language}_${type}/${file.name}`;
         const storageRef = ref(storage, filePath);
         
         if (pdfUrl) {
@@ -172,32 +181,54 @@ export default function PdfManager({ unit }: PdfManagerProps) {
       <CardHeader>
         <CardTitle>Manage PDFs for {unit.unitNo}</CardTitle>
         <CardDescription>
-          Upload a single PDF for each language. This file will be watermarked for 'Notes' downloads and served as-is for 'Assignments' downloads.
+          Upload separate PDF files for notes and assignments for each language.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         <div className="p-4 border rounded-lg space-y-4">
-            <h3 className="font-semibold text-lg">Sinhala PDF</h3>
+            <h3 className="font-semibold text-lg">Sinhala PDFs</h3>
             <PdfUploadRow 
                 unit={unit} 
-                language="SI" 
-                pdfUrl={unit.pdfUrlSI}
-                pdfFileName={unit.pdfFileNameSI}
-                urlFieldName="pdfUrlSI"
-                fileNameFieldName="pdfFileNameSI"
-                label="Sinhala PDF" 
+                language="SI"
+                type="Notes" 
+                pdfUrl={unit.pdfUrlNotesSI}
+                pdfFileName={unit.pdfFileNameNotesSI}
+                urlFieldName="pdfUrlNotesSI"
+                fileNameFieldName="pdfFileNameNotesSI"
+                label="Sinhala Notes" 
+            />
+            <PdfUploadRow 
+                unit={unit} 
+                language="SI"
+                type="Assignments" 
+                pdfUrl={unit.pdfUrlAssignmentsSI}
+                pdfFileName={unit.pdfFileNameAssignmentsSI}
+                urlFieldName="pdfUrlAssignmentsSI"
+                fileNameFieldName="pdfFileNameAssignmentsSI"
+                label="Sinhala Assignments" 
             />
         </div>
         <div className="p-4 border rounded-lg space-y-4">
-            <h3 className="font-semibold text-lg">English PDF</h3>
-             <PdfUploadRow 
+            <h3 className="font-semibold text-lg">English PDFs</h3>
+            <PdfUploadRow 
                 unit={unit} 
-                language="EN" 
-                pdfUrl={unit.pdfUrlEN}
-                pdfFileName={unit.pdfFileNameEN}
-                urlFieldName="pdfUrlEN"
-                fileNameFieldName="pdfFileNameEN"
-                label="English PDF" 
+                language="EN"
+                type="Notes" 
+                pdfUrl={unit.pdfUrlNotesEN}
+                pdfFileName={unit.pdfFileNameNotesEN}
+                urlFieldName="pdfUrlNotesEN"
+                fileNameFieldName="pdfFileNameNotesEN"
+                label="English Notes" 
+            />
+            <PdfUploadRow 
+                unit={unit} 
+                language="EN"
+                type="Assignments" 
+                pdfUrl={unit.pdfUrlAssignmentsEN}
+                pdfFileName={unit.pdfFileNameAssignmentsEN}
+                urlFieldName="pdfUrlAssignmentsEN"
+                fileNameFieldName="pdfFileNameAssignmentsEN"
+                label="English Assignments" 
             />
         </div>
       </CardContent>
