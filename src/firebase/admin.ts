@@ -1,3 +1,4 @@
+
 import { initializeApp, getApps, App, cert, getApp as getAdminApp } from 'firebase-admin/app';
 import { getAuth, Auth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
@@ -5,34 +6,28 @@ import { getStorage } from 'firebase-admin/storage';
 
 let adminApp: App;
 
-try {
-    const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT_KEY
-      ? JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY)
-      : undefined;
-
+function initializeAdminApp() {
     if (getApps().length > 0) {
-        adminApp = getAdminApp();
-    } else {
-        if (!serviceAccount) {
-            throw new Error('FIREBASE_SERVICE_ACCOUNT_KEY environment variable is not set.');
-        }
+        return getAdminApp();
+    }
 
-        adminApp = initializeApp({
-            credential: cert(serviceAccount),
-            storageBucket: 'esystemlkapp.appspot.com'
-        });
-    }
-} catch (error: any) {
-    console.error("Firebase Admin Initialization Error:", error.message);
-    // In a real app, you might want to handle this more gracefully
-    // For now, we'll let it fail loudly during development if not configured.
-    // A dummy app initialization to prevent further downstream errors on the server.
-    if (getApps().length === 0) {
-        adminApp = initializeApp();
-    } else {
-        adminApp = getAdminApp();
-    }
+    const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT_KEY
+        ? JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY)
+        : undefined;
+
+    // The audience claim mismatch error indicates a project ID conflict.
+    // Explicitly setting the projectId here ensures the Admin SDK is initialized
+    // for the correct project, matching the frontend Firebase config.
+    const appOptions = {
+        projectId: 'esystemlkapp',
+        storageBucket: 'esystemlkapp.appspot.com',
+        ...(serviceAccount && { credential: cert(serviceAccount) })
+    };
+
+    return initializeApp(appOptions);
 }
+
+adminApp = initializeAdminApp();
 
 
 const getAdminAuth = () => {
