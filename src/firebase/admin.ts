@@ -1,6 +1,6 @@
 
 import { initializeApp, getApps, App, cert, getApp as getAdminApp } from 'firebase-admin/app';
-import { getAuth, Auth } from 'firebase-admin/auth';
+import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
 import { getStorage } from 'firebase-admin/storage';
 
@@ -11,17 +11,12 @@ function initializeAdminApp() {
         return getAdminApp();
     }
 
-    const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT_KEY
-        ? JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY)
-        : undefined;
-
-    // The audience claim mismatch error indicates a project ID conflict.
-    // Explicitly setting the projectId here ensures the Admin SDK is initialized
-    // for the correct project, matching the frontend Firebase config.
+    // Explicitly set the projectId to ensure the backend always uses the correct Firebase project.
+    // This removes the need for a service account key environment variable for initialization,
+    // resolving JSON parsing and audience claim mismatch errors.
     const appOptions = {
         projectId: 'esystemlkapp',
         storageBucket: 'esystemlkapp.appspot.com',
-        ...(serviceAccount && { credential: cert(serviceAccount) })
     };
 
     return initializeApp(appOptions);
