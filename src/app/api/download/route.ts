@@ -1,20 +1,8 @@
-
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuth } from 'firebase-admin/auth';
 import { getFirestore, doc, getDoc, updateDoc } from 'firebase-admin/firestore';
 import { getStorage } from 'firebase-admin/storage';
-import { initializeApp, getApps, App, getApp as getAdminApp } from 'firebase-admin/app';
+import { adminApp, adminAuth } from '@/firebase/admin';
 import { Unit } from '@/lib/data';
-
-// Correct initialization for Firebase Admin SDK in a server environment
-function getFirebaseAdminApp(): App {
-    if (getApps().length === 0) {
-        // No configuration is needed when running in a Google Cloud environment
-        return initializeApp();
-    } else {
-        return getAdminApp();
-    }
-}
 
 export async function POST(req: NextRequest) {
     const authHeader = req.headers.get('authorization');
@@ -34,11 +22,10 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'Missing unlockedPdfId' }, { status: 400 });
         }
         
-        const app = getFirebaseAdminApp();
-        const decodedToken = await getAuth(app).verifyIdToken(token);
+        const decodedToken = await adminAuth.verifyIdToken(token);
         const userId = decodedToken.uid;
-        const db = getFirestore(app);
-        const storage = getStorage(app);
+        const db = getFirestore(adminApp);
+        const storage = getStorage(adminApp);
 
         // 1. Verify the user owns the unlocked PDF record
         const unlockedPdfRef = doc(db, 'userUnlockedPdfs', unlockedPdfId);

@@ -1,19 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuth } from 'firebase-admin/auth';
 import { getFirestore, doc, getDoc, updateDoc, writeBatch, collection, serverTimestamp } from 'firebase-admin/firestore';
-import { initializeApp, getApps, App as AdminApp } from 'firebase-admin/app';
+import { adminApp, adminAuth } from '@/firebase/admin';
 import { Unit } from '@/lib/data';
 import { CartItem } from '@/context/CartContext';
 
-// Ensure Firebase Admin is initialized only once
-function getFirebaseAdminApp(): AdminApp {
-    if (getApps().length === 0) {
-        // No config needed when running in a Google Cloud environment
-        return initializeApp();
-    } else {
-        return getApps()[0];
-    }
-}
 
 export async function POST(req: NextRequest) {
     const authHeader = req.headers.get('authorization');
@@ -33,10 +23,9 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'Missing orderId' }, { status: 400 });
         }
         
-        const app = getFirebaseAdminApp();
-        const decodedToken = await getAuth(app).verifyIdToken(token);
+        const decodedToken = await adminAuth.verifyIdToken(token);
         const userId = decodedToken.uid;
-        const db = getFirestore(app);
+        const db = getFirestore(adminApp);
 
         // 1. Verify the user owns the order and it's 'completed' but not yet unlocked
         const orderDocRef = doc(db, 'orders', orderId);
