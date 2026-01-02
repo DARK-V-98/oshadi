@@ -2,7 +2,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useFirestore } from '@/firebase';
-import { collection, query, orderBy, onSnapshot, doc, updateDoc, getDoc, writeBatch, addDoc, getDocs, where, deleteDoc } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, doc, updateDoc, getDoc, writeBatch, deleteDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import {
   Table,
@@ -32,7 +32,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Loader2, ShoppingBag, ArrowLeft, Trash2 } from 'lucide-react';
+import { ShoppingBag, ArrowLeft, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { CartItem } from '@/context/CartContext';
@@ -47,11 +47,6 @@ interface Order {
     totalPrice: number;
     status: 'pending' | 'processing' | 'completed' | 'pending payment';
     createdAt: { toDate: () => Date };
-}
-
-interface UnitWithPdfs extends Unit {
-    pdfsEN: { partName: string, fileName: string, downloadUrl: string }[];
-    pdfsSI: { partName: string, fileName: string, downloadUrl: string }[];
 }
 
 const AdminOrderManagement = () => {
@@ -121,36 +116,21 @@ const AdminOrderManagement = () => {
             const unitDocSnap = await getDoc(unitDocRef);
     
             if (unitDocSnap.exists()) {
-                const unitData = unitDocSnap.data() as UnitWithPdfs;
-                let pdfsToUnlock: { partName: string, fileName: string, downloadUrl: string }[] = [];
+                const unitData = unitDocSnap.data() as Unit;
                 
-                const pdfsForLanguage = item.language === 'SI' ? unitData.pdfsSI : unitData.pdfsEN;
-
-                if (Array.isArray(pdfsForLanguage)) {
-                   const relevantPdf = pdfsForLanguage.find(p => p.partName === item.type);
-                   if (relevantPdf) {
-                       pdfsToUnlock.push(relevantPdf);
-                   }
-                }
-                
-                if (pdfsToUnlock && pdfsToUnlock.length > 0) {
-                    pdfsToUnlock.forEach(part => {
-                        const unlockedPdfRef = doc(collection(firestore, 'userUnlockedPdfs'));
-                        batch.set(unlockedPdfRef, {
-                            userId: order.userId,
-                            unitId: item.unitId,
-                            orderId: order.id,
-                            language: item.language,
-                            type: item.type,
-                            unlockedAt: new Date(),
-                            partName: part.partName,
-                            fileName: part.fileName,
-                            downloadUrl: part.downloadUrl,
-                            downloaded: false,
-                            downloadedAt: null,
-                        });
-                    });
-                }
+                const unlockedPdfRef = doc(collection(firestore, 'userUnlockedPdfs'));
+                const fileName = item.language === 'SI' ? unitData.pdfFileNameSI : unitData.pdfFileNameEN;
+                batch.set(unlockedPdfRef, {
+                    userId: order.userId,
+                    unitId: item.unitId,
+                    orderId: order.id,
+                    language: item.language,
+                    type: item.type,
+                    fileName: fileName || `${item.unitId}-${item.type}.${item.language}.pdf`,
+                    unlockedAt: new Date(),
+                    downloaded: false,
+                    downloadedAt: null,
+                });
             }
         }
     
@@ -269,3 +249,4 @@ const AdminOrderManagement = () => {
 }
 
 export default AdminOrderManagement;
+    

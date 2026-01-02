@@ -2,7 +2,7 @@
 'use client';
 import { useState, useEffect, useMemo } from 'react';
 import { useUser, useFirestore } from '@/firebase';
-import { collection, query, where, doc, onSnapshot, getDoc, updateDoc, orderBy } from 'firebase/firestore';
+import { collection, query, where, doc, onSnapshot, getDoc, orderBy } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
@@ -34,17 +34,13 @@ import {
 import { Badge } from '@/components/ui/badge';
 import TestimonialForm from '@/components/dashboard/TestimonialForm';
 import { CartItem } from '@/context/CartContext';
-import { ref, getBytes } from 'firebase/storage';
-import { useStorage } from '@/firebase';
 
 
 interface UnlockedPdfDoc {
     id: string; // firestore doc id
     orderId: string;
     unitId: string;
-    partName: string;
     fileName: string;
-    downloadUrl: string;
     type: 'note' | 'assignment';
     language: 'EN' | 'SI';
     downloaded: boolean;
@@ -65,7 +61,6 @@ interface Order {
 function UserDashboard() {
   const { user } = useUser();
   const firestore = useFirestore();
-  const storage = useStorage();
   const { toast } = useToast();
 
   const [unlockedPdfs, setUnlockedPdfs] = useState<UnlockedPdfDoc[]>([]);
@@ -142,53 +137,58 @@ function UserDashboard() {
   
   const confirmDownload = (part: UnlockedPdfDoc) => {
     if (part.downloaded) {
-        toast({ title: "Already Downloaded", description: "You have already downloaded this file.", variant: "destructive" });
+        toast({ title: "Already Downloaded", description: "You have already downloaded this file from your history.", variant: "default" });
+        // Allow re-download from history without confirmation
+        handleDownload(part, true);
         return;
     }
     setSelectedPartForDownload(part);
     setShowConfirmDialog(true);
   };
 
- const handleDownload = async () => {
-    if (!storage || !firestore || !user || !selectedPartForDownload) return;
+  const handleDownload = async (partToDownload?: UnlockedPdfDoc, isRedownload = false) => {
+    const part = partToDownload || selectedPartForDownload;
+    if (!user || !part) return;
 
-    const part = selectedPartForDownload;
     const downloadKey = part.id;
     setDownloading(prev => ({ ...prev, [downloadKey]: true }));
-    setShowConfirmDialog(false);
+    if (!isRedownload) {
+      setShowConfirmDialog(false);
+    }
     
     toast({ title: "Preparing Download...", description: "Your secure download will begin shortly."});
-    
-    try {
-        const fileRef = ref(storage, part.downloadUrl);
-        const pdfBytes = await getBytes(fileRef);
-        
-        const blob = new Blob([pdfBytes], { type: 'application/pdf' });
-        
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = part.fileName || `${part.unitId}-${part.partName}.pdf`;
-        document.body.appendChild(a);
-        a.click();
-        
-        const partDocRef = doc(firestore, 'userUnlockedPdfs', part.id);
-        await updateDoc(partDocRef, {
-            downloaded: true,
-            downloadedAt: new Date()
-        });
-        
-        a.remove();
-        window.URL.revokeObjectURL(url);
-        toast({ title: "Download Started!", description: `Your file is downloading.`});
-        
 
+    try {
+      const token = await user.getIdToken();
+      const response = await fetch('/api/download', {
+          method: 'POST',
+          headers: {
+              'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ token, unlockedPdfId: part.id }),
+      });
+
+      if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Download failed');
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = part.fileName || `${part.unitId}-${part.type}-${part.language}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      
+      a.remove();
+      window.URL.revokeObjectURL(url);
+
+      toast({ title: "Download Started!", description: `Your file is downloading.` });
+        
     } catch (error: any) {
         console.error("Error during download process: ", error);
-        const errorMessage = error.code === 'storage/object-not-found' 
-            ? "The file could not be found. Please contact support."
-            : "An unexpected error occurred. Please try again later.";
-        toast({ title: "Download Failed", description: errorMessage, variant: 'destructive' });
+        toast({ title: "Download Failed", description: error.message, variant: 'destructive' });
     } finally {
         setDownloading(prev => ({ ...prev, [downloadKey]: false }));
         setSelectedPartForDownload(null);
@@ -223,23 +223,14 @@ function UserDashboard() {
         const active: Order[] = [];
         const historical: Order[] = [];
         orders.forEach(order => {
-            const allContentForOrderDownloaded = order.status === 'completed' && order.items.every(item => {
-                const itemIdentifier = `${item.unitId}-${item.type}-${item.language}`;
-                return historicalContent.some(hc => 
-                    hc.unitId === item.unitId &&
-                    hc.type === item.type &&
-                    hc.language === item.language
-                );
-            });
-            
-            if (order.status === 'completed' && allContentForOrderDownloaded) {
+            if (order.status === 'completed') {
                  historical.push(order);
             } else {
                 active.push(order);
             }
         });
         return { activeOrders: active, historicalOrders: historical };
-    }, [orders, historicalContent]);
+    }, [orders]);
 
 
   return (
@@ -292,7 +283,7 @@ function UserDashboard() {
                                         </div>
                                     </div>
                                     <div className="flex-shrink-0 w-full sm:w-auto">
-                                        <Button size="sm" variant="outline" className="rounded-full w-full" onClick={() => confirmDownload(part)} disabled={part.downloaded || downloading[part.id]}>
+                                        <Button size="sm" variant="outline" className="rounded-full w-full" onClick={() => confirmDownload(part)} disabled={downloading[part.id]}>
                                             {downloading[part.id] ? <Loader2 className="w-4 h-4 animate-spin"/> : <Download className="w-4 h-4"/>}
                                             <span className="ml-2">Download</span>
                                         </Button>
@@ -412,7 +403,10 @@ function UserDashboard() {
                                                           </div>
                                                       </div>
                                                   </div>
-                                                  <Badge variant="secondary" className="bg-green-100 text-green-800">Downloaded</Badge>
+                                                  <Button size="sm" variant="ghost" className="rounded-full" onClick={() => confirmDownload(part)} disabled={downloading[part.id]}>
+                                                    {downloading[part.id] ? <Loader2 className="w-4 h-4 animate-spin"/> : <Download className="w-4 h-4"/>}
+                                                    <span className="ml-2">Download Again</span>
+                                                  </Button>
                                               </div>
                                           ))}
                                          </div>
@@ -436,14 +430,14 @@ function UserDashboard() {
                         Confirm One-Time Download
                     </AlertDialogTitle>
                     <AlertDialogDescription>
-                        This is a <strong className="text-destructive">one-time only</strong> download for this specific purchase. You will not be able to download this file again. Please ensure you are on a stable connection and save the file securely.
+                        This is a <strong className="text-destructive">one-time only</strong> download for this specific purchase. You will not be able to download this file again from the main list. It will move to your history. Please ensure you are on a stable connection and save the file securely.
                         <br/><br/>
                         Do you want to proceed with the download now?
                     </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                     <AlertDialogCancel onClick={() => setSelectedPartForDownload(null)}>Later</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleDownload}>Download Now</AlertDialogAction>
+                    <AlertDialogAction onClick={() => handleDownload()}>Download Now</AlertDialogAction>
                 </AlertDialogFooter>
             </AlertDialogContent>
         </AlertDialog>

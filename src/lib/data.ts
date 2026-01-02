@@ -15,8 +15,10 @@ export type Unit = {
   assignmentsSIEnabled: boolean;
   notesENEnabled: boolean;
   assignmentsENEnabled: boolean;
-  pdfsSI?: { partName: 'note' | 'assignment', fileName: string, downloadUrl: string }[];
-  pdfsEN?: { partName: 'note' | 'assignment', fileName: string, downloadUrl: string }[];
+  pdfSI?: string; // URL to the original Sinhala PDF
+  pdfEN?: string; // URL to the original English PDF
+  pdfFileNameSI?: string;
+  pdfFileNameEN?: string;
 };
 
 
