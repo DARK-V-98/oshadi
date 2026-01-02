@@ -10,7 +10,6 @@ import { useCart } from '@/context/CartContext';
 import Navbar from '@/components/ov/Navbar';
 import Footer from '@/components/ov/Footer';
 import AuthForm from './AuthForm';
-import { useToast } from '@/hooks/use-toast';
 import { useFirestore } from '@/firebase';
 import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestore';
 
@@ -49,6 +48,11 @@ const UnitCard = ({ unit }: { unit: Unit }) => {
     const notePriceEN = unit.priceNotesEN ? `LKR ${unit.priceNotesEN}` : "Add to Cart";
     const assignmentPriceEN = unit.priceAssignmentsEN ? `LKR ${unit.priceAssignmentsEN}` : "Add to Cart";
 
+    const canBuySINotes = unit.notesSIEnabled && unit.priceNotesSI;
+    const canBuySIAssignments = unit.assignmentsSIEnabled && unit.priceAssignmentsSI;
+    const canBuyENNotes = unit.notesENEnabled && unit.priceNotesEN;
+    const canBuyENAssignments = unit.assignmentsENEnabled && unit.priceAssignmentsEN;
+
     return (
         <div className="p-4 md:p-5 hover:bg-secondary/30 transition-colors duration-300">
             <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
@@ -78,22 +82,22 @@ const UnitCard = ({ unit }: { unit: Unit }) => {
                     <div className="space-y-2">
                         {selectedLanguage === 'SI' ? (
                             <>
-                                <Button size="sm" variant="outline" className="w-full justify-between" onClick={() => handleAddToCart(unit, 'note', 'SI')} disabled={!unit.priceNotesSI}>
+                                <Button size="sm" variant="outline" className="w-full justify-between" onClick={() => handleAddToCart(unit, 'note', 'SI')} disabled={!canBuySINotes}>
                                     <span className="flex items-center gap-2"><Book className="w-4 h-4"/> Notes</span>
                                     <span>{notePriceSI}</span>
                                 </Button>
-                                <Button size="sm" variant="outline" className="w-full justify-between" onClick={() => handleAddToCart(unit, 'assignment', 'SI')} disabled={!unit.priceAssignmentsSI}>
+                                <Button size="sm" variant="outline" className="w-full justify-between" onClick={() => handleAddToCart(unit, 'assignment', 'SI')} disabled={!canBuySIAssignments}>
                                     <span className="flex items-center gap-2"><FileArchive className="w-4 h-4"/> Assignments</span>
                                     <span>{assignmentPriceSI}</span>
                                 </Button>
                             </>
                         ) : (
                              <>
-                                <Button size="sm" variant="outline" className="w-full justify-between" onClick={() => handleAddToCart(unit, 'note', 'EN')} disabled={!unit.priceNotesEN}>
+                                <Button size="sm" variant="outline" className="w-full justify-between" onClick={() => handleAddToCart(unit, 'note', 'EN')} disabled={!canBuyENNotes}>
                                     <span className="flex items-center gap-2"><Book className="w-4 h-4"/> Notes</span>
                                     <span>{notePriceEN}</span>
                                 </Button>
-                                <Button size="sm" variant="outline" className="w-full justify-between" onClick={() => handleAddToCart(unit, 'assignment', 'EN')} disabled={!unit.priceAssignmentsEN}>
+                                <Button size="sm" variant="outline" className="w-full justify-between" onClick={() => handleAddToCart(unit, 'assignment', 'EN')} disabled={!canBuyENAssignments}>
                                     <span className="flex items-center gap-2"><FileArchive className="w-4 h-4"/> Assignments</span>
                                     <span>{assignmentPriceEN}</span>
                                 </Button>
@@ -117,7 +121,7 @@ const CategoryPage = ({ categoryValue, categoryName }: CategoryPageProps) => {
     if (!firestore) return;
     setLoading(true);
     const unitsRef = collection(firestore, 'units');
-    const q = query(unitsRef, where('category', '==', categoryValue), orderBy('unitNo'));
+    const q = query(unitsRef, where('category', '==', categoryValue), where('enabled', '==', true), orderBy('unitNo'));
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
         const fetchedUnits = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Unit));

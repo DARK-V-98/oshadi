@@ -8,7 +8,7 @@ import AuthForm from "@/components/AuthForm";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useFirestore } from "@/firebase";
-import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
+import { collection, query, orderBy, onSnapshot, where } from "firebase/firestore";
 import { Unit } from "@/lib/data";
 import { Loader2 } from "lucide-react";
 
@@ -52,7 +52,7 @@ const SyllabusPage = () => {
     if (!firestore) return;
     setLoading(true);
     const unitsRef = collection(firestore, 'units');
-    const q = query(unitsRef, orderBy('category'), orderBy('unitNo'));
+    const q = query(unitsRef, where('enabled', '==', true), orderBy('category'), orderBy('unitNo'));
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
         const fetchedUnits = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Unit));
