@@ -55,20 +55,23 @@ export async function POST(req: NextRequest) {
         }
         const unitData = unitDoc.data()!;
         
-        // Corrected logic to get the correct PDF URL
-        const pdfsField = unlockedPdfData.language === 'SI' ? unitData.pdfsSI : unitData.pdfsEN;
-        const pdfType = unlockedPdfData.type as 'note' | 'assignment';
-
-        const sourcePdfUrl = pdfsField?.[pdfType];
+        // Corrected logic: Fetch the single source PDF based on language
+        const sourcePdfUrl = unlockedPdfData.language === 'SI' ? unitData.pdfSI : unitData.pdfEN;
 
         if (!sourcePdfUrl) {
-            return NextResponse.json({ error: 'Source PDF not found for this unit/language/type' }, { status: 404 });
+            return NextResponse.json({ error: 'Source PDF not found for this unit/language' }, { status: 404 });
         }
 
         const bucket = getStorage().bucket();
-        // The URL is in the format: gs://<bucket-name>/<path-to-file>
-        // We need to extract the path.
-        const filePath = new URL(sourcePdfUrl).pathname.split('/').slice(2).join('/');
+        // The URL can be in gs://<bucket-name>/<path> format
+        // Or https://storage.googleapis.com/<bucket-name>/<path> format
+        let filePath: string;
+        if (sourcePdfUrl.startsWith('gs://')) {
+          filePath = sourcePdfUrl.substring(`gs://${firebaseConfig.storageBucket}/`.length);
+        } else {
+          filePath = new URL(sourcePdfUrl).pathname.split('/').slice(2).join('/');
+        }
+        
         const file = bucket.file(filePath);
 
         const [pdfBytes] = await file.download();
@@ -77,9 +80,8 @@ export async function POST(req: NextRequest) {
         
         const watermarkText = `Purchased by ${decodedToken.email || 'N/A'}`;
 
-
+        // Dynamically apply watermark for 'note' type
         if (unlockedPdfData.type === 'note') {
-            // Apply watermark
             const pdfDoc = await PDFDocument.load(pdfBytes);
             const helveticaFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
             const pages = pdfDoc.getPages();
@@ -97,7 +99,7 @@ export async function POST(req: NextRequest) {
             }
             finalPdfBytes = await pdfDoc.save();
         } else {
-            // Serve original for assignments
+            // Serve original for 'assignment' type
             finalPdfBytes = pdfBytes;
         }
 
