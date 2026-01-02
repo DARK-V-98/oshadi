@@ -1,4 +1,5 @@
 
+
 'use client';
 import { useState } from 'react';
 import { useFirestore, useStorage } from '@/firebase';
@@ -20,7 +21,7 @@ type PdfManagerProps = {
   unit: Unit;
 };
 
-const PdfUploadRow = ({ unit, language, pdfUrl, pdfFileName, fieldName, fileFieldName, label }: { unit: Unit; language: 'SI' | 'EN', pdfUrl?: string, pdfFileName?: string, fieldName: 'pdfSI' | 'pdfEN', fileFieldName: 'pdfFileNameSI' | 'pdfFileNameEN', label: string }) => {
+const PdfUploadRow = ({ unit, language, pdfUrl, pdfFileName, urlFieldName, fileNameFieldName, label }: { unit: Unit; language: 'SI' | 'EN', pdfUrl?: string, pdfFileName?: string, urlFieldName: 'pdfUrlSI' | 'pdfUrlEN', fileNameFieldName: 'pdfFileNameSI' | 'pdfFileNameEN', label: string }) => {
     const storage = useStorage();
     const firestore = useFirestore();
     const { toast } = useToast();
@@ -72,8 +73,8 @@ const PdfUploadRow = ({ unit, language, pdfUrl, pdfFileName, fieldName, fileFiel
             
             try {
               await updateDoc(unitDocRef, {
-                [fieldName]: downloadURL,
-                [fileFieldName]: file.name
+                [urlFieldName]: downloadURL,
+                [fileNameFieldName]: file.name
               });
               toast({ title: 'Upload Complete', description: `${label} has been updated.` });
             } catch (error) {
@@ -96,10 +97,10 @@ const PdfUploadRow = ({ unit, language, pdfUrl, pdfFileName, fieldName, fileFiel
           await deleteObject(fileRef);
           const unitDocRef = doc(firestore, 'units', unit.id);
           await updateDoc(unitDocRef, {
-             [fieldName]: null,
-             [fileFieldName]: null
+             [urlFieldName]: null,
+             [fileNameFieldName]: null
           }).catch(async (serverError) => {
-             const permissionError = new FirestorePermissionError({ path: unitDocRef.path, operation: 'update', requestResourceData: { [fieldName]: null, [fileFieldName]: null } });
+             const permissionError = new FirestorePermissionError({ path: unitDocRef.path, operation: 'update', requestResourceData: { [urlFieldName]: null, [fileNameFieldName]: null } });
              errorEmitter.emit('permission-error', permissionError);
              throw permissionError;
           });
@@ -107,7 +108,7 @@ const PdfUploadRow = ({ unit, language, pdfUrl, pdfFileName, fieldName, fileFiel
         } catch (error: any) {
             if (error.code === 'storage/object-not-found') {
                 const unitDocRef = doc(firestore, 'units', unit.id);
-                await updateDoc(unitDocRef, { [fieldName]: null, [fileFieldName]: null });
+                await updateDoc(unitDocRef, { [urlFieldName]: null, [fileNameFieldName]: null });
                 toast({ title: 'File reference removed' });
             } else if (!(error instanceof FirestorePermissionError)){
                 toast({ title: 'Deletion Failed', variant: 'destructive' });
@@ -180,10 +181,10 @@ export default function PdfManager({ unit }: PdfManagerProps) {
             <PdfUploadRow 
                 unit={unit} 
                 language="SI" 
-                pdfUrl={unit.pdfSI}
+                pdfUrl={unit.pdfUrlSI}
                 pdfFileName={unit.pdfFileNameSI}
-                fieldName="pdfSI"
-                fileFieldName="pdfFileNameSI"
+                urlFieldName="pdfUrlSI"
+                fileNameFieldName="pdfFileNameSI"
                 label="Sinhala PDF" 
             />
         </div>
@@ -192,10 +193,10 @@ export default function PdfManager({ unit }: PdfManagerProps) {
              <PdfUploadRow 
                 unit={unit} 
                 language="EN" 
-                pdfUrl={unit.pdfEN}
+                pdfUrl={unit.pdfUrlEN}
                 pdfFileName={unit.pdfFileNameEN}
-                fieldName="pdfEN"
-                fileFieldName="pdfFileNameEN"
+                urlFieldName="pdfUrlEN"
+                fileNameFieldName="pdfFileNameEN"
                 label="English PDF" 
             />
         </div>

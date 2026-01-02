@@ -15,8 +15,8 @@ export type Unit = {
   assignmentsSIEnabled: boolean;
   notesENEnabled: boolean;
   assignmentsENEnabled: boolean;
-  pdfSI?: string; // URL to the original Sinhala PDF
-  pdfEN?: string; // URL to the original English PDF
+  pdfUrlSI?: string; // URL to the original Sinhala PDF
+  pdfUrlEN?: string; // URL to the original English PDF
   pdfFileNameSI?: string;
   pdfFileNameEN?: string;
 };
@@ -81,5 +81,5 @@ export const mockUnits: Omit<Unit, 'id'>[] = [
     
     // Extra Notes
     { unitNo: "EN-01", nameEN: "History of Beauty", nameSI: "රූපලාවන්‍ය ඉතිහාසය", category: "extra-notes", priceNotesSI: "300", priceAssignmentsSI: "", priceNotesEN: "400", priceAssignmentsEN: "", enabled: true, notesSIEnabled: true, assignmentsSIEnabled: false, notesENEnabled: true, assignmentsENEnabled: false },
-    { unitNo: "EN-02", nameEN: "History of Cosmetics", nameSI: "විකชั่น ලාවണ്യ ඉතිහාසය", category: "extra-notes", priceNotesSI: "300", priceAssignmentsSI: "", priceNotesEN: "400", priceAssignmentsEN: "", enabled: true, notesSIEnabled: true, assignmentsSIEnabled: false, notesENEnabled: true, assignmentsENEnabled: false },
+    { unitNo: "EN-02", nameEN: "History of Cosmetics", nameSI: "කේශලාවන්‍ය ඉතිහාසය", category: "extra-notes", priceNotesSI: "300", priceAssignmentsSI: "", priceNotesEN: "400", priceAssignmentsEN: "", enabled: true, notesSIEnabled: true, assignmentsSIEnabled: false, notesENEnabled: true, assignmentsENEnabled: false },
 ];
