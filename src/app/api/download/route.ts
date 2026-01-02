@@ -54,11 +54,15 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'Unit data not found' }, { status: 404 });
         }
         const unitData = unitDoc.data()!;
+        
+        // Corrected logic to get the correct PDF URL
+        const pdfsField = unlockedPdfData.language === 'SI' ? unitData.pdfsSI : unitData.pdfsEN;
+        const pdfType = unlockedPdfData.type as 'note' | 'assignment';
 
-        const sourcePdfUrl = unlockedPdfData.language === 'SI' ? unitData.pdfSI : unitData.pdfEN;
+        const sourcePdfUrl = pdfsField?.[pdfType];
 
         if (!sourcePdfUrl) {
-            return NextResponse.json({ error: 'Source PDF not found for this unit/language' }, { status: 404 });
+            return NextResponse.json({ error: 'Source PDF not found for this unit/language/type' }, { status: 404 });
         }
 
         const bucket = getStorage().bucket();
@@ -121,5 +125,3 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'An internal error occurred' }, { status: 500 });
     }
 }
-
-    
