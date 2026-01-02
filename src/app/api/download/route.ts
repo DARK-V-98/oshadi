@@ -9,6 +9,7 @@ import { Unit } from '@/lib/data';
 // Correct initialization for Firebase Admin SDK in a server environment
 function getFirebaseAdminApp(): App {
     if (getApps().length === 0) {
+        // No configuration is needed when running in a Google Cloud environment
         return initializeApp();
     } else {
         return getAdminApp();
@@ -16,8 +17,10 @@ function getFirebaseAdminApp(): App {
 }
 
 export async function POST(req: NextRequest) {
+    const authHeader = req.headers.get('authorization');
+    console.log('Download API received Authorization header:', authHeader); // Debugging log
+
     try {
-        const authHeader = req.headers.get('authorization');
         if (!authHeader?.startsWith('Bearer ')) {
             return NextResponse.json({ error: 'Missing or invalid authorization header' }, { status: 401 });
         }
@@ -73,11 +76,11 @@ export async function POST(req: NextRequest) {
             sourcePdfUrl = type === 'note' ? unitData.pdfUrlNotesEN : unitData.pdfUrlAssignmentsEN;
             pdfFileName = type === 'note' ? unitData.pdfFileNameNotesEN : unitData.pdfFileNameAssignmentsEN;
         }
-
+        
         if (!sourcePdfUrl) {
             return NextResponse.json({ error: `Source PDF not found for this unit/language/type combination.` }, { status: 404 });
         }
-
+        
         // 4. Generate a signed URL for the direct file
         const filePath = decodeURIComponent(sourcePdfUrl.split('/o/')[1].split('?')[0]);
         const file = storage.bucket().file(filePath);
@@ -98,15 +101,18 @@ export async function POST(req: NextRequest) {
 
     } catch (error: any) {
         console.error('Download API Error:', error);
-        // Provide a more specific error message if available
         let errorMessage = 'An internal server error occurred.';
-        if (error.code) { // Firebase errors have a 'code' property
-            errorMessage = `A server error occurred: ${error.code}`;
+        let statusCode = 500;
+        
+        if (error.code) { // Firebase errors often have a 'code'
+             errorMessage = `A server error occurred: ${error.code}`;
+             if(error.code.startsWith('auth/')) {
+                statusCode = 401;
+             }
         } else if (error.message) {
             errorMessage = error.message;
         }
-        return NextResponse.json({ error: errorMessage, details: error.toString() }, { status: 500 });
+
+        return NextResponse.json({ error: errorMessage, details: error.toString() }, { status: statusCode });
     }
 }
-
-    
