@@ -1,7 +1,7 @@
 
 'use client';
 import { useState, useEffect, useMemo } from 'react';
-import { useUser, useFirestore, useStorage } from '@/firebase';
+import { useUser, useFirestore } from '@/firebase';
 import { collection, query, where, doc, onSnapshot, getDoc, updateDoc, orderBy } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
@@ -31,10 +31,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { ref, getBytes } from 'firebase/storage';
 import { Badge } from '@/components/ui/badge';
 import TestimonialForm from '@/components/dashboard/TestimonialForm';
 import { CartItem } from '@/context/CartContext';
+import { ref, getBytes } from 'firebase/storage';
+import { useStorage } from '@/firebase';
 
 
 interface UnlockedPdfDoc {
@@ -51,10 +52,6 @@ interface UnlockedPdfDoc {
     unlockedAt: { toDate: () => Date };
     unitNameEN: string;
     unitNameSI: string;
-}
-
-interface GroupedContent {
-    [key: string]: UnlockedPdfDoc[];
 }
 
 interface Order {
@@ -226,14 +223,23 @@ function UserDashboard() {
         const active: Order[] = [];
         const historical: Order[] = [];
         orders.forEach(order => {
-            if (order.status === 'completed' && activeContent.every(pdf => pdf.orderId !== order.id)) {
-                historical.push(order);
+            const allContentForOrderDownloaded = order.status === 'completed' && order.items.every(item => {
+                const itemIdentifier = `${item.unitId}-${item.type}-${item.language}`;
+                return historicalContent.some(hc => 
+                    hc.unitId === item.unitId &&
+                    hc.type === item.type &&
+                    hc.language === item.language
+                );
+            });
+            
+            if (order.status === 'completed' && allContentForOrderDownloaded) {
+                 historical.push(order);
             } else {
                 active.push(order);
             }
         });
         return { activeOrders: active, historicalOrders: historical };
-    }, [orders, activeContent]);
+    }, [orders, historicalContent]);
 
 
   return (
@@ -451,9 +457,5 @@ export default function DashboardPage() {
         <UserDashboard />
     )
 }
-
-    
-
-    
 
     
