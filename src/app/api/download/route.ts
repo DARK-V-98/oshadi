@@ -33,19 +33,18 @@ export async function POST(req: NextRequest) {
         }
 
         const unlockedPdfData = unlockedPdfDoc.data()!;
-        const { unitId, type, language, downloaded } = unlockedPdfData;
+        const { unitId, type, language, downloaded, category } = unlockedPdfData;
 
         if (downloaded && !req.nextUrl.searchParams.get('redownload')) {
              return NextResponse.json({ error: 'This file has already been downloaded.' }, { status: 403 });
         }
         
-        // ** THE FIX IS HERE: Query for the unit using unitNo (which is stored as unitId) **
         const unitsRef = collection(db, 'units');
-        const unitQuery = query(unitsRef, where('unitNo', '==', unitId), where('category', '==', unlockedPdfData.category));
+        const unitQuery = query(unitsRef, where('unitNo', '==', unitId), where('category', '==', category));
         const unitQuerySnapshot = await getDocs(unitQuery);
 
         if (unitQuerySnapshot.empty) {
-            return NextResponse.json({ error: `Unit data not found for unitNo: ${unitId}` }, { status: 404 });
+            return NextResponse.json({ error: `Unit data not found for unitNo: ${unitId} in category: ${category}` }, { status: 404 });
         }
         
         const unitDoc = unitQuerySnapshot.docs[0];
@@ -58,7 +57,6 @@ export async function POST(req: NextRequest) {
         }
         
         const bucket = getStorage().bucket();
-        // Correctly decode and parse the HTTPS URL to get the file path
         const decodedUrl = decodeURIComponent(sourcePdfUrl);
         const filePath = decodedUrl.split('/o/')[1].split('?')[0];
 

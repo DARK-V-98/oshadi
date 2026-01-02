@@ -112,14 +112,21 @@ const AdminOrderManagement = () => {
         const batch = writeBatch(firestore);
     
         for (const item of order.items) {
+            const unitDoc = await getDoc(doc(firestore, 'units', item.unitId));
+            if (!unitDoc.exists()) {
+                console.error(`Unit with ID ${item.unitId} not found for order ${order.id}`);
+                continue;
+            }
+            const unitData = unitDoc.data() as Unit;
+
             const unlockedPdfRef = doc(collection(firestore, 'userUnlockedPdfs'));
-            // Store all necessary info for the download API
             batch.set(unlockedPdfRef, {
                 userId: order.userId,
-                unitId: item.unitId,
+                unitId: unitData.unitNo, // Use unitNo here for querying later
                 orderId: order.id,
                 language: item.language,
                 type: item.type,
+                category: unitData.category, // Storing the category
                 unlockedAt: new Date(),
                 downloaded: false,
                 downloadedAt: null,
