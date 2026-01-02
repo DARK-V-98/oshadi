@@ -76,7 +76,7 @@ const syllabusData = {
     label: "Extra Notes",
     modules: [
         { code: "EN-01", nameEN: "History of Beauty", nameSI: "රූපලාවන්‍ය ඉතිහාසය" },
-        { code: "EN-02", nameEN: "History of Cosmetics", nameSI: "විකชั่น ලාවണ്യ ඉතිහාසය" },
+        { code: "EN-02", nameEN: "History of Cosmetics", nameSI: "කේශලාවන්‍ය ඉතිහාසය" },
     ]
   }
 };
@@ -138,3 +138,5 @@ const SyllabusPage = () => {
 };
 
 export default SyllabusPage;
+
+    
