@@ -35,13 +35,13 @@ export async function POST(req: NextRequest) {
         const unlockedPdfRef = doc(db, 'userUnlockedPdfs', unlockedPdfId);
         const unlockedPdfDoc = await unlockedPdfRef.get();
 
-        if (!unlockedPdfDoc.exists || unlockedPdfDoc.data()?.userId !== userId) {
+        if (!unlockedPdfDoc.exists() || unlockedPdfDoc.data()?.userId !== userId) {
             return NextResponse.json({ error: 'Unauthorized or PDF record not found' }, { status: 403 });
         }
 
         const unlockedPdfData = unlockedPdfDoc.data();
-        const { unitId, type, language, category, downloaded } = unlockedPdfData;
-
+        const { unitId, type, language, downloaded, category } = unlockedPdfData;
+        
         // Prevent re-download if it's the first time and not a redownload request
         if (downloaded && !req.nextUrl.searchParams.get('redownload')) {
              return NextResponse.json({ error: 'This file has already been downloaded.' }, { status: 403 });
@@ -59,12 +59,16 @@ export async function POST(req: NextRequest) {
         const unitDoc = unitQuerySnapshot.docs[0];
         const unitData = unitDoc.data() as Unit;
         
-        // 3. Determine which PDF URL to use
+        // 3. Determine which PDF URL to use based on language and type
         let sourcePdfUrl: string | undefined;
+        let pdfFileName: string | undefined;
+
         if (language === 'SI') {
             sourcePdfUrl = type === 'note' ? unitData.pdfUrlNotesSI : unitData.pdfUrlAssignmentsSI;
+            pdfFileName = type === 'note' ? unitData.pdfFileNameNotesSI : unitData.pdfFileNameAssignmentsSI;
         } else { // language === 'EN'
             sourcePdfUrl = type === 'note' ? unitData.pdfUrlNotesEN : unitData.pdfUrlAssignmentsEN;
+            pdfFileName = type === 'note' ? unitData.pdfFileNameNotesEN : unitData.pdfFileNameAssignmentsEN;
         }
 
         if (!sourcePdfUrl) {
@@ -72,14 +76,13 @@ export async function POST(req: NextRequest) {
         }
 
         // 4. Generate a signed URL for the direct file
-        // Extract the file path from the full HTTPS URL
         const filePath = decodeURIComponent(sourcePdfUrl.split('/o/')[1].split('?')[0]);
         const file = storage.bucket().file(filePath);
         
         const [signedUrl] = await file.getSignedUrl({
             action: 'read',
             expires: Date.now() + 5 * 60 * 1000, // 5 minutes
-            responseDisposition: `attachment; filename="${unitData.nameEN} - ${language} ${type}.pdf"`
+            responseDisposition: `attachment; filename="${pdfFileName || `${unitData.nameEN} - ${language} ${type}.pdf`}"`
         });
 
         // 5. Update the download status in Firestore if it's the first download
