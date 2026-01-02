@@ -1,54 +1,35 @@
+
 'use client';
 import { useState, useEffect } from 'react';
-import { useFirestore } from '@/firebase';
-import { collection, onSnapshot, query, where, orderBy } from 'firebase/firestore';
-import { useToast } from '@/hooks/use-toast';
-import { Unit } from '@/lib/data';
+import { Unit, units as allUnits } from '@/lib/data';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Search, Loader2, Book, FileArchive } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useCart } from '@/context/CartContext';
-import { cn } from '@/lib/utils';
 import Navbar from '@/components/ov/Navbar';
 import Footer from '@/components/ov/Footer';
 import AuthForm from './AuthForm';
-
-interface UnitWithPdfCount extends Unit {
-    pdfsENCount: number;
-    pdfsSICount: number;
-    priceNotesEN?: string;
-    priceAssignmentsEN?: string;
-    priceNotesSI?: string;
-    priceAssignmentsSI?: string;
-}
+import { useToast } from '@/hooks/use-toast';
 
 interface CategoryPageProps {
-  categoryValue: string;
+  categoryValue: Unit['category'];
   categoryName: string;
 }
 
-const UnitCard = ({ unit }: { unit: UnitWithPdfCount }) => {
+const UnitCard = ({ unit }: { unit: Unit }) => {
     const [selectedLanguage, setSelectedLanguage] = useState<'SI' | 'EN'>('SI');
     const { toast } = useToast();
     const { addToCart } = useCart();
   
-    const handleAddToCart = (unit: UnitWithPdfCount, type: 'note' | 'assignment', language: 'EN' | 'SI') => {
+    const handleAddToCart = (unit: Unit, type: 'note' | 'assignment', language: 'EN' | 'SI') => {
         const priceStr = type === 'note' 
           ? (language === 'EN' ? unit.priceNotesEN : unit.priceNotesSI)
           : (language === 'EN' ? unit.priceAssignmentsEN : unit.priceAssignmentsSI);
         
-        if (!priceStr) {
-            toast({title: "Not for sale", description: "This item is not currently available for purchase.", variant: "destructive"});
-            return;
-        }
-        
-        const price = parseFloat(priceStr);
-        if (isNaN(price)) {
-          toast({title: "Price error", description: "Invalid price format for this item.", variant: "destructive"});
-          return;
-        }
-        
+        // This is a mock price for items that don't have one in the static data
+        const price = priceStr ? parseFloat(priceStr) : 300;
+
         addToCart({
             unitId: unit.unitNo,
             unitName: unit.nameEN,
@@ -88,21 +69,15 @@ const UnitCard = ({ unit }: { unit: UnitWithPdfCount }) => {
                     </div>
 
                     <div className="space-y-2">
-                        {notePrice && (
-                             <Button size="sm" variant="outline" className="w-full justify-between" onClick={() => handleAddToCart(unit, 'note', selectedLanguage)}>
-                                <span className="flex items-center gap-2"><Book className="w-4 h-4"/> Notes</span>
-                                <span>LKR {notePrice}</span>
-                             </Button>
-                        )}
-                        {assignmentPrice && (
-                             <Button size="sm" variant="outline" className="w-full justify-between" onClick={() => handleAddToCart(unit, 'assignment', selectedLanguage)}>
-                                <span className="flex items-center gap-2"><FileArchive className="w-4 h-4"/> Assignments</span>
-                                <span>LKR {assignmentPrice}</span>
-                             </Button>
-                        )}
-                         {!notePrice && !assignmentPrice && (
-                            <p className="text-xs text-center text-muted-foreground p-2">No items available for purchase in {selectedLanguage === 'SI' ? 'Sinhala' : 'English'}.</p>
-                        )}
+                        {/* Mock buttons as prices are not fully available */}
+                        <Button size="sm" variant="outline" className="w-full justify-between" onClick={() => handleAddToCart(unit, 'note', selectedLanguage)}>
+                            <span className="flex items-center gap-2"><Book className="w-4 h-4"/> Notes</span>
+                            <span>Add to Cart</span>
+                        </Button>
+                        <Button size="sm" variant="outline" className="w-full justify-between" onClick={() => handleAddToCart(unit, 'assignment', selectedLanguage)}>
+                            <span className="flex items-center gap-2"><FileArchive className="w-4 h-4"/> Assignments</span>
+                            <span>Add to Cart</span>
+                        </Button>
                     </div>
                 </div>
             </div>
@@ -111,46 +86,17 @@ const UnitCard = ({ unit }: { unit: UnitWithPdfCount }) => {
 }
 
 const CategoryPage = ({ categoryValue, categoryName }: CategoryPageProps) => {
-  const firestore = useFirestore();
-  const [units, setUnits] = useState<UnitWithPdfCount[]>([]);
+  const [units, setUnits] = useState<Unit[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
-
   useEffect(() => {
-    if (!firestore) return;
-
     setLoading(true);
-    const unitsRef = collection(firestore, 'units');
-    const q = query(unitsRef, where('category', '==', categoryValue), orderBy('unitNo'));
-
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-        const fetchedUnits = snapshot.docs.map(doc => {
-            const data = doc.data();
-            return {
-                unitNo: doc.id,
-                nameEN: data.nameEN,
-                nameSI: data.nameSI,
-                modelCount: data.modelCount,
-                category: data.category,
-                priceNotesSI: data.priceNotesSI ?? data.priceNotes,
-                priceAssignmentsSI: data.priceAssignmentsSI ?? data.priceAssignments,
-                priceNotesEN: data.priceNotesEN,
-                priceAssignmentsEN: data.priceAssignmentsEN,
-                pdfsENCount: (data.pdfsEN || []).length,
-                pdfsSICount: (data.pdfsSI || []).length,
-            };
-        });
-        setUnits(fetchedUnits);
-        setLoading(false);
-    }, (error) => {
-        console.error(`Error fetching units for category ${categoryName}: `, error);
-        setLoading(false);
-    });
-
-    return () => unsubscribe();
-  }, [firestore, categoryValue, categoryName]);
+    const categoryUnits = allUnits.filter(unit => unit.category === categoryValue);
+    setUnits(categoryUnits);
+    setLoading(false);
+  }, [categoryValue]);
 
   const filteredUnits = units.filter((unit) =>
     unit.nameEN.toLowerCase().includes(searchQuery.toLowerCase()) ||
