@@ -1,7 +1,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuth } from 'firebase-admin/auth';
-import { getFirestore } from 'firebase-admin/firestore';
+import { getFirestore, doc, getDoc } from 'firebase-admin/firestore';
 import { getStorage } from 'firebase-admin/storage';
 import { initializeApp, getApps, App } from 'firebase-admin/app';
 import { firebaseConfig } from '@/firebase/config';
@@ -74,7 +74,6 @@ export async function POST(req: NextRequest) {
 
         let finalPdfBytes: Uint8Array;
         const fileName = unlockedPdfData.language === 'SI' ? unitData.pdfFileNameSI : unitData.pdfFileNameEN;
-        let isTempFile = false;
         
         if (unlockedPdfData.type === 'note') {
             const pdfDoc = await PDFDocument.load(originalPdfBytes);
