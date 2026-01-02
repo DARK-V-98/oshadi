@@ -36,6 +36,7 @@ interface OrderConfirmation {
 interface CartContextType {
   cart: CartItem[];
   addToCart: (item: Omit<CartItem, 'id' | 'quantity'>) => void;
+  addMultipleToCart: (items: Omit<CartItem, 'id' | 'quantity'>[]) => Promise<void>;
   removeFromCart: (itemId: string) => void;
   clearCart: () => void;
   checkout: () => Promise<void>;
@@ -85,7 +86,6 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         console.error("Error fetching unlocked items: ", error);
     });
     
-    // Combine loading states
     Promise.all([new Promise(res => onSnapshot(cartRef, res)), new Promise(res => onSnapshot(qUnlocked, res))]).then(() => {
         setLoading(false);
     });
@@ -109,10 +109,8 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       return;
     }
 
-    const cartRef = collection(firestore, 'users', user.uid, 'cart');
     const itemIdentifier = `${item.unitId}-${item.type}-${item.language}`;
     
-    // Check if item already exists in cart
     const existingItemInCart = cart.find(cartItem => 
         cartItem.unitId === item.unitId &&
         cartItem.type === item.type &&
@@ -124,18 +122,51 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         return;
     }
 
-    // Check if user has already unlocked this item
     if (unlockedItems.includes(itemIdentifier)) {
-        toast({ title: 'Already Owned', description: 'You have already purchased and unlocked this item.'});
-        // We still allow them to add to cart, in case they want to buy it again.
+        toast({ title: 'Already Owned', description: 'You have already purchased this item.'});
     }
 
     try {
+      const cartRef = collection(firestore, 'users', user.uid, 'cart');
       await addDoc(cartRef, { ...item, quantity: 1 });
       toast({ title: 'Added to Cart', description: `${item.unitName} (${item.language} ${item.type}) has been added.`});
     } catch (error) {
       console.error('Error adding to cart: ', error);
       toast({ title: 'Error', description: 'Could not add item to cart.', variant: 'destructive' });
+    }
+  };
+
+  const addMultipleToCart = async (items: Omit<CartItem, 'id' | 'quantity'>[]) => {
+    if (!user || !firestore) {
+      toast({ title: 'Please Log In', description: 'You must be logged in to add items.', variant: 'destructive' });
+      return;
+    }
+    
+    const cartRef = collection(firestore, 'users', user.uid, 'cart');
+    const batch = writeBatch(firestore);
+    let itemsAddedCount = 0;
+
+    items.forEach(item => {
+        const itemIdentifier = `${item.unitId}-${item.type}-${item.language}`;
+        const isAlreadyInCart = cart.some(cartItem => 
+            cartItem.unitId === item.unitId &&
+            cartItem.type === item.type &&
+            cartItem.language === item.language
+        );
+        const isAlreadyOwned = unlockedItems.includes(itemIdentifier);
+        
+        if (!isAlreadyInCart && !isAlreadyOwned) {
+            const docRef = doc(cartRef);
+            batch.set(docRef, { ...item, quantity: 1 });
+            itemsAddedCount++;
+        }
+    });
+    
+    if (itemsAddedCount > 0) {
+        await batch.commit();
+        toast({ title: 'Items Added', description: `${itemsAddedCount} new item(s) added to your cart.` });
+    } else {
+        toast({ title: 'No New Items', description: 'All selected items are already in your cart or owned.' });
     }
   };
 
@@ -146,7 +177,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         await deleteDoc(itemDocRef);
     } catch (error) {
         console.error("Error removing from cart: ", error);
-        toast({ title: "Error", description: "Could not remove item from cart.", variant: 'destructive'});
+        toast({ title: "Error", description: "Could not remove item from cart.", variant: "destructive"});
     }
   };
 
@@ -208,7 +239,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   const totalPrice = cart.reduce((total, item) => total + item.price * item.quantity, 0);
 
   return (
-    <CartContext.Provider value={{ cart, addToCart, removeFromCart, clearCart, checkout, loading, itemCount, totalPrice }}>
+    <CartContext.Provider value={{ cart, addToCart, addMultipleToCart, removeFromCart, clearCart, checkout, loading, itemCount, totalPrice }}>
       {children}
       {orderConfirmation && (
         <AlertDialog open={!!orderConfirmation} onOpenChange={() => setOrderConfirmation(null)}>
