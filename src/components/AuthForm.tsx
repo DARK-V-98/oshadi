@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -36,7 +37,7 @@ export default function AuthForm({ open, onOpenChange }: AuthFormProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="bg-transparent border-none shadow-none p-0 max-w-md">
-         <DialogHeader className="sr-only">
+         <DialogHeader>
           <DialogTitle>Authentication</DialogTitle>
           <DialogDescription>
             Sign in or create a new account to continue.

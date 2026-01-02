@@ -125,7 +125,7 @@ const AdminOrderManagement = () => {
             const unlockedPdfRef = doc(collection(firestore, 'userUnlockedPdfs'));
             batch.set(unlockedPdfRef, {
                 userId: order.userId,
-                unitId: unitDoc.id, // Store the actual Firestore document ID
+                unitId: item.unitId, // This is now the Firestore Document ID
                 unitNo: unitData.unitNo, // Keep unitNo for display if needed
                 orderId: order.id,
                 language: item.language,
