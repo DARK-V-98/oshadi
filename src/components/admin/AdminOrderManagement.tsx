@@ -114,13 +114,13 @@ const AdminOrderManagement = () => {
     
         for (const item of order.items) {
             // Find the unit document to get its actual Firestore ID and category
-            const q = query(unitsRef, where('unitNo', '==', item.unitId));
+            const q = query(unitsRef, where('unitNo', '==', item.unitId)); // Correctly query by unitNo
             const unitSnapshot = await getDocs(q);
 
             if (unitSnapshot.empty) {
                 console.error(`Unit with unitNo ${item.unitId} not found for order ${order.id}`);
                 toast({ title: "Unlock Error", description: `Could not find unit data for ${item.unitName}.`, variant: "destructive"});
-                continue;
+                continue; // Skip this item and continue with the rest of the order
             }
             
             const unitDoc = unitSnapshot.docs[0];
@@ -130,6 +130,7 @@ const AdminOrderManagement = () => {
             batch.set(unlockedPdfRef, {
                 userId: order.userId,
                 unitId: unitDoc.id, // **** Save the actual Firestore document ID ****
+                unitNo: item.unitId, // Keep unitNo for display if needed
                 orderId: order.id,
                 language: item.language,
                 type: item.type,
@@ -137,7 +138,6 @@ const AdminOrderManagement = () => {
                 unitNameEN: item.unitName,
                 unlockedAt: new Date(),
                 downloaded: false,
-                downloadedAt: null,
             });
         }
     

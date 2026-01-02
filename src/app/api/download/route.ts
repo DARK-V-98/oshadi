@@ -1,30 +1,29 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuth } from 'firebase-admin/auth';
-import { getFirestore, doc, writeBatch, getDoc } from 'firebase-admin/firestore';
+import { getFirestore, doc, writeBatch, getDoc, updateDoc } from 'firebase-admin/firestore';
 import { getStorage } from 'firebase-admin/storage';
-import { initializeApp, getApps, App, AppOptions } from 'firebase-admin/app';
+import { initializeApp, getApps, App, getApp as getAdminApp } from 'firebase-admin/app';
 import { Unit } from '@/lib/data';
 
-// Helper to initialize Firebase Admin SDK only once
 let adminApp: App;
 function getFirebaseAdminApp(): App {
-    if (!getApps().length) {
+    if (getApps().length === 0) {
         adminApp = initializeApp();
     } else {
-        adminApp = getApps()[0];
+        adminApp = getAdminApp();
     }
     return adminApp;
 }
 
 export async function POST(req: NextRequest) {
-    const { token, unlockedPdfId } = await req.json();
-
-    if (!token || !unlockedPdfId) {
-        return NextResponse.json({ error: 'Missing token or unlockedPdfId' }, { status: 400 });
-    }
-
     try {
+        const { token, unlockedPdfId } = await req.json();
+
+        if (!token || !unlockedPdfId) {
+            return NextResponse.json({ error: 'Missing token or unlockedPdfId' }, { status: 400 });
+        }
+        
         const app = getFirebaseAdminApp();
         const decodedToken = await getAuth(app).verifyIdToken(token);
         const userId = decodedToken.uid;
@@ -42,10 +41,10 @@ export async function POST(req: NextRequest) {
         const unlockedPdfData = unlockedPdfDoc.data();
         const { unitId, type, language, downloaded } = unlockedPdfData;
         
-        if (downloaded && !req.nextUrl.searchParams.get('redownload')) {
-             return NextResponse.json({ error: 'This file has already been downloaded.' }, { status: 403 });
+        if (!unitId) {
+             return NextResponse.json({ error: 'Unlocked PDF record is missing unitId.' }, { status: 500 });
         }
-        
+
         // 2. Get the unit document using the correct document ID
         const unitDocRef = doc(db, 'units', unitId);
         const unitDoc = await getDoc(unitDocRef);
@@ -84,7 +83,7 @@ export async function POST(req: NextRequest) {
 
         // 5. Update the download status in Firestore if it's the first download
         if (!downloaded) {
-            await writeBatch(db).update(unlockedPdfRef, { downloaded: true, downloadedAt: new Date() }).commit();
+            await updateDoc(unlockedPdfRef, { downloaded: true, downloadedAt: new Date() });
         }
 
         // 6. Return the signed URL to the client
@@ -92,6 +91,12 @@ export async function POST(req: NextRequest) {
 
     } catch (error: any) {
         console.error('Download API Error:', error);
-        return NextResponse.json({ error: 'An internal server error occurred.' }, { status: 500 });
+        let errorMessage = 'An internal server error occurred.';
+        if (error.code) { // Firebase errors have a 'code' property
+            errorMessage = `A server error occurred: ${error.code}`;
+        } else if (error.message) {
+            errorMessage = error.message;
+        }
+        return NextResponse.json({ error: errorMessage, details: error.toString() }, { status: 500 });
     }
 }
