@@ -2,7 +2,7 @@
 'use client';
 import { useState, useEffect, useMemo } from 'react';
 import { useUser, useFirestore } from '@/firebase';
-import { collection, query, where, onSnapshot, getDocs, orderBy, doc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
@@ -135,7 +135,7 @@ function UserDashboard() {
     toast({ title: "Preparing Download...", description: "Your secure download will begin shortly."});
 
     try {
-      const token = await user.getIdToken(true);
+      const token = await user.getIdToken(true); // Force token refresh
       const response = await fetch('/api/download', {
           method: 'POST',
           headers: { 
@@ -150,7 +150,7 @@ function UserDashboard() {
       if (!response.ok) {
         let errorMessage = result.error || 'Download failed due to an unknown error.';
         if (response.status >= 500) {
-            errorMessage = `An internal server error occurred. Please contact support. (Status: ${response.status})`;
+            errorMessage = result.error || `An internal server error occurred. Please contact support. (Status: ${response.status})`;
         }
         throw new Error(errorMessage);
     }
@@ -490,3 +490,5 @@ export default function DashboardPage() {
         <UserDashboard />
     )
 }
+
+    

@@ -1,26 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getFirestore, doc, getDoc, updateDoc, writeBatch, collection, serverTimestamp } from 'firebase-admin/firestore';
+import { getFirestore, doc, getDoc, updateDoc, writeBatch, collection, serverTimestamp, query, where, getDocs } from 'firebase-admin/firestore';
 import { adminApp, adminAuth } from '@/firebase/admin';
 import { Unit } from '@/lib/data';
 import { CartItem } from '@/context/CartContext';
 
 
 export async function POST(req: NextRequest) {
+    console.log('Unlock API received request.');
     const authHeader = req.headers.get('authorization');
-    console.log('Unlock API received Authorization header:', authHeader); // Debugging log
+    console.log('Authorization header:', authHeader);
 
     try {
         if (!authHeader?.startsWith('Bearer ')) {
-            return NextResponse.json({ error: 'Missing or invalid authorization header' }, { status: 401 });
+            return NextResponse.json({ error: 'Missing or invalid authorization header.' }, { status: 401 });
         }
         const token = authHeader.split('Bearer ')[1];
         if (!token) {
-            return NextResponse.json({ error: 'Token missing from authorization header' }, { status: 401 });
+            return NextResponse.json({ error: 'Token missing from authorization header.' }, { status: 401 });
         }
 
         const { orderId } = await req.json();
         if (!orderId) {
-            return NextResponse.json({ error: 'Missing orderId' }, { status: 400 });
+            return NextResponse.json({ error: 'Missing orderId.' }, { status: 400 });
         }
         
         const decodedToken = await adminAuth.verifyIdToken(token);
@@ -32,7 +33,7 @@ export async function POST(req: NextRequest) {
         const orderDoc = await getDoc(orderDocRef);
 
         if (!orderDoc.exists() || orderDoc.data()?.userId !== userId) {
-            return NextResponse.json({ error: 'Unauthorized or order not found' }, { status: 403 });
+            return NextResponse.json({ error: 'Unauthorized or order not found.' }, { status: 403 });
         }
         
         const orderData = orderDoc.data();
@@ -48,9 +49,13 @@ export async function POST(req: NextRequest) {
         // 2. Unlock content for the user
         const batch = writeBatch(db);
         const itemsToUnlock: CartItem[] = orderData.items;
+        const unitsRef = collection(db, 'units');
 
         for (const item of itemsToUnlock) {
-            const unitDoc = await getDoc(doc(db, 'units', item.unitId));
+            // item.unitId is the Firestore document ID of the unit
+            const unitDocRef = doc(unitsRef, item.unitId);
+            const unitDoc = await getDoc(unitDocRef);
+            
             if (!unitDoc.exists()) {
                 console.warn(`Unit with ID ${item.unitId} not found during unlock for order ${orderId}`);
                 continue; // Skip if unit doesn't exist
@@ -86,7 +91,7 @@ export async function POST(req: NextRequest) {
         let statusCode = 500;
         
         if (error.code) { // Firebase errors often have a 'code'
-             errorMessage = `A server error occurred: ${error.code}`;
+             errorMessage = `A server error occurred: ${error.code}.`;
              if(error.code.startsWith('auth/')) {
                 statusCode = 401;
              }
@@ -97,3 +102,5 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: errorMessage, details: error.toString() }, { status: statusCode });
     }
 }
+
+    
