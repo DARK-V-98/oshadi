@@ -63,13 +63,16 @@ export async function POST(req: NextRequest) {
 
         const bucket = getStorage().bucket();
         let filePath: string;
-        if (sourcePdfUrl.startsWith('gs://')) {
-          filePath = sourcePdfUrl.substring(`gs://${firebaseConfig.storageBucket}/`.length);
-        } else if (sourcePdfUrl.startsWith('https://firebasestorage.googleapis.com')) {
+        
+        // Correctly parse the HTTPS URL from Firebase Storage
+        if (sourcePdfUrl.startsWith('https://firebasestorage.googleapis.com')) {
           const path = new URL(sourcePdfUrl).pathname;
           // Path is like /v0/b/bucket-name/o/path%2Fto%2Ffile.pdf
           const prefix = `/v0/b/${firebaseConfig.storageBucket}/o/`;
           filePath = decodeURIComponent(path.substring(prefix.length).split('?')[0]);
+        } else if (sourcePdfUrl.startsWith('gs://')) {
+            // Also handle gs:// format for robustness
+            filePath = sourcePdfUrl.substring(`gs://${firebaseConfig.storageBucket}/`.length);
         } else {
             return NextResponse.json({ error: 'Invalid PDF source URL format.' }, { status: 500 });
         }
