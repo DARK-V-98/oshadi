@@ -1,29 +1,33 @@
+
 'use server';
 
 import { getAdminFirestore } from '@/firebase/admin';
-import { collection, doc, writeBatch, getDoc, updateDoc } from 'firebase/firestore';
 import { CartItem } from '@/context/CartContext';
 
 export async function grantAccessToOrderContent(orderId: string) {
     const db = getAdminFirestore();
-    const batch = writeBatch(db);
+    const batch = db.batch();
 
     try {
-        const orderRef = doc(db, 'orders', orderId);
-        const orderSnap = await getDoc(orderRef);
+        const orderRef = db.collection('orders').doc(orderId);
+        const orderSnap = await orderRef.get();
 
-        if (!orderSnap.exists()) {
+        if (!orderSnap.exists) {
             throw new Error('Order not found.');
         }
 
         const orderData = orderSnap.data();
+        if (!orderData) {
+            throw new Error('Order data is missing.');
+        }
+        
         const userId = orderData.userId;
         const items: CartItem[] = orderData.items;
 
-        const unlockedPdfsRef = collection(db, 'userUnlockedPdfs');
+        const unlockedPdfsRef = db.collection('userUnlockedPdfs');
 
         // Fetch all units to get their PDF URLs
-        const unitPromises = items.map(item => getDoc(doc(db, 'units', item.unitId)));
+        const unitPromises = items.map(item => db.collection('units').doc(item.unitId).get());
         const unitSnaps = await Promise.all(unitPromises);
         const unitsData = Object.fromEntries(unitSnaps.map(snap => [snap.id, snap.data()]));
 
@@ -39,7 +43,7 @@ export async function grantAccessToOrderContent(orderId: string) {
             }
 
             if (pdfUrl) {
-                const newUnlockedRef = doc(unlockedPdfsRef);
+                const newUnlockedRef = unlockedPdfsRef.doc();
                 batch.set(newUnlockedRef, {
                     userId,
                     orderId,
