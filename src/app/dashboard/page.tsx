@@ -40,7 +40,6 @@ interface UnlockedPdfDoc {
     id: string; // firestore doc id
     orderId: string;
     unitId: string;
-    fileName: string;
     type: 'note' | 'assignment';
     language: 'EN' | 'SI';
     downloaded: boolean;
@@ -167,7 +166,7 @@ function UserDashboard() {
       const response = await fetch(apiUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ token, unlockedPdfId: part.id }),
+          body: JSON.stringify({ token, unlockedPdfId: part.id, type: part.type, language: part.language }),
       });
 
       if (!response.ok) {

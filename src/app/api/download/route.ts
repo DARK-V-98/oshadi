@@ -19,10 +19,10 @@ function getFirebaseAdminApp(): App {
 }
 
 export async function POST(req: NextRequest) {
-    const { token, unlockedPdfId } = await req.json();
+    const { token, unlockedPdfId, type, language } = await req.json();
 
-    if (!token || !unlockedPdfId) {
-        return NextResponse.json({ error: 'Missing token or unlockedPdfId' }, { status: 400 });
+    if (!token || !unlockedPdfId || !type || !language) {
+        return NextResponse.json({ error: 'Missing token, unlockedPdfId, type, or language' }, { status: 400 });
     }
 
     try {
@@ -34,8 +34,8 @@ export async function POST(req: NextRequest) {
         const unlockedPdfRef = doc(db, 'userUnlockedPdfs', unlockedPdfId);
         const unlockedPdfDoc = await unlockedPdfRef.get();
 
-        if (!unlockedPdfDoc.exists || unlockedPdfDoc.data()?.userId !== userId) {
-            return NextResponse.json({ error: 'Unauthorized or PDF not found' }, { status: 403 });
+        if (!unlockedPdfDoc.exists() || unlockedPdfDoc.data()?.userId !== userId) {
+            return NextResponse.json({ error: 'Unauthorized or PDF record not found' }, { status: 403 });
         }
 
         const unlockedPdfData = unlockedPdfDoc.data()!;
@@ -46,19 +46,19 @@ export async function POST(req: NextRequest) {
 
         const unitDocRef = doc(db, 'units', unlockedPdfData.unitId);
         const unitDoc = await unitDocRef.get();
-        if (!unitDoc.exists) {
+        if (!unitDoc.exists()) {
             return NextResponse.json({ error: 'Unit data not found' }, { status: 404 });
         }
         const unitData = unitDoc.data()!;
         
-        const sourcePdfUrl = unlockedPdfData.language === 'SI' ? unitData.pdfUrlSI : unitData.pdfUrlEN;
+        const sourcePdfUrl = language === 'SI' ? unitData.pdfUrlSI : unitData.pdfUrlEN;
 
         if (!sourcePdfUrl) {
             return NextResponse.json({ error: 'Source PDF not found for this unit/language' }, { status: 404 });
         }
         
         const bucket = getStorage().bucket();
-        // Correctly decode the URL and extract the file path
+        
         const decodedUrl = decodeURIComponent(sourcePdfUrl);
         const filePath = decodedUrl.split('/o/')[1].split('?')[0];
 
@@ -72,9 +72,9 @@ export async function POST(req: NextRequest) {
         const [originalPdfBytes] = await originalFile.download();
 
         let finalPdfBytes: Uint8Array;
-        const fileName = unlockedPdfData.language === 'SI' ? unitData.pdfFileNameSI : unitData.pdfFileNameEN;
+        const fileName = language === 'SI' ? unitData.pdfFileNameSI : unitData.pdfFileNameEN;
         
-        if (unlockedPdfData.type === 'note') {
+        if (type === 'note') {
             const pdfDoc = await PDFDocument.load(originalPdfBytes);
             const helveticaFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
             const pages = pdfDoc.getPages();
