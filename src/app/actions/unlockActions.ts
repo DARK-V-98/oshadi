@@ -15,7 +15,7 @@ export async function unlockContentForOrder(orderId: string): Promise<{ success:
         const token = cookieStore.get('firebaseIdToken')?.value;
 
         if (!token) {
-            throw new Error('User is not authenticated.');
+            return { success: false, error: 'User is not authenticated.' };
         }
 
         const decodedToken = await getAuth(adminApp).verifyIdToken(token);

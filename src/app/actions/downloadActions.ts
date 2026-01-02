@@ -14,7 +14,7 @@ export async function getDownloadUrlForPdf(unlockedPdfId: string): Promise<{ dow
         const token = cookieStore.get('firebaseIdToken')?.value;
 
         if (!token) {
-            throw new Error('User is not authenticated.');
+            return { error: 'User is not authenticated.' };
         }
 
         const decodedToken = await getAuth(adminApp).verifyIdToken(token);
