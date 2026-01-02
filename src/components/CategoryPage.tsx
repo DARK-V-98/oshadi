@@ -1,7 +1,7 @@
 
 'use client';
 import { useState, useEffect } from 'react';
-import { Unit, units as allUnits } from '@/lib/data';
+import { Unit } from '@/lib/data';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Search, Loader2, Book, FileArchive } from 'lucide-react';
@@ -11,6 +11,8 @@ import Navbar from '@/components/ov/Navbar';
 import Footer from '@/components/ov/Footer';
 import AuthForm from './AuthForm';
 import { useToast } from '@/hooks/use-toast';
+import { useFirestore } from '@/firebase';
+import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestore';
 
 interface CategoryPageProps {
   categoryValue: Unit['category'];
@@ -19,7 +21,6 @@ interface CategoryPageProps {
 
 const UnitCard = ({ unit }: { unit: Unit }) => {
     const [selectedLanguage, setSelectedLanguage] = useState<'SI' | 'EN'>('SI');
-    const { toast } = useToast();
     const { addToCart } = useCart();
   
     const handleAddToCart = (unit: Unit, type: 'note' | 'assignment', language: 'EN' | 'SI') => {
@@ -27,11 +28,15 @@ const UnitCard = ({ unit }: { unit: Unit }) => {
           ? (language === 'EN' ? unit.priceNotesEN : unit.priceNotesSI)
           : (language === 'EN' ? unit.priceAssignmentsEN : unit.priceAssignmentsSI);
         
-        // This is a mock price for items that don't have one in the static data
-        const price = priceStr ? parseFloat(priceStr) : 300;
+        const price = priceStr ? parseFloat(priceStr.replace(/,/g, '')) : 300; // Default price if not set
+
+        if (isNaN(price)) {
+            console.error("Invalid price for item:", unit, type, language);
+            return;
+        }
 
         addToCart({
-            unitId: unit.unitNo,
+            unitId: unit.id, // Use Firestore doc ID
             unitName: unit.nameEN,
             type: type,
             language: language,
@@ -39,8 +44,10 @@ const UnitCard = ({ unit }: { unit: Unit }) => {
         });
     }
 
-    const notePrice = selectedLanguage === 'SI' ? unit.priceNotesSI : unit.priceNotesEN;
-    const assignmentPrice = selectedLanguage === 'SI' ? unit.priceAssignmentsSI : unit.priceAssignmentsEN;
+    const notePriceSI = unit.priceNotesSI ? `LKR ${unit.priceNotesSI}` : "Add to Cart";
+    const assignmentPriceSI = unit.priceAssignmentsSI ? `LKR ${unit.priceAssignmentsSI}` : "Add to Cart";
+    const notePriceEN = unit.priceNotesEN ? `LKR ${unit.priceNotesEN}` : "Add to Cart";
+    const assignmentPriceEN = unit.priceAssignmentsEN ? `LKR ${unit.priceAssignmentsEN}` : "Add to Cart";
 
     return (
         <div className="p-4 md:p-5 hover:bg-secondary/30 transition-colors duration-300">
@@ -69,15 +76,29 @@ const UnitCard = ({ unit }: { unit: Unit }) => {
                     </div>
 
                     <div className="space-y-2">
-                        {/* Mock buttons as prices are not fully available */}
-                        <Button size="sm" variant="outline" className="w-full justify-between" onClick={() => handleAddToCart(unit, 'note', selectedLanguage)}>
-                            <span className="flex items-center gap-2"><Book className="w-4 h-4"/> Notes</span>
-                            <span>Add to Cart</span>
-                        </Button>
-                        <Button size="sm" variant="outline" className="w-full justify-between" onClick={() => handleAddToCart(unit, 'assignment', selectedLanguage)}>
-                            <span className="flex items-center gap-2"><FileArchive className="w-4 h-4"/> Assignments</span>
-                            <span>Add to Cart</span>
-                        </Button>
+                        {selectedLanguage === 'SI' ? (
+                            <>
+                                <Button size="sm" variant="outline" className="w-full justify-between" onClick={() => handleAddToCart(unit, 'note', 'SI')} disabled={!unit.priceNotesSI}>
+                                    <span className="flex items-center gap-2"><Book className="w-4 h-4"/> Notes</span>
+                                    <span>{notePriceSI}</span>
+                                </Button>
+                                <Button size="sm" variant="outline" className="w-full justify-between" onClick={() => handleAddToCart(unit, 'assignment', 'SI')} disabled={!unit.priceAssignmentsSI}>
+                                    <span className="flex items-center gap-2"><FileArchive className="w-4 h-4"/> Assignments</span>
+                                    <span>{assignmentPriceSI}</span>
+                                </Button>
+                            </>
+                        ) : (
+                             <>
+                                <Button size="sm" variant="outline" className="w-full justify-between" onClick={() => handleAddToCart(unit, 'note', 'EN')} disabled={!unit.priceNotesEN}>
+                                    <span className="flex items-center gap-2"><Book className="w-4 h-4"/> Notes</span>
+                                    <span>{notePriceEN}</span>
+                                </Button>
+                                <Button size="sm" variant="outline" className="w-full justify-between" onClick={() => handleAddToCart(unit, 'assignment', 'EN')} disabled={!unit.priceAssignmentsEN}>
+                                    <span className="flex items-center gap-2"><FileArchive className="w-4 h-4"/> Assignments</span>
+                                    <span>{assignmentPriceEN}</span>
+                                </Button>
+                            </>
+                        )}
                     </div>
                 </div>
             </div>
@@ -90,13 +111,25 @@ const CategoryPage = ({ categoryValue, categoryName }: CategoryPageProps) => {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const firestore = useFirestore();
 
   useEffect(() => {
+    if (!firestore) return;
     setLoading(true);
-    const categoryUnits = allUnits.filter(unit => unit.category === categoryValue);
-    setUnits(categoryUnits);
-    setLoading(false);
-  }, [categoryValue]);
+    const unitsRef = collection(firestore, 'units');
+    const q = query(unitsRef, where('category', '==', categoryValue), orderBy('unitNo'));
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+        const fetchedUnits = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Unit));
+        setUnits(fetchedUnits);
+        setLoading(false);
+    }, (error) => {
+        console.error(`Error fetching ${categoryName} units:`, error);
+        setLoading(false);
+    });
+    
+    return () => unsubscribe();
+  }, [categoryValue, categoryName, firestore]);
 
   const filteredUnits = units.filter((unit) =>
     unit.nameEN.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -140,8 +173,8 @@ const CategoryPage = ({ categoryValue, categoryName }: CategoryPageProps) => {
                     ) : (
                         <div className="bg-card rounded-2xl border border-border shadow-card overflow-hidden animate-fade-in-up">
                             <div className="divide-y divide-border">
-                            {filteredUnits.length > 0 ? filteredUnits.map((unit, index) => (
-                                <UnitCard key={index} unit={unit} />
+                            {filteredUnits.length > 0 ? filteredUnits.map((unit) => (
+                                <UnitCard key={unit.id} unit={unit} />
                             )) : (
                                 <div className="p-8 text-center text-muted-foreground">
                                     <p>No units found{searchQuery && ' matching your search'}.</p>
