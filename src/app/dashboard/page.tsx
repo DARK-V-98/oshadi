@@ -2,7 +2,7 @@
 'use client';
 import { useState, useEffect, useMemo } from 'react';
 import { useUser, useFirestore } from '@/firebase';
-import { collection, query, where, doc, onSnapshot, getDoc, orderBy } from 'firebase/firestore';
+import { collection, query, where, doc, onSnapshot, getDocs, getDoc, orderBy } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
@@ -174,7 +174,7 @@ function UserDashboard() {
             const errorData = await response.json();
             errorMessage = errorData.error || errorMessage;
         } catch (e) {
-            errorMessage = `An internal server error occurred. Please contact support. (Status: ${response.status})`;
+            errorMessage = `An internal error occurred. Please contact support. (Status: ${response.status})`;
         }
         throw new Error(errorMessage);
     }
@@ -453,3 +453,5 @@ export default function DashboardPage() {
         <UserDashboard />
     )
 }
+
+    
