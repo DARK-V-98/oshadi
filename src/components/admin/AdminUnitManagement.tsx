@@ -1,15 +1,15 @@
 
 'use client';
 import { useState, useEffect } from 'react';
-import { useFirestore, useStorage } from '@/firebase';
-import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, query, orderBy, writeBatch, getDocs, where } from 'firebase/firestore';
+import { useFirestore } from '@/firebase';
+import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, query, orderBy, writeBatch, getDocs } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Unit, mockUnits } from '@/lib/data';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { PlusCircle, ArrowLeft, Loader2, Edit, Trash2, XCircle, File as FileIcon, UploadCloud } from 'lucide-react';
+import { PlusCircle, ArrowLeft, Loader2, Edit, Trash2, UploadCloud } from 'lucide-react';
 import Link from 'next/link';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -17,6 +17,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { Switch } from '@/components/ui/switch';
+import PdfManager from './PdfManager';
 
 
 const fixedCategories = [
@@ -89,65 +90,62 @@ const UnitForm = ({ unit, onSave, onCancel }: { unit?: Unit | null, onSave: () =
     };
     
     return (
-        <Card>
-            <form onSubmit={handleSubmit}>
-                <CardHeader>
-                    <CardTitle>{unit?.id ? 'Edit Unit' : 'Add New Unit'}</CardTitle>
-                    <CardDescription>Fill in the details for the course unit.</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                    <div className="flex items-center space-x-2">
-                        <Switch id="enabled" checked={formData.enabled} onCheckedChange={checked => setFormData({...formData, enabled: checked})}/>
-                        <Label htmlFor="enabled">Unit Enabled</Label>
-                    </div>
+        <div className="space-y-8">
+            <Card>
+                <form onSubmit={handleSubmit}>
+                    <CardHeader>
+                        <CardTitle>{unit?.id ? 'Edit Unit Details' : 'Add New Unit'}</CardTitle>
+                        <CardDescription>Fill in the details for the course unit.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                        <div className="flex items-center space-x-2">
+                            <Switch id="enabled" checked={formData.enabled} onCheckedChange={checked => setFormData({...formData, enabled: checked})}/>
+                            <Label htmlFor="enabled">Unit Enabled</Label>
+                        </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                         <div><Label htmlFor="unitNo">Unit No</Label><Input id="unitNo" value={formData.unitNo} onChange={e => setFormData({...formData, unitNo: e.target.value})} required/></div>
-                         <div>
-                            <Label htmlFor="category">Category</Label>
-                            <Select value={formData.category} onValueChange={(value) => setFormData({...formData, category: value as Unit['category']})}>
-                                <SelectTrigger><SelectValue/></SelectTrigger>
-                                <SelectContent>
-                                {fixedCategories.map(cat => (
-                                    <SelectItem key={cat.value} value={cat.value}>{cat.label}</SelectItem>
-                                ))}
-                                </SelectContent>
-                            </Select>
-                         </div>
-                    </div>
-                    <div><Label htmlFor="nameEN">Name (English)</Label><Input id="nameEN" value={formData.nameEN} onChange={e => setFormData({...formData, nameEN: e.target.value})} required/></div>
-                    <div><Label htmlFor="nameSI">Name (Sinhala)</Label><Input id="nameSI" value={formData.nameSI} onChange={e => setFormData({...formData, nameSI: e.target.value})} required/></div>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-6">
-                        <div className="space-y-2">
-                           <Label>Price Notes (SI)</Label>
-                           <Input value={formData.priceNotesSI} onChange={e => setFormData({...formData, priceNotesSI: e.target.value})} />
-                           <div className="flex items-center space-x-2"><Switch id="notesSIEnabled" checked={formData.notesSIEnabled} onCheckedChange={c => setFormData({...formData, notesSIEnabled: c})} /><Label htmlFor="notesSIEnabled">Enabled</Label></div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div><Label htmlFor="unitNo">Unit No</Label><Input id="unitNo" value={formData.unitNo} onChange={e => setFormData({...formData, unitNo: e.target.value})} required/></div>
+                            <div>
+                                <Label htmlFor="category">Category</Label>
+                                <Select value={formData.category} onValueChange={(value) => setFormData({...formData, category: value as Unit['category']})}>
+                                    <SelectTrigger><SelectValue/></SelectTrigger>
+                                    <SelectContent>
+                                    {fixedCategories.map(cat => (
+                                        <SelectItem key={cat.value} value={cat.value}>{cat.label}</SelectItem>
+                                    ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
                         </div>
-                         <div className="space-y-2">
-                           <Label>Price Assignments (SI)</Label>
-                           <Input value={formData.priceAssignmentsSI} onChange={e => setFormData({...formData, priceAssignmentsSI: e.target.value})} />
-                           <div className="flex items-center space-x-2"><Switch id="assignmentsSIEnabled" checked={formData.assignmentsSIEnabled} onCheckedChange={c => setFormData({...formData, assignmentsSIEnabled: c})} /><Label htmlFor="assignmentsSIEnabled">Enabled</Label></div>
+                        <div><Label htmlFor="nameEN">Name (English)</Label><Input id="nameEN" value={formData.nameEN} onChange={e => setFormData({...formData, nameEN: e.target.value})} required/></div>
+                        <div><Label htmlFor="nameSI">Name (Sinhala)</Label><Input id="nameSI" value={formData.nameSI} onChange={e => setFormData({...formData, nameSI: e.target.value})} required/></div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-6">
+                            <div className="space-y-2 p-4 border rounded-lg">
+                                <Label className="text-base font-semibold">Sinhala PDFs</Label>
+                                <div><Label htmlFor="priceNotesSI">Price Notes (SI)</Label><Input id="priceNotesSI" value={formData.priceNotesSI} onChange={e => setFormData({...formData, priceNotesSI: e.target.value})} /></div>
+                                <div className="flex items-center space-x-2"><Switch id="notesSIEnabled" checked={formData.notesSIEnabled} onCheckedChange={c => setFormData({...formData, notesSIEnabled: c})} /><Label htmlFor="notesSIEnabled">Notes Enabled</Label></div>
+                                <div><Label htmlFor="priceAssignmentsSI">Price Assignments (SI)</Label><Input id="priceAssignmentsSI" value={formData.priceAssignmentsSI} onChange={e => setFormData({...formData, priceAssignmentsSI: e.target.value})} /></div>
+                                <div className="flex items-center space-x-2"><Switch id="assignmentsSIEnabled" checked={formData.assignmentsSIEnabled} onCheckedChange={c => setFormData({...formData, assignmentsSIEnabled: c})} /><Label htmlFor="assignmentsSIEnabled">Assignments Enabled</Label></div>
+                            </div>
+                             <div className="space-y-2 p-4 border rounded-lg">
+                                <Label className="text-base font-semibold">English PDFs</Label>
+                                <div><Label htmlFor="priceNotesEN">Price Notes (EN)</Label><Input id="priceNotesEN" value={formData.priceNotesEN} onChange={e => setFormData({...formData, priceNotesEN: e.target.value})} /></div>
+                                <div className="flex items-center space-x-2"><Switch id="notesENEnabled" checked={formData.notesENEnabled} onCheckedChange={c => setFormData({...formData, notesENEnabled: c})} /><Label htmlFor="notesENEnabled">Notes Enabled</Label></div>
+                                <div><Label htmlFor="priceAssignmentsEN">Price Assignments (EN)</Label><Input id="priceAssignmentsEN" value={formData.priceAssignmentsEN} onChange={e => setFormData({...formData, priceAssignmentsEN: e.target.value})} /></div>
+                                <div className="flex items-center space-x-2"><Switch id="assignmentsENEnabled" checked={formData.assignmentsENEnabled} onCheckedChange={c => setFormData({...formData, assignmentsENEnabled: c})} /><Label htmlFor="assignmentsENEnabled">Assignments Enabled</Label></div>
+                            </div>
                         </div>
-                         <div className="space-y-2">
-                           <Label>Price Notes (EN)</Label>
-                           <Input value={formData.priceNotesEN} onChange={e => setFormData({...formData, priceNotesEN: e.target.value})} />
-                           <div className="flex items-center space-x-2"><Switch id="notesENEnabled" checked={formData.notesENEnabled} onCheckedChange={c => setFormData({...formData, notesENEnabled: c})} /><Label htmlFor="notesENEnabled">Enabled</Label></div>
-                        </div>
-                         <div className="space-y-2">
-                           <Label>Price Assignments (EN)</Label>
-                           <Input value={formData.priceAssignmentsEN} onChange={e => setFormData({...formData, priceAssignmentsEN: e.target.value})} />
-                           <div className="flex items-center space-x-2"><Switch id="assignmentsENEnabled" checked={formData.assignmentsENEnabled} onCheckedChange={c => setFormData({...formData, assignmentsENEnabled: c})} /><Label htmlFor="assignmentsENEnabled">Enabled</Label></div>
-                        </div>
-                    </div>
 
-                </CardContent>
-                <CardFooter className="flex justify-end gap-2">
-                    <Button type="button" variant="ghost" onClick={onCancel}>Cancel</Button>
-                    <Button type="submit" disabled={isSubmitting}>{isSubmitting ? 'Saving...' : 'Save Unit'}</Button>
-                </CardFooter>
-            </form>
-        </Card>
+                    </CardContent>
+                    <CardFooter className="flex justify-end gap-2">
+                        <Button type="button" variant="ghost" onClick={onCancel}>Cancel</Button>
+                        <Button type="submit" disabled={isSubmitting}>{isSubmitting ? 'Saving...' : 'Save Unit'}</Button>
+                    </CardFooter>
+                </form>
+            </Card>
+            {unit?.id && <PdfManager unit={unit} />}
+        </div>
     )
 }
 
@@ -250,7 +248,15 @@ const AdminUnitManagement = () => {
     }));
     
     if (editingUnit !== undefined) {
-        return <UnitForm unit={editingUnit} onSave={() => setEditingUnit(undefined)} onCancel={() => setEditingUnit(undefined)} />
+        return (
+             <div className="space-y-4">
+                 <Button variant="outline" size="sm" onClick={() => setEditingUnit(undefined)}>
+                    <ArrowLeft className="w-4 h-4 mr-2"/>
+                    Back to Unit List
+                </Button>
+                <UnitForm unit={editingUnit} onSave={() => setEditingUnit(undefined)} onCancel={() => setEditingUnit(undefined)} />
+            </div>
+        )
     }
 
     return (
@@ -318,7 +324,7 @@ const AdminUnitManagement = () => {
                                                     <CardDescription>{unit.nameSI}</CardDescription>
                                                 </div>
                                                 <div className="flex gap-2">
-                                                    <Button size="sm" variant="outline" onClick={() => setEditingUnit(unit)}><Edit className="w-4 h-4 mr-2"/>Edit</Button>
+                                                    <Button size="sm" variant="outline" onClick={() => setEditingUnit(unit)}><Edit className="w-4 h-4 mr-2"/>Manage</Button>
                                                     <AlertDialog>
                                                         <AlertDialogTrigger asChild><Button size="sm" variant="destructive"><Trash2 className="w-4 h-4 mr-2"/>Delete</Button></AlertDialogTrigger>
                                                         <AlertDialogContent>
