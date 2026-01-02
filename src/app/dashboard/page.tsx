@@ -39,7 +39,8 @@ import { CartItem } from '@/context/CartContext';
 interface UnlockedPdfDoc {
     id: string; // firestore doc id
     orderId: string;
-    unitId: string;
+    unitId: string; // This is the Firestore document ID of the unit
+    unitNo: string;
     type: 'note' | 'assignment';
     language: 'EN' | 'SI';
     downloaded: boolean;
@@ -133,11 +134,14 @@ function UserDashboard() {
     toast({ title: "Preparing Download...", description: "Your secure download will begin shortly."});
 
     try {
-      const token = await user.getIdToken(true); // Force refresh the token
+      const token = await user.getIdToken();
       const response = await fetch('/api/download', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ token, unlockedPdfId: part.id }),
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ unlockedPdfId: part.id }),
       });
 
       if (!response.ok) {
@@ -146,7 +150,7 @@ function UserDashboard() {
             const errorData = await response.json();
             errorMessage = errorData.error || errorMessage;
         } catch (e) {
-            errorMessage = `An internal error occurred. Please contact support. (Status: ${response.status})`;
+            errorMessage = `An internal server error occurred. Please contact support. (Status: ${response.status})`;
         }
         throw new Error(errorMessage);
     }

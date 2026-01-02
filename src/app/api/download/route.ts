@@ -1,27 +1,34 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuth } from 'firebase-admin/auth';
-import { getFirestore, doc, writeBatch, getDoc, updateDoc } from 'firebase-admin/firestore';
+import { getFirestore, doc, getDoc, updateDoc } from 'firebase-admin/firestore';
 import { getStorage } from 'firebase-admin/storage';
 import { initializeApp, getApps, App, getApp as getAdminApp } from 'firebase-admin/app';
 import { Unit } from '@/lib/data';
 
-let adminApp: App;
+// Correct initialization for Firebase Admin SDK in a server environment
 function getFirebaseAdminApp(): App {
     if (getApps().length === 0) {
-        adminApp = initializeApp();
+        return initializeApp();
     } else {
-        adminApp = getAdminApp();
+        return getAdminApp();
     }
-    return adminApp;
 }
 
 export async function POST(req: NextRequest) {
     try {
-        const { token, unlockedPdfId } = await req.json();
+        const authHeader = req.headers.get('authorization');
+        if (!authHeader?.startsWith('Bearer ')) {
+            return NextResponse.json({ error: 'Missing or invalid authorization header' }, { status: 401 });
+        }
+        const token = authHeader.split('Bearer ')[1];
+        if (!token) {
+            return NextResponse.json({ error: 'Token missing from authorization header' }, { status: 401 });
+        }
 
-        if (!token || !unlockedPdfId) {
-            return NextResponse.json({ error: 'Missing token or unlockedPdfId' }, { status: 400 });
+        const { unlockedPdfId } = await req.json();
+        if (!unlockedPdfId) {
+            return NextResponse.json({ error: 'Missing unlockedPdfId' }, { status: 400 });
         }
         
         const app = getFirebaseAdminApp();
@@ -41,8 +48,8 @@ export async function POST(req: NextRequest) {
         const unlockedPdfData = unlockedPdfDoc.data();
         const { unitId, type, language, downloaded } = unlockedPdfData;
         
-        if (!unitId) {
-             return NextResponse.json({ error: 'Unlocked PDF record is missing unitId.' }, { status: 500 });
+        if (!unitId || !type || !language) {
+             return NextResponse.json({ error: 'Unlocked PDF record is incomplete.' }, { status: 500 });
         }
 
         // 2. Get the unit document using the correct document ID
@@ -91,6 +98,7 @@ export async function POST(req: NextRequest) {
 
     } catch (error: any) {
         console.error('Download API Error:', error);
+        // Provide a more specific error message if available
         let errorMessage = 'An internal server error occurred.';
         if (error.code) { // Firebase errors have a 'code' property
             errorMessage = `A server error occurred: ${error.code}`;
@@ -100,3 +108,5 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: errorMessage, details: error.toString() }, { status: 500 });
     }
 }
+
+    
