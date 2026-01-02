@@ -12,12 +12,8 @@ function getFirebaseAdminApp(): App {
     if (getApps().length > 0) {
         return getApps()[0] as App;
     }
+    // In a managed environment like App Hosting, the SDK can discover credentials automatically.
     return initializeApp({
-        credential: {
-            projectId: firebaseConfig.projectId,
-            clientEmail: process.env.FIREBASE_CLIENT_EMAIL!,
-            privateKey: process.env.FIREBASE_PRIVATE_KEY!.replace(/\\n/g, '\n'),
-        },
         storageBucket: firebaseConfig.storageBucket,
     });
 }
@@ -35,7 +31,7 @@ export async function POST(req: NextRequest) {
         const userId = decodedToken.uid;
 
         const db = getFirestore();
-        const unlockedPdfRef = db.collection('userUnlockedPdfs').doc(unlockedPdfId);
+        const unlockedPdfRef = doc(db, 'userUnlockedPdfs', unlockedPdfId);
         const unlockedPdfDoc = await unlockedPdfRef.get();
 
         if (!unlockedPdfDoc.exists || unlockedPdfDoc.data()?.userId !== userId) {
@@ -62,7 +58,10 @@ export async function POST(req: NextRequest) {
         }
         
         const bucket = getStorage().bucket();
-        const filePath = decodeURIComponent(sourcePdfUrl.split('/o/')[1].split('?')[0]);
+        // Correctly decode the URL and extract the file path
+        const decodedUrl = decodeURIComponent(sourcePdfUrl);
+        const filePath = decodedUrl.split('/o/')[1].split('?')[0];
+
         const originalFile = bucket.file(filePath);
 
         const [exists] = await originalFile.exists();
