@@ -1,9 +1,9 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuth } from 'firebase-admin/auth';
-import { getFirestore, doc, getDoc, updateDoc } from 'firebase-admin/firestore';
+import { getFirestore, query, collection, where, getDocs } from 'firebase-admin/firestore';
 import { getStorage } from 'firebase-admin/storage';
-import { initializeApp, getApps, App, AppOptions, credential } from 'firebase-admin/app';
+import { initializeApp, getApps } from 'firebase-admin/app';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 
 // Initialize Firebase Admin SDK only once
@@ -23,28 +23,33 @@ export async function POST(req: NextRequest) {
     try {
         const decodedToken = await getAuth().verifyIdToken(token);
         const userId = decodedToken.uid;
-
         const db = getFirestore();
-        const unlockedPdfRef = doc(db, 'userUnlockedPdfs', unlockedPdfId);
+
+        const unlockedPdfRef = db.collection('userUnlockedPdfs').doc(unlockedPdfId);
         const unlockedPdfDoc = await unlockedPdfRef.get();
 
-        if (!unlockedPdfDoc.exists() || unlockedPdfDoc.data()?.userId !== userId) {
+        if (!unlockedPdfDoc.exists || unlockedPdfDoc.data()?.userId !== userId) {
             return NextResponse.json({ error: 'Unauthorized or PDF record not found' }, { status: 403 });
         }
 
         const unlockedPdfData = unlockedPdfDoc.data()!;
         const { unitId, type, language, downloaded } = unlockedPdfData;
-        
+
         if (downloaded && !req.nextUrl.searchParams.get('redownload')) {
              return NextResponse.json({ error: 'This file has already been downloaded.' }, { status: 403 });
         }
+        
+        // ** THE FIX IS HERE: Query for the unit using unitNo (which is stored as unitId) **
+        const unitsRef = collection(db, 'units');
+        const unitQuery = query(unitsRef, where('unitNo', '==', unitId), where('category', '==', unlockedPdfData.category));
+        const unitQuerySnapshot = await getDocs(unitQuery);
 
-        const unitDocRef = doc(db, 'units', unitId);
-        const unitDoc = await unitDocRef.get();
-        if (!unitDoc.exists()) {
-            return NextResponse.json({ error: 'Unit data not found' }, { status: 404 });
+        if (unitQuerySnapshot.empty) {
+            return NextResponse.json({ error: `Unit data not found for unitNo: ${unitId}` }, { status: 404 });
         }
-        const unitData = unitDoc.data()!;
+        
+        const unitDoc = unitQuerySnapshot.docs[0];
+        const unitData = unitDoc.data();
         
         const sourcePdfUrl = language === 'SI' ? unitData.pdfUrlSI : unitData.pdfUrlEN;
 
@@ -53,6 +58,7 @@ export async function POST(req: NextRequest) {
         }
         
         const bucket = getStorage().bucket();
+        // Correctly decode and parse the HTTPS URL to get the file path
         const decodedUrl = decodeURIComponent(sourcePdfUrl);
         const filePath = decodedUrl.split('/o/')[1].split('?')[0];
 
@@ -87,7 +93,7 @@ export async function POST(req: NextRequest) {
         }
 
         if (!downloaded) {
-            await updateDoc(unlockedPdfRef, { downloaded: true, downloadedAt: new Date() });
+            await unlockedPdfRef.update({ downloaded: true, downloadedAt: new Date() });
         }
         
         const tempFileName = `temp/${userId}/${Date.now()}-${finalFileName.replace(/[^a-zA-Z0-9._-]/g, '')}`;
@@ -99,17 +105,15 @@ export async function POST(req: NextRequest) {
             expires: Date.now() + 5 * 60 * 1000, // 5 minutes
         });
 
+        // Schedule deletion of the temporary file
         setTimeout(() => {
             tempFile.delete().catch(err => console.error(`Failed to delete temp file: ${tempFileName}`, err));
-        }, 10 * 60 * 1000);
+        }, 10 * 60 * 1000); // 10 minutes
 
         return NextResponse.json({ downloadUrl: signedUrl });
 
     } catch (error: any) {
         console.error('Download API Error:', error);
-        if (error.code === 'auth/id-token-expired') {
-            return NextResponse.json({ error: 'Authentication token expired. Please refresh and try again.' }, { status: 401 });
-        }
         return NextResponse.json({ error: 'An internal server error occurred.' }, { status: 500 });
     }
 }
