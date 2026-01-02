@@ -112,17 +112,24 @@ const AdminOrderManagement = () => {
         const batch = writeBatch(firestore);
     
         for (const item of order.items) {
-            const unitDoc = await getDoc(doc(firestore, 'units', item.unitId));
-            if (!unitDoc.exists()) {
-                console.error(`Unit with ID ${item.unitId} not found for order ${order.id}`);
+            const unitsRef = collection(firestore, 'units');
+            // We need to query to find the unit document based on its unitId which is the 'unitNo' field
+            const q = query(unitsRef, where('unitNo', '==', item.unitId));
+            const unitSnapshot = await getDocs(q);
+
+            if (unitSnapshot.empty) {
+                console.error(`Unit with unitNo ${item.unitId} not found for order ${order.id}`);
+                toast({ title: "Unlock Error", description: `Could not find unit data for ${item.unitName}.`, variant: "destructive"});
                 continue;
             }
+            // Assuming unitNo is unique, so we take the first result
+            const unitDoc = unitSnapshot.docs[0];
             const unitData = unitDoc.data() as Unit;
 
             const unlockedPdfRef = doc(collection(firestore, 'userUnlockedPdfs'));
             batch.set(unlockedPdfRef, {
                 userId: order.userId,
-                unitId: unitData.unitNo, // Use unitNo here for querying later
+                unitId: item.unitId, // This is the 'unitNo'
                 orderId: order.id,
                 language: item.language,
                 type: item.type,
@@ -248,6 +255,3 @@ const AdminOrderManagement = () => {
 }
 
 export default AdminOrderManagement;
-    
-
-    

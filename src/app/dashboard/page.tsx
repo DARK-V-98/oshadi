@@ -47,6 +47,7 @@ interface UnlockedPdfDoc {
     unlockedAt: { toDate: () => Date };
     unitNameEN: string;
     unitNameSI: string;
+    category: string;
 }
 
 interface Order {
@@ -81,13 +82,16 @@ function UserDashboard() {
     const unsubscribeUnlocked = onSnapshot(q, async (querySnapshot) => {
         const unlockedPromises = querySnapshot.docs.map(async (pdfDoc) => {
             const pdfData = pdfDoc.data();
-            const unitDocRef = doc(firestore, 'units', pdfData.unitId);
-            const unitDocSnap = await getDoc(unitDocRef);
+            
+            const unitsRef = collection(firestore, 'units');
+            const unitQuery = query(unitsRef, where('unitNo', '==', pdfData.unitId), where('category', '==', pdfData.category));
+            const unitQuerySnapshot = await getDocs(unitQuery);
+
             let unitNameEN = 'Unknown Unit';
             let unitNameSI = 'Unknown Unit';
 
-            if (unitDocSnap.exists()) {
-                const unitData = unitDocSnap.data();
+            if (!unitQuerySnapshot.empty) {
+                const unitData = unitQuerySnapshot.docs[0].data();
                 unitNameEN = unitData.nameEN;
                 unitNameSI = unitData.nameSI;
             }
@@ -165,15 +169,15 @@ function UserDashboard() {
       });
 
       if (!response.ok) {
-          let errorMessage = 'Download failed due to an unknown error.';
-          try {
+        let errorMessage = 'Download failed due to an unknown error.';
+        try {
             const errorData = await response.json();
             errorMessage = errorData.error || errorMessage;
-          } catch (e) {
-            errorMessage = `An internal error occurred. Please contact support. (Status: ${response.status})`;
-          }
-          throw new Error(errorMessage);
-      }
+        } catch (e) {
+            errorMessage = `An internal server error occurred. Please contact support. (Status: ${response.status})`;
+        }
+        throw new Error(errorMessage);
+    }
 
       const { downloadUrl } = await response.json();
 
@@ -449,5 +453,3 @@ export default function DashboardPage() {
         <UserDashboard />
     )
 }
-
-    

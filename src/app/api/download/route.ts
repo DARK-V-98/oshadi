@@ -1,16 +1,17 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuth } from 'firebase-admin/auth';
-import { getFirestore, query, collection, where, getDocs } from 'firebase-admin/firestore';
+import { getFirestore, query, collection, where, getDocs, doc, writeBatch } from 'firebase-admin/firestore';
 import { getStorage } from 'firebase-admin/storage';
-import { initializeApp, getApps } from 'firebase-admin/app';
+import { initializeApp, getApps, App } from 'firebase-admin/app';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 
-// Initialize Firebase Admin SDK only once
-if (!getApps().length) {
-    initializeApp({
-        storageBucket: "esystemlkapp.appspot.com",
-    });
+// Helper to initialize Firebase Admin SDK only once
+function getFirebaseAdminApp(): App {
+    if (getApps().length) {
+        return getApps()[0];
+    }
+    return initializeApp();
 }
 
 export async function POST(req: NextRequest) {
@@ -21,11 +22,15 @@ export async function POST(req: NextRequest) {
     }
 
     try {
-        const decodedToken = await getAuth().verifyIdToken(token);
+        const app = getFirebaseAdminApp();
+        const decodedToken = await getAuth(app).verifyIdToken(token);
         const userId = decodedToken.uid;
-        const db = getFirestore();
+        const db = getFirestore(app);
+        const storage = getStorage(app);
+        const bucket = storage.bucket();
 
-        const unlockedPdfRef = db.collection('userUnlockedPdfs').doc(unlockedPdfId);
+        // 1. Verify the user owns the unlocked PDF record
+        const unlockedPdfRef = doc(db, 'userUnlockedPdfs', unlockedPdfId);
         const unlockedPdfDoc = await unlockedPdfRef.get();
 
         if (!unlockedPdfDoc.exists || unlockedPdfDoc.data()?.userId !== userId) {
@@ -33,12 +38,14 @@ export async function POST(req: NextRequest) {
         }
 
         const unlockedPdfData = unlockedPdfDoc.data()!;
-        const { unitId, type, language, downloaded, category } = unlockedPdfData;
+        const { unitId, type, language, category, downloaded } = unlockedPdfData;
 
+        // Prevent re-download if it's the first time and not a redownload request
         if (downloaded && !req.nextUrl.searchParams.get('redownload')) {
              return NextResponse.json({ error: 'This file has already been downloaded.' }, { status: 403 });
         }
         
+        // 2. Find the unit document to get the source PDF URL
         const unitsRef = collection(db, 'units');
         const unitQuery = query(unitsRef, where('unitNo', '==', unitId), where('category', '==', category));
         const unitQuerySnapshot = await getDocs(unitQuery);
@@ -55,22 +62,16 @@ export async function POST(req: NextRequest) {
         if (!sourcePdfUrl) {
             return NextResponse.json({ error: `Source PDF not found for this unit/language (${language})` }, { status: 404 });
         }
-        
-        const bucket = getStorage().bucket();
-        const decodedUrl = decodeURIComponent(sourcePdfUrl);
-        const filePath = decodedUrl.split('/o/')[1].split('?')[0];
 
+        // 3. Download the original file from storage
+        const filePath = decodeURIComponent(sourcePdfUrl.split('/o/')[1].split('?')[0]);
         const originalFile = bucket.file(filePath);
-        const [exists] = await originalFile.exists();
-        if (!exists) {
-             return NextResponse.json({ error: 'File does not exist in storage.' }, { status: 404 });
-        }
-
         const [originalPdfBytes] = await originalFile.download();
+        
         let finalPdfBytes: Uint8Array;
-        const baseFileName = language === 'SI' ? unitData.pdfFileNameSI : unitData.pdfFileNameEN;
-        let finalFileName = baseFileName || `${unitId}.pdf`;
+        let finalFileName = language === 'SI' ? unitData.pdfFileNameSI : unitData.pdfFileNameEN;
 
+        // 4. Conditionally apply watermark
         if (type === 'note') {
             const pdfDoc = await PDFDocument.load(originalPdfBytes);
             const helveticaFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
@@ -86,14 +87,12 @@ export async function POST(req: NextRequest) {
             finalPdfBytes = await pdfDoc.save();
             finalFileName = `[NOTES] ${finalFileName}`;
         } else {
+            // For assignments, use the original bytes
             finalPdfBytes = originalPdfBytes;
             finalFileName = `[ASSIGNMENTS] ${finalFileName}`;
         }
 
-        if (!downloaded) {
-            await unlockedPdfRef.update({ downloaded: true, downloadedAt: new Date() });
-        }
-        
+        // 5. Create a temporary file, get a signed URL for it
         const tempFileName = `temp/${userId}/${Date.now()}-${finalFileName.replace(/[^a-zA-Z0-9._-]/g, '')}`;
         const tempFile = bucket.file(tempFileName);
         await tempFile.save(Buffer.from(finalPdfBytes), { contentType: 'application/pdf' });
@@ -103,11 +102,17 @@ export async function POST(req: NextRequest) {
             expires: Date.now() + 5 * 60 * 1000, // 5 minutes
         });
 
-        // Schedule deletion of the temporary file
+        // 6. Schedule deletion of the temporary file
         setTimeout(() => {
             tempFile.delete().catch(err => console.error(`Failed to delete temp file: ${tempFileName}`, err));
         }, 10 * 60 * 1000); // 10 minutes
 
+        // 7. Update the download status in Firestore
+        if (!downloaded) {
+            await writeBatch(db).update(unlockedPdfRef, { downloaded: true, downloadedAt: new Date() }).commit();
+        }
+
+        // 8. Return the signed URL to the client
         return NextResponse.json({ downloadUrl: signedUrl });
 
     } catch (error: any) {
@@ -115,4 +120,3 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'An internal server error occurred.' }, { status: 500 });
     }
 }
-    
