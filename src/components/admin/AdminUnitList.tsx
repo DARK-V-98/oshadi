@@ -1,7 +1,7 @@
 
 'use client';
 import Link from 'next/link';
-import { Key, ExternalLink, MessageSquare, Tags, Users, FolderTree, ShoppingBag } from "lucide-react";
+import { ExternalLink, MessageSquare, Users, ShoppingBag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const AdminDashboard = () => {
