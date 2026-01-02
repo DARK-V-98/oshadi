@@ -89,24 +89,24 @@ export default function PackSelectionDialog({ isOpen, onClose, categoryValue, ca
           toast({ variant: 'destructive', title: `Please select exactly ${pack.limit} items.`});
           return;
       }
+       if (pack.limit === 1 && selectedUnits.length === 0) {
+          toast({ variant: 'destructive', title: `Please select an item.`});
+          return;
+      }
 
       setIsAdding(true);
+
+      const pricePerItem = parseFloat(pack.price.replace(/,/g, '')) / (pack.limit > 1 ? pack.limit : selectedUnits.length);
+
       const itemsToAdd = units
         .filter(unit => selectedUnits.includes(unit.id))
-        .map(unit => {
-            const priceStr = pack.type === 'note' 
-                ? (language === 'EN' ? unit.priceNotesEN : unit.priceNotesSI)
-                : (language === 'EN' ? unit.priceAssignmentsEN : unit.priceAssignmentsSI);
-            const price = pack.limit === 1 ? parseFloat(priceStr.replace(/,/g, '')) : (parseFloat(pack.price.replace(/,/g, '')) / pack.limit);
-            
-            return {
-                unitId: unit.id,
-                unitName: unit.nameEN,
-                type: pack.type,
-                language: language,
-                price: price,
-            };
-      });
+        .map(unit => ({
+            unitId: unit.id,
+            unitName: unit.nameEN,
+            type: pack.type,
+            language: language,
+            price: pricePerItem,
+        }));
 
       await addMultipleToCart(itemsToAdd);
       setIsAdding(false);
@@ -116,7 +116,7 @@ export default function PackSelectionDialog({ isOpen, onClose, categoryValue, ca
   const isSelectionComplete = selectedUnits.length === pack.limit;
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={(open) => { if(!open) { onClose(); setSelectedUnits([]); }}}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle>Select {pack.name} for {categoryName} ({language})</DialogTitle>
@@ -136,12 +136,12 @@ export default function PackSelectionDialog({ isOpen, onClose, categoryValue, ca
                 {units.map(unit => (
                   <div key={unit.id} className="flex items-center space-x-3 rounded-md border p-3 hover:bg-secondary/50">
                     <Checkbox
-                      id={unit.id}
+                      id={unit.id + pack.type + language}
                       checked={selectedUnits.includes(unit.id)}
                       onCheckedChange={() => handleSelectUnit(unit.id)}
                       disabled={!selectedUnits.includes(unit.id) && selectedUnits.length >= pack.limit}
                     />
-                    <label htmlFor={unit.id} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                    <label htmlFor={unit.id + pack.type + language} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
                       {unit.unitNo} - {unit.nameEN}
                     </label>
                   </div>
@@ -151,8 +151,8 @@ export default function PackSelectionDialog({ isOpen, onClose, categoryValue, ca
           </ScrollArea>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={handleAddToCart} disabled={isAdding || (pack.limit > 1 && !isSelectionComplete)}>
+          <Button variant="outline" onClick={() => { onClose(); setSelectedUnits([]); }}>Cancel</Button>
+          <Button onClick={handleAddToCart} disabled={isAdding || (pack.limit > 1 && !isSelectionComplete) || (pack.limit === 1 && selectedUnits.length === 0)}>
             {isAdding ? <Loader2 className="w-4 h-4 animate-spin mr-2"/> : <ShoppingCart className="w-4 h-4 mr-2"/>}
             Add to Cart (Rs. {pack.price})
           </Button>
@@ -161,4 +161,3 @@ export default function PackSelectionDialog({ isOpen, onClose, categoryValue, ca
     </Dialog>
   );
 }
-

@@ -64,19 +64,23 @@ const Pricing = () => {
       const querySnapshot = await getDocs(q);
       const units = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Unit));
 
-      const itemsToAdd = units.filter(unit => {
+      const itemsToFilter = units.filter(unit => {
         if (language === 'SI') {
             return pack.type === 'note' ? unit.notesSIEnabled : unit.assignmentsSIEnabled;
         } else {
             return pack.type === 'note' ? unit.notesENEnabled : unit.assignmentsENEnabled;
         }
-      }).map(unit => {
-        const priceStr = pack.type === 'note' 
-          ? (language === 'EN' ? unit.priceNotesEN : unit.priceNotesSI)
-          : (language === 'EN' ? unit.priceAssignmentsEN : unit.priceAssignmentsSI);
-        const price = priceStr ? parseFloat(priceStr.replace(/,/g, '')) : 0;
-        return { unitId: unit.id, unitName: unit.nameEN, type: pack.type, language, price };
       });
+      
+      const pricePerItem = parseFloat(pack.price.replace(/,/g, '')) / itemsToFilter.length;
+
+      const itemsToAdd = itemsToFilter.map(unit => ({
+          unitId: unit.id,
+          unitName: unit.nameEN,
+          type: pack.type,
+          language,
+          price: pricePerItem,
+      }));
       
       await addMultipleToCart(itemsToAdd);
       toast({ title: "Success!", description: "Full pack has been added to your cart." });
@@ -131,7 +135,7 @@ const Pricing = () => {
                     size="sm"
                     variant="outline"
                 >
-                    {item.limit > 1 ? 'Select' : 'Add to Cart'}
+                    {item.limit > 1 ? 'Select Items' : 'Select Item'}
                 </Button>
             </div>
         ))}
