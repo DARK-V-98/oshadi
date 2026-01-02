@@ -23,11 +23,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { getDownloadUrlForPdf } from '@/app/actions/downloadActions';
 
 interface UnlockedPdfDoc {
     id: string; // firestore doc id
     orderId: string;
-    unitId: string; // This is the Firestore document ID of the unit
+    unitId: string;
     unitNo: string;
     type: 'note' | 'assignment';
     language: 'EN' | 'SI';
@@ -96,30 +97,14 @@ function UnlockedContentPage() {
     toast({ title: "Preparing Download...", description: "Your secure download will begin shortly."});
 
     try {
-      const token = await user.getIdToken(true);
-      const response = await fetch('/api/download', {
-          method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({ unlockedPdfId: part.id }),
-      });
+      const result = await getDownloadUrlForPdf(part.id);
 
-      if (!response.ok) {
-        const result = await response.json().catch(() => ({ error: 'An unknown server error occurred.' }));
-        let errorMessage = result.error || 'Download failed due to an unknown error.';
-        if (response.status >= 500) {
-            errorMessage = result.error || `An internal server error occurred. Please contact support. (Status: ${response.status})`;
-        }
-        throw new Error(errorMessage);
-    }
+      if (result.error) {
+        throw new Error(result.error);
+      }
 
-      const result = await response.json();
-      const { downloadUrl } = result;
-
-      if (downloadUrl) {
-          window.open(downloadUrl, '_blank');
+      if (result.downloadUrl) {
+          window.open(result.downloadUrl, '_blank');
           toast({ title: "Download Started!", description: `Your file is opening in a new tab.` });
       } else {
         throw new Error('No download URL received from server.');

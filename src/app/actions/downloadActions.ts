@@ -1,29 +1,22 @@
-import { NextRequest, NextResponse } from 'next/server';
+'use server';
+
 import { getFirestore, doc, getDoc, updateDoc } from 'firebase-admin/firestore';
 import { getStorage } from 'firebase-admin/storage';
-import { adminApp, adminAuth } from '@/firebase/admin';
+import { adminApp } from '@/firebase/admin';
+import { cookies } from 'next/headers';
+import { getAuth } from 'firebase-admin/auth';
 import { Unit } from '@/lib/data';
 
-export async function POST(req: NextRequest) {
-    console.log('Download API received request.');
-    const authHeader = req.headers.get('authorization');
-    console.log('Authorization header:', authHeader);
-
+export async function getDownloadUrlForPdf(unlockedPdfId: string): Promise<{ downloadUrl?: string; error?: string }> {
     try {
-        if (!authHeader?.startsWith('Bearer ')) {
-            return NextResponse.json({ error: 'Missing or invalid authorization header.' }, { status: 401 });
-        }
-        const token = authHeader.split('Bearer ')[1];
+        const cookieStore = cookies();
+        const token = cookieStore.get('firebaseIdToken')?.value;
+
         if (!token) {
-            return NextResponse.json({ error: 'Token missing from authorization header.' }, { status: 401 });
+            throw new Error('User is not authenticated.');
         }
 
-        const { unlockedPdfId } = await req.json();
-        if (!unlockedPdfId) {
-            return NextResponse.json({ error: 'Missing unlockedPdfId.' }, { status: 400 });
-        }
-        
-        const decodedToken = await adminAuth.verifyIdToken(token);
+        const decodedToken = await getAuth(adminApp).verifyIdToken(token);
         const userId = decodedToken.uid;
         const db = getFirestore(adminApp);
         const storage = getStorage(adminApp);
@@ -33,14 +26,14 @@ export async function POST(req: NextRequest) {
         const unlockedPdfDoc = await getDoc(unlockedPdfRef);
 
         if (!unlockedPdfDoc.exists() || unlockedPdfDoc.data()?.userId !== userId) {
-            return NextResponse.json({ error: 'Unauthorized or PDF record not found.' }, { status: 403 });
+            return { error: 'Unauthorized or PDF record not found.' };
         }
 
         const unlockedPdfData = unlockedPdfDoc.data();
         const { unitId, type, language, downloaded } = unlockedPdfData;
         
         if (!unitId || !type || !language) {
-             return NextResponse.json({ error: 'Unlocked PDF record is incomplete.' }, { status: 500 });
+             return { error: 'Unlocked PDF record is incomplete.' };
         }
 
         // 2. Get the unit document using the correct document ID
@@ -48,12 +41,12 @@ export async function POST(req: NextRequest) {
         const unitDoc = await getDoc(unitDocRef);
 
         if (!unitDoc.exists()) {
-            return NextResponse.json({ error: `Unit data not found for ID: ${unitId}.` }, { status: 404 });
+            return { error: `Unit data not found for ID: ${unitId}.` };
         }
         
         const unitData = unitDoc.data() as Unit;
         
-        // 3. Determine which PDF URL to use based on language and type
+        // 3. Determine which PDF URL to use
         let sourcePdfUrl: string | undefined;
         let pdfFileName: string | undefined;
 
@@ -66,12 +59,10 @@ export async function POST(req: NextRequest) {
         }
         
         if (!sourcePdfUrl) {
-            return NextResponse.json({ error: `Source PDF not found for this unit/language/type combination.` }, { status: 404 });
+            return { error: `Source PDF not found for this unit/language/type combination.` };
         }
         
-        // 4. Generate a signed URL for the direct file
-        // The URL from Firestore Storage already contains a download token and is publicly accessible but unguessable.
-        // For enhanced security, we generate a short-lived signed URL.
+        // 4. Generate a signed URL
         const filePath = decodeURIComponent(new URL(sourcePdfUrl).pathname.split('/o/')[1]);
         const file = storage.bucket().file(filePath);
         
@@ -86,25 +77,10 @@ export async function POST(req: NextRequest) {
             await updateDoc(unlockedPdfRef, { downloaded: true, downloadedAt: new Date() });
         }
 
-        // 6. Return the signed URL to the client
-        return NextResponse.json({ downloadUrl: signedUrl });
+        return { downloadUrl: signedUrl };
 
     } catch (error: any) {
-        console.error('Download API Error:', error);
-        let errorMessage = 'An internal server error occurred.';
-        let statusCode = 500;
-        
-        if (error.code) { // Firebase errors often have a 'code'
-             errorMessage = `A server error occurred: ${error.code}.`;
-             if(error.code.startsWith('auth/')) {
-                statusCode = 401;
-             }
-        } else if (error.message) {
-            errorMessage = error.message;
-        }
-
-        return NextResponse.json({ error: errorMessage, details: error.toString() }, { status: statusCode });
+        console.error('Download Action Error:', error);
+        return { error: error.message || 'An internal server error occurred.' };
     }
 }
-
-    

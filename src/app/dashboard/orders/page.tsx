@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/table"
 import { Badge } from '@/components/ui/badge';
 import { CartItem } from '@/context/CartContext';
+import { unlockContentForOrder } from '@/app/actions/unlockActions';
 
 
 interface Order {
@@ -70,19 +71,9 @@ function OrdersDashboardPage() {
       setUnlockingOrder(orderId);
       
       try {
-        const token = await user.getIdToken(true);
-        const response = await fetch('/api/unlock-content', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({ orderId }),
-        });
+        const result = await unlockContentForOrder(orderId);
 
-        const result = await response.json();
-
-        if (!response.ok) {
+        if (!result.success) {
             throw new Error(result.error || 'Failed to unlock content.');
         }
 
