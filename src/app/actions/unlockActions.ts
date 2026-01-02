@@ -37,7 +37,7 @@ export async function unlockContentForOrder(orderId: string): Promise<{ success:
         }
 
         if (orderData.contentUnlocked) {
-            return { success: false, error: 'Content for this order has already been unlocked.' };
+            return { success: true, message: "Content for this order has already been unlocked." };
         }
         
         // 2. Unlock content for the user

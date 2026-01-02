@@ -64,7 +64,7 @@ export async function getDownloadUrlForPdf(unlockedPdfId: string): Promise<{ dow
         }
         
         // 4. Generate a signed URL
-        const filePath = decodeURIComponent(new URL(sourcePdfUrl).pathname.split('/o/')[1]);
+        const filePath = decodeURIComponent(new URL(sourcePdfUrl).pathname.split('/o/')[1].split('?')[0]);
         const file = storage.bucket().file(filePath);
         
         const [signedUrl] = await file.getSignedUrl({
