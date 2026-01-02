@@ -87,7 +87,7 @@ const SyllabusPage = () => {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-        <Navbar onUnlockClick={() => setIsAuthModalOpen(true)} onLoginClick={() => setIsAuthModalOpen(true)} />
+        <Navbar onLoginClick={() => setIsAuthModalOpen(true)} />
         <main className="flex-grow">
             <section className="py-20 md:py-32 bg-soft-gradient">
                 <div className="container mx-auto px-4">
@@ -138,5 +138,3 @@ const SyllabusPage = () => {
 };
 
 export default SyllabusPage;
-
-    

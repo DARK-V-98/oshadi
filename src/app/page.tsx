@@ -29,9 +29,9 @@ const Home = () => {
         />
       </Head>
     <div className="min-h-screen bg-background overflow-x-hidden">
-      <Navbar onUnlockClick={() => setIsAuthModalOpen(true)} onLoginClick={() => setIsAuthModalOpen(true)} />
+      <Navbar onLoginClick={() => setIsAuthModalOpen(true)} />
       <main>
-        <Hero onUnlockClick={() => setIsAuthModalOpen(true)} />
+        <Hero />
         <About />
         <CourseCategories />
         <Pricing />

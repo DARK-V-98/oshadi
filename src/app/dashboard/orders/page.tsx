@@ -4,9 +4,8 @@ import { useState, useEffect, useMemo } from 'react';
 import { useUser, useFirestore } from '@/firebase';
 import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
-import { Button } from '@/components/ui/button';
-import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
-import { Loader2, Unlock, History, ShoppingBag } from 'lucide-react';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Loader2, History, ShoppingBag } from 'lucide-react';
 import {
   Accordion,
   AccordionContent,
@@ -23,7 +22,6 @@ import {
 } from "@/components/ui/table"
 import { Badge } from '@/components/ui/badge';
 import { CartItem } from '@/context/CartContext';
-import { unlockContentForOrder } from '@/app/actions/unlockActions';
 
 
 interface Order {
@@ -42,7 +40,6 @@ function OrdersDashboardPage() {
 
   const [orders, setOrders] = useState<Order[]>([]);
   const [loadingOrders, setLoadingOrders] = useState(true);
-  const [unlockingOrder, setUnlockingOrder] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user || !firestore) return;
@@ -66,31 +63,6 @@ function OrdersDashboardPage() {
     };
   }, [user, firestore, toast]);
 
-  const handleUnlockContent = async (orderId: string) => {
-      if(!user) return;
-      setUnlockingOrder(orderId);
-      
-      try {
-        const token = await user.getIdToken(true);
-        const result = await unlockContentForOrder(token, orderId);
-
-        if (!result.success) {
-            throw new Error(result.error || 'Failed to unlock content.');
-        }
-
-        toast({
-            title: "Content Unlocked!",
-            description: "Your new items are now available in 'My Unlocked Content'.",
-        });
-
-      } catch (error: any) {
-        console.error("Error unlocking content:", error);
-        toast({ title: "Unlock Failed", description: error.message, variant: 'destructive' });
-      } finally {
-        setUnlockingOrder(null);
-      }
-  }
-
     const getStatusColor = (status: Order['status']) => {
         switch (status) {
             case 'pending': return 'bg-gray-100 text-gray-800';
@@ -101,20 +73,17 @@ function OrdersDashboardPage() {
         }
     }
     
-    const { readyToUnlockOrders, activeOrders, historicalOrders } = useMemo(() => {
-        const ready: Order[] = [];
+    const { activeOrders, historicalOrders } = useMemo(() => {
         const active: Order[] = [];
         const historical: Order[] = [];
         orders.forEach(order => {
-            if (order.status === 'completed' && !order.contentUnlocked) {
-                 ready.push(order);
-            } else if (order.status === 'completed' && order.contentUnlocked) {
+            if (order.status === 'completed') {
                 historical.push(order);
             } else {
                 active.push(order);
             }
         });
-        return { readyToUnlockOrders: ready, activeOrders: active, historicalOrders: historical };
+        return { activeOrders: active, historicalOrders: historical };
     }, [orders]);
 
 
@@ -122,7 +91,7 @@ function OrdersDashboardPage() {
     <div className="container mx-auto px-4 py-8 space-y-12">
         <div>
             <h1 className="text-3xl font-bold font-heading mb-2">My Orders</h1>
-            <p className="text-muted-foreground">Manage your orders and unlock purchased content.</p>
+            <p className="text-muted-foreground">Manage and track your orders.</p>
         </div>
 
         {loadingOrders ? (
@@ -132,31 +101,6 @@ function OrdersDashboardPage() {
             </div>
         ) : (
             <>
-                {readyToUnlockOrders.length > 0 && (
-                    <div>
-                        <h2 className="text-2xl font-bold font-heading mb-4 text-primary">Ready to Unlock</h2>
-                         {readyToUnlockOrders.map(order => (
-                             <Card key={order.id} className="mb-4 border-primary shadow-soft">
-                                 <CardHeader>
-                                     <CardTitle>Order Completed!</CardTitle>
-                                     <CardDescription>Your order from {order.createdAt.toDate().toLocaleDateString()} is ready. Click below to access your content.</CardDescription>
-                                 </CardHeader>
-                                 <CardContent>
-                                     <ul className="text-sm list-disc pl-5 mb-4 text-muted-foreground">
-                                         {order.items.map(item => <li key={item.id}>{item.unitName} ({item.language} {item.type})</li>)}
-                                     </ul>
-                                 </CardContent>
-                                 <CardContent>
-                                    <Button className="w-full" size="lg" onClick={() => handleUnlockContent(order.id)} disabled={unlockingOrder === order.id}>
-                                        {unlockingOrder === order.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Unlock className="mr-2 h-4 w-4" />}
-                                        {unlockingOrder === order.id ? 'Unlocking...' : 'Unlock My Content'}
-                                    </Button>
-                                 </CardContent>
-                             </Card>
-                         ))}
-                    </div>
-                )}
-                
                 <div>
                     <h2 className="text-2xl font-bold font-heading mb-4">My Active Orders</h2>
                     {activeOrders.length > 0 ? (

@@ -16,7 +16,7 @@ export default function AdminLayout({
   return (
     <AuthGuard adminOnly={true}>
         <div className="min-h-screen bg-background flex flex-col">
-            <Navbar onUnlockClick={() => setIsAuthModalOpen(true)} onLoginClick={() => setIsAuthModalOpen(true)} />
+            <Navbar onLoginClick={() => setIsAuthModalOpen(true)} />
             <main className="flex-grow pt-20">
                 {children}
             </main>

@@ -26,7 +26,6 @@ import CartDrawer from "@/components/CartDrawer";
 import { useCart } from "@/context/CartContext";
 
 type NavbarProps = {
-  onUnlockClick: () => void;
   onLoginClick: () => void;
 };
 
@@ -37,7 +36,7 @@ const courseCategories = [
     { name: "Extra Notes", href: "/extra-notes" },
 ];
 
-const Navbar = ({ onUnlockClick, onLoginClick }: NavbarProps) => {
+const Navbar = ({ onLoginClick }: NavbarProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const { user } = useUser();

@@ -3,12 +3,7 @@ import { BookOpen, MessageCircle, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
 
-type HeroProps = {
-  onUnlockClick: () => void;
-};
-
-
-const Hero = ({ onUnlockClick }: HeroProps) => {
+const Hero = () => {
   return (
     <section id="home" className="relative min-h-screen flex items-center justify-center overflow-hidden pt-20">
       {/* Background Image */}
@@ -55,7 +50,7 @@ const Hero = ({ onUnlockClick }: HeroProps) => {
           {/* CTA Buttons */}
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-fade-in-up" style={{ animationDelay: "0.3s" }}>
             <Button asChild variant="hero" size="xl">
-              <a href="#notes">
+              <a href="#pricing">
                 <BookOpen className="w-5 h-5" />
                 View Course Notes
               </a>

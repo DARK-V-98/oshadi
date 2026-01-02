@@ -2,7 +2,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useFirestore } from '@/firebase';
-import { collection, query, orderBy, onSnapshot, doc, updateDoc, getDoc, writeBatch, deleteDoc, getDocs, where } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import {
   Table,
@@ -36,7 +36,6 @@ import { ShoppingBag, ArrowLeft, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { CartItem } from '@/context/CartContext';
-import { Unit } from '@/lib/data';
 
 interface Order {
     id: string;
@@ -81,10 +80,9 @@ const AdminOrderManagement = () => {
         const orderDocRef = doc(firestore, 'orders', orderId);
         
         try {
-            // Simply update the status. Unlocking is now handled by the user.
             await updateDoc(orderDocRef, { status: newStatus });
             
-            toast({ title: "Status Updated", description: `Order status changed to ${newStatus}. The user will be prompted to unlock their content.` });
+            toast({ title: "Status Updated", description: `Order status changed to ${newStatus}.` });
         } catch (error) {
             console.error("Error updating status:", error);
             toast({ title: "Error", description: "Failed to update order status.", variant: "destructive" });
