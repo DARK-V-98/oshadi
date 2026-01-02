@@ -1,5 +1,5 @@
 
-import { initializeApp, getApps, App, getApp as getAdminApp, AppOptions } from 'firebase-admin/app';
+import { initializeApp, getApps, App, getApp as getAdminApp, AppOptions, credential } from 'firebase-admin/app';
 import { getAuth, Auth } from 'firebase-admin/auth';
 import { getFirestore, Firestore } from 'firebase-admin/firestore';
 import { getStorage, Storage } from 'firebase-admin/storage';
@@ -7,22 +7,30 @@ import { getStorage, Storage } from 'firebase-admin/storage';
 let adminApp: App;
 
 function initializeAdminApp(): App {
-    // If an app is already initialized, return it.
     if (getApps().length > 0) {
         return getAdminApp();
     }
 
-    // Otherwise, create a new app.
-    // Explicitly set the projectId to ensure the backend always uses the correct Firebase project.
-    // This resolves audience claim mismatch errors by ensuring the token's 'aud' claim
-    // matches the project the Admin SDK is authenticated for.
+    let serviceAccount;
+    if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
+        try {
+            serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
+        } catch (e: any) {
+            console.error("Critical Error: FIREBASE_SERVICE_ACCOUNT_KEY environment variable is not valid JSON.", e.message);
+            throw new Error("Could not initialize Firebase Admin. Service account key is malformed.");
+        }
+    } else {
+        console.warn("Warning: FIREBASE_SERVICE_ACCOUNT_KEY is not set. Using default application credentials. This might fail in some environments.");
+    }
+    
     const appOptions: AppOptions = {
         projectId: 'esystemlkapp',
         storageBucket: 'esystemlkapp.appspot.com',
+        credential: serviceAccount ? credential.cert(serviceAccount) : undefined,
     };
 
-    // Initialize the app and return it.
-    return initializeApp(appOptions);
+    adminApp = initializeApp(appOptions);
+    return adminApp;
 }
 
 // Ensure the app is initialized when this module is first imported.
